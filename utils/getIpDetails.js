@@ -1,4 +1,4 @@
-const getIpDetails = async (req) => {
+export const getIpDetails = async (req) => {
     // Get the IP address
     const ip = req.headers["x-forwarded-for"]
       ? req.headers["x-forwarded-for"].split(",")[0].trim()

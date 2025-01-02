@@ -9,7 +9,7 @@ const router = Router();
 router.get("/recharge-history", authenticateUser, getRechargeHistory);
 
 // Get Transaction History
-router.get("/transaction-history", authenticateUser, getTransactionHistory);
+router.get("/transaction-history",  getTransactionHistory);
 //save recharge History
 router.post("/saveRechargeHistory", saveRechargeHistory);
 //save Number  History

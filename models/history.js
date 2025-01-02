@@ -37,10 +37,11 @@ const NumberHistorySchema = new mongoose.Schema({
       required: true,
     },
     date_time: String,
-    reason: {
-      type: String,
-      required: true,
-    },
+    id:{
+      type:String,
+      required:true
+    }
+   
   });
   const NumberHistory = mongoose.model('NumberHistory', NumberHistorySchema);
 

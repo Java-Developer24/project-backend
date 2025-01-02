@@ -2,6 +2,7 @@ import User from "../models/user.js";
 import bcrypt from 'bcrypt';
 import mongoose from "mongoose";
 import generateApiKey from "../utils/generateApiKey.js";
+import { Order } from "../models/order.js";
 
 import { userDiscountModel } from '../models/userDiscount.js'; // Import user discount model
 
@@ -591,5 +592,16 @@ export  const getBlockedUserCount=async (req, res) => {
   } catch (error) {
     console.error('Error fetching blocked user count:', error);
     return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const getOrdersByUserId = async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    const orders = await Order.find({ userId }).sort({ orderTime: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching orders", error });
   }
 };

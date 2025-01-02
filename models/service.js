@@ -4,7 +4,10 @@ import { serverSchema } from './server.js';
 const serviceSchema = new mongoose.Schema({
     name: { type: String, required: true, unique: true, index: true },
     servers: [serverSchema],
-    lowestPrice: Number,
+    lowestPrice: {
+      type: Number, // Stores the lowest price among all servers for this service
+      default: 0, // Default value in case no price is set yet
+    },
     service_code: String,
     maintenance: { type: Boolean, default: false },
     discount: { type: Number, default: 0 },

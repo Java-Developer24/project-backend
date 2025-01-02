@@ -2,7 +2,7 @@ import express from "express";
 import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser } from "../controllers/userController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateCaptcha } from "../middleware/authMiddleware.js";
-
+import { getOrdersByUserId } from "../controllers/userController.js";
 const router = express.Router();
 
 // Fetch user data
@@ -52,6 +52,6 @@ router.post("/add-user-discount",addUserDiscount)
 
 router.delete("/delete-user-discount",deleteUserDiscount)
 
-
+router.get("/orders", getOrdersByUserId);
 
 export default router;
