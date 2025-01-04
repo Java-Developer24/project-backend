@@ -1,8 +1,11 @@
 import User from "../models/user.js";
 import bcrypt from 'bcrypt';
+import moment from "moment";
+
 import mongoose from "mongoose";
 import generateApiKey from "../utils/generateApiKey.js";
 import { Order } from "../models/order.js";
+import { RechargeHistory } from "../models/history.js";
 
 import { userDiscountModel } from '../models/userDiscount.js'; // Import user discount model
 
@@ -336,12 +339,13 @@ export const blockUser = async (req, res) => {
     // Construct the update payload
     const updatePayload = {
       status: blocked ? 'blocked' : 'active',
+      blocked: blocked, // Set blocked status as per the frontend request (true or false)
     };
 
-    // Add blocked_reason to payload if the user is being blocked
-    if (blocked && blocked_reason) {
-      updatePayload.blocked_reason = blocked_reason;
-    } else if (!blocked) {
+    // Set blocked_reason if the user is being blocked
+    if (blocked) {
+      updatePayload.blocked_reason = blocked_reason || "Blocked by Admin"; // Default reason if not provided
+    } else {
       updatePayload.blocked_reason = null; // Clear the reason if unblocking
     }
 
@@ -357,14 +361,15 @@ export const blockUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Send only success response
+    // Send success response
     return res.status(200).json({ status: 'SUCCESS' });
 
   } catch (error) {
-    console.error('Error blocking user:', error);
+    console.error('Error blocking/unblocking user:', error);
     return res.status(500).json({ message: 'Failed to block/unblock user' });
   }
 };
+
 
 export const updateUserBalance = async (req, res) => {
   try {
@@ -374,7 +379,17 @@ export const updateUserBalance = async (req, res) => {
     if (!userId || typeof new_balance !== 'number') {
       return res.status(400).json({ message: 'userId and new_balance are required and balance must be a number' });
     }
+         // Fetch the user by userId to get the current balance before update
+    const user = await User.findById(userId);
+    
+    // If user is not found, return 404
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
+    const oldBalance = user.balance;
+    console.log(oldBalance)
+    console.log(new_balance)
     // Find the user by userId and update the balance
     const updatedUser = await User.findOneAndUpdate(
       { _id: userId },
@@ -386,6 +401,23 @@ export const updateUserBalance = async (req, res) => {
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    // Generate a unique transaction ID (could be a random string or a UUID)
+    const transactionId = `Admin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const formattedDate = moment().format("DD/MM/YYYYTHH:mm A");
+
+    // Create a RechargeHistory entry for the admin's action
+    const rechargeHistory = new RechargeHistory({
+      userId,
+      transactionId,
+      method: 'Admin', // Indicating that the balance update was performed by an admin
+      amount: new_balance - oldBalance, // The amount added or deducted
+      date_time: formattedDate,
+      status: 'Completed', // Assuming the transaction is successful
+    });
+
+    // Save the RechargeHistory
+    await rechargeHistory.save();
 
     // Send success response with updated balance
     return res.status(200).json({

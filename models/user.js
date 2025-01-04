@@ -35,6 +35,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+ 
+  blocked:{
+    type: Boolean, default: false
+  },
   status: {
     type: String,
     enum: ['active', 'blocked', 'inactive'], // Blocked users cannot access services

@@ -33,7 +33,7 @@ const NumberHistorySchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['Success', 'Cancelled',"Pending"],
+      enum: ['Success', 'Cancelled',"Pending,Finished"],
       required: true,
     },
     date_time: String,

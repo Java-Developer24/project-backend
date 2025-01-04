@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/user-data",authenticateUser,  fetchUserData);
 
 // Fetch user balance
-router.get("/balance", authenticateUser, fetchBalance);
+router.get("/balance", fetchBalance);
 //change user password
 router.post("/change-password",authenticateUser,validateCaptcha,changePassword)
 //change user Api

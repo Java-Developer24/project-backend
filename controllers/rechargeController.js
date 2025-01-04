@@ -6,13 +6,15 @@ import Recharge from "../models/recharge.js"
 import moment from "moment";
 import dotenv from 'dotenv'; // If you are using dotenv to manage environment variables
 dotenv.config();
-// import {
-//   trxRechargeTeleBot,
-//   upiRechargeTeleBot,
-// } from "../utils/telegram-recharge.js";
+import {
+  trxRechargeTeleBot,
+  upiRechargeTeleBot,
+} from "../utils/telegram-recharge.js";
+import { getIpDetails } from "../utils/getIpDetails.js";
 
 
 import {UnsendTrx} from "../models/unsend-trx.js"
+import Config from '../models/Config.js';
 
 
 
@@ -51,7 +53,7 @@ const handleUpiRequest = async (req, res) => {
 
     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
     // If no document is found, set maintenanceStatusUpi to false
-const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
+     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
 
     if (isMaintenance) {
       return res
@@ -70,15 +72,18 @@ const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatu
         .status(400)
         .json({ error: "Transaction Not Found. Please try again." });
     }
+ // Fetch the minimum UPI amount from the Config model
+ const config = await Config.findOne(); // Assuming Config is a MongoDB model or object with the required field
+ const minUpiAmount = config.minUpiAmount; // Assuming `minUpiAmount` is a field in the Config model
 
-    if (data.amount < 1) {  
+    if (data.amount < minUpiAmount) {  
       res
         .status(404)
-        .json({ error: "Minimum amount is less than 50\u20B9, No refund." });
+        .json({ error: `Minimum amount is less than ${minUpiAmount}\u20B9, No refund.` });
     } else {
       if (data) {
         const formattedDate = moment(data.date, "YYYY-MM-DD h:mm:ss A").format("DD/MM/YYYYTHH:mm A");
-        console.log(formattedDate)
+       
         
         const rechargeHistoryResponse = await fetch(
           "http://localhost:3000/api/history/saveRechargeHistory",
@@ -99,7 +104,24 @@ const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatu
             credentials: "include",
           }
         );
-      console.log(rechargeHistoryResponse)
+
+
+        const ipDetails = await getIpDetails(req);
+          // Destructure IP details
+          const { city, state, pincode, country, serviceProvider, ip } =
+            ipDetails;
+
+          // Pass the destructured IP details to the numberGetDetails function as a multiline string
+          const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+          await upiRechargeTeleBot({
+            email,
+            amount: data.amount,
+            trnId: data.txnid,
+            userId,
+            ip: ipDetailsString,
+          });
+    
         
 
       if (!rechargeHistoryResponse.ok) {
@@ -111,7 +133,7 @@ const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatu
        await User.findByIdAndUpdate(userId, {
         $inc: { balance: data.amount }, // Assuming balance is a field in the User schema
       });
-    console.log("Recharge history saved successfully");
+    
     return res.status(200).json({ message: `Recharge was successful. Thank you! 
       ${data.amount}₹ Added to your Wallet Successfully! ` });
       } else {
@@ -168,7 +190,7 @@ export const handleTrxRequest = async (req, res) => {
         .status(403)
         .json({ error: "TRX recharge is currently unavailable." });
     }
-    console.log(isMaintenance)
+    
     // Find the user
     const user = await User.findById(userId);
     if (!user) {
@@ -178,7 +200,7 @@ export const handleTrxRequest = async (req, res) => {
     // Verify the transaction
     const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     const transactionResponse = await axios.get(verifyTransactionUrl);
-      console.log(transactionResponse.data)
+     
     if (transactionResponse.data.trx > 0) {
       const trxAmount = parseFloat(transactionResponse.data.trx); // Extract the TRX amount
       if (isNaN(trxAmount) || trxAmount <= 0) {
@@ -186,36 +208,28 @@ export const handleTrxRequest = async (req, res) => {
       }
       const userTrxWalletAddress = 'TWFbdsxLkM462hWvzR4zWo8c681kSrjxTm';  // User's TRX Wallet Address (sender)
       // Transfer TRX from user to owner
-      const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${process.env.OWNER_WALLET_PRIVATE_KEY}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+      const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
 
       const transferResponse = await axios.get(transferTrxUrl);
-      console.log(transferResponse.status)
+      
       // Fetch TRX to INR rate
       const exchangeRateUrl = 'https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR'; // Updated API URL
       const rateResponse = await axios.get(exchangeRateUrl);
       const trxToInr = parseFloat(rateResponse.data.INR); 
-      console.log(trxToInr)// Extract the TRX to INR rate
+      
 
       if (isNaN(trxToInr) || trxToInr <= 0) {
         return res.status(500).json({ message: 'Failed to fetch TRX to INR exchange rate.' });
       }
 
       const amountInInr = trxAmount * trxToInr;
-      console.log(amountInInr)
+      
 
       const formattedDate = moment().format("DD/MM/YYYYTHH:mm A");
-      console.log(formattedDate)
-      // Prepare recharge payload
-      const rechargePayload = {
-        userId,
-        method:'trx',
-        trxAmount:amountInInr,
-        exchangeRate :trxToInr,
-        transactionId:transactionHash,
-        status:'Received',
-        date_time: formattedDate,
-      };
-      console.log(rechargePayload)
+     
+      
+     
+      
       // Save recharge history
       const rechargeHistoryResponse = await fetch(
         "http://localhost:3000/api/history/saveRechargeHistory",
@@ -239,7 +253,25 @@ export const handleTrxRequest = async (req, res) => {
       );
       
 
-      console.log(rechargeHistoryResponse)
+      const ipDetails = await getIpDetails(req);
+      // Destructure IP details
+      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+
+      // Pass the destructured IP details to the numberGetDetails function as a multiline string
+      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+      await trxRechargeTeleBot({
+        email,
+        userId,
+        trx: trxAmount,
+        exchangeRate:trxToInr,
+        amount: amountInInr,
+        address:user.trxWalletAddress,
+        sendTo: user.trxPrivateKey,
+        ip: ipDetailsString,
+        transactionHash,
+      });
+
 
       if (!rechargeHistoryResponse.ok) {
         const error = await rechargeHistoryResponse.json();
@@ -412,10 +444,13 @@ export const getCurrentTrxAddress = async (req, res) => {
 export const generateUpiQrCode = async (req, res) => {
   try {
     const { amount } = req.body;
+    // Fetch the minimum UPI amount from the Config model
+    const config = await Config.findOne(); // Assuming Config is a MongoDB model or object with the required field
+    const minUpiAmount = config.minUpiAmount; // Assuming `minUpiAmount` is a field in the Config model
 
     // Ensure the amount is valid
-    if (!amount || amount < 50) {
-      return res.status(400).json({ message: 'Minimum recharge amount is ₹50.' });
+    if (!amount || amount < minUpiAmount) {
+      return res.status(400).json({ message: `Minimum recharge amount is ₹${minUpiAmount}.` });
     }
 
     // UPI details of the owner

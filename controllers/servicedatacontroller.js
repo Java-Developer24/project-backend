@@ -7,9 +7,13 @@ import { userDiscountModel } from '../models/userDiscount.js'
 import { Order } from "./../models/order.js";
 import fetch from "node-fetch";
 import ServerData from "../models/serverData.js";
+import { userBlockDetails } from "../utils/telegram-userblock.js";
+import {BlockModel} from "../models/block.js"
 import {
 
     numberGetDetails,
+    otpGetDetails,
+    numberCancelDetails
    
   } from "../utils/telegram-service.js";
 
@@ -73,7 +77,7 @@ const getServerData = async (sname, server) => {
   };
   
   // Helper function to construct API URL
-  const constructApiUrl = (server, api_key_server, data) => {
+  const constructApiUrl = (server, api_key_server, data,otpType) => {
     switch (server) {
       case "1":
         return `https://fastsms.su/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
@@ -99,15 +103,19 @@ const getServerData = async (sname, server) => {
       case "6":
         return `https://tempnum.org/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
   
-      case "7":
-        return `https://api2.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=false`;
-  
-      case "8":
-        return `https://api2.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=true`;
+        case "7":
+          return `  https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22&maxPrice=${data.price} `;
+         
+        case "8":
+          return `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22&maxPrice=${data.price}`;
   
       case "9":
         return `http://www.phantomunion.com:10023/pickCode-api/push/buyCandy?token=${api_key_server}&businessCode=${data.code}&quantity=1&country=IN&effectiveTime=10`;
-  
+      case "10":
+          return `https://sms-activation-service.pro/stubs/handler_api?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22`;
+      case "11":
+      return `https://api.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=${
+    otpType === "Multiple Otp" ? "true" : "false"}`;
       default:
         throw new Error("Invalid server value.");
     }
@@ -184,6 +192,23 @@ const getServerData = async (sname, server) => {
             id: phoneData.serialNumber,
             number: phoneData.number.replace("+91", ""),
           };
+          case "10": // Server 10 response: ACCESS_NUMBER:14696852:917709772308
+          const parts10 = responseData.split(":");
+          return {
+            id: parts10[1],
+            number: parts[2].substring(2),
+          };
+  
+          case "11": // Server 11 response: {"request_id":588947233,"application_id":1491,"country_id":14,"number":"919125831873"}
+          const response11Data = JSON.parse(responseData);
+          const fullNumber = response11Data.number;
+          const trimmedNumber = fullNumber.startsWith("91") ? fullNumber.substring(2) : fullNumber;
+          return {
+            id: response11Data.request_id,
+            number: trimmedNumber,
+          };
+        
+  
   
         default:
           throw new Error("No numbers available. Please try different server.");
@@ -233,7 +258,7 @@ const getServerData = async (sname, server) => {
   
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { servicecode, api_key, server } = req.query;
+      const { servicecode, api_key, server,otpType } = req.query;
   
       if (!servicecode || !api_key || !server) {
         return res
@@ -272,7 +297,7 @@ const getServerData = async (sname, server) => {
         return res.status(400).json({ error: "Insufficient balance." });
       }
   
-      const apiUrl = constructApiUrl(server, api_key_server, serviceData);
+      const apiUrl = constructApiUrl(server, api_key_server, serviceData,otpType);
   
       let response, responseData;
       let retry = true;
@@ -285,12 +310,14 @@ const getServerData = async (sname, server) => {
         }
   
         if (!response.ok) {
+          console.log('Error status:', response.status);  // Log status code for debugging
           throw new Error("No numbers available. Please try different server.");
         }
-  
+        
         responseData = await response.text();
+        console.log('API Response Data:', responseData);
   
-        if (!responseData) {
+        if (!responseData ||responseData.trim() === "") {
           throw new Error("No numbers available. Please try a different server.");
         }
   
@@ -308,7 +335,7 @@ const getServerData = async (sname, server) => {
       }
   
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
-      price = parseFloat((price + totalDiscount).toFixed(2));
+      price = parseFloat((price - totalDiscount).toFixed(2));
   
       user.balance -= price;
       user.balance = parseFloat(user.balance.toFixed(2));
@@ -329,19 +356,19 @@ const getServerData = async (sname, server) => {
       });
       await numberHistory.save();
   
-    //   const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
-    //   const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
   
-    //   await numberGetDetails({
-    //     email: userData.email,
-    //     serviceName: sname,
-    //     serviceCode: serviceData.code,
-    //     price,
-    //     server,
-    //     number,
-    //     balance: user.balance,
-    //     ip: ipDetailsString,
-    //   });
+      await numberGetDetails({
+        email: user.email,
+        serviceName: sname,
+        serviceCode: serviceData.code,
+        price,
+        server,
+        number,
+        balance: user.balance,
+        ip: ipDetailsString,
+      });
   
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 20);
@@ -351,6 +378,7 @@ const getServerData = async (sname, server) => {
         service: sname,
         price,
         server,
+        otpType,
         numberId: id,
         number,
         orderTime: new Date(),
@@ -365,56 +393,67 @@ const getServerData = async (sname, server) => {
     }
   };
   
-  const checkAndCancelExpiredOrders = async () => {
-    try {
-      const currentTime = new Date();
-      const expiredOrders = await Order.find({
-        expirationTime: { $lte: new Date(currentTime.getTime() + 60000) },
-      });
-  
-      for (const order of expiredOrders) {
-        const timeDifference =
-          new Date(order.expirationTime).getTime() -
-          currentTime.getTime() -
-          60000;
-        if (timeDifference >= 0) {
-          setTimeout(() => cancelOrder(order), timeDifference);
-        } else {
-          // Get the API key
-          const user = await User.findOne({ userId: order.userId });
-  
-          // Call the numberCancel function
-          await fetch(
-            `${process.env.BASE_URL}/api/number-cancel?api_key=${user.api_key}&id=${order.numberId}&server=${order.server}`
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error in checkAndCancelExpiredOrders:", error.message);
-    }
-  };
-  export const cancelOrder = async (order) => {
-    try {
-      // Get the API key
-      const user = await User.findOne({ userId: order.userId });
-  
-      if (user && user.api_key) {
-        // Call the numberCancel function
-        await fetch(
-          `${process.env.BASE_URL}/api/service/number-cancel?api_key=${user.api_key}&id=${order.numberId}&server=${order.server}`
-        );
+  const TIME_OFFSET = 60000; // 1 minute in milliseconds
+
+const checkAndCancelExpiredOrders = async () => {
+  try {
+    const currentTime = new Date();
+    const expiredOrders = await Order.find({
+      expirationTime: { $lte: new Date(currentTime.getTime() + TIME_OFFSET) },
+    });
+
+    for (const order of expiredOrders) {
+      const timeDifference =
+        new Date(order.expirationTime).getTime() - currentTime.getTime() - TIME_OFFSET;
+
+      if (timeDifference >= 0) {
+        // Schedule cancellation if within future range
+        setTimeout(() => cancelOrder(order), timeDifference);
       } else {
-        console.error(`No API key found for user ${order.userId}`);
+        // Immediately cancel already expired orders
+        await cancelOrder(order);
       }
-    } catch (error) {
-      console.error(`Error cancelling order ${order._id}:`, error.message);
     }
-  };
+  } catch (error) {
+    console.error("Error in checkAndCancelExpiredOrders:", error.message);
+  }
+};
+
+export const cancelOrder = async (order) => {
+  try {
+    const user = await User.findOne({ _id: order.userId });
+
+    if (user && user.apiKey) {
+      await callNumberCancelAPI(user.apiKey, order.numberId, order.server);
+    } else {
+      console.error(`No API key found for user ${order.userId}`);
+    }
+  } catch (error) {
+    console.error(`Error cancelling order ${order._id}:`, error.message);
+  }
+};
+
+const callNumberCancelAPI = async (apiKey, numberId, server) => {
+  try {
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
+    );
+
+    if (!response.ok) {
+      const errorResponse = await response.json();
+      console.error(`API call failed:`, errorResponse);
+    }
+  } catch (error) {
+    console.error("Error in callNumberCancelAPI:", error.message);
+  }
+};
+
 
   const getOtp = async (req, res) => {
     try {
-      const { id, api_key, server } = req.query;
+      const { id, api_key, server,otpType } = req.query;
       console.log(id)
+      console.log(server)
   
       if (!id) {
         return res.status(400).json({ error: "ID is required." });
@@ -439,6 +478,7 @@ const getServerData = async (sname, server) => {
       // Check server maintenance and get API key
       const serverData = await getServerMaintenanceData(server);
       const api_key_server = serverData.api_key; // Fetch API key from ServerModel
+      console.log(api_key_server)
   
       switch (server) {
         case "1":
@@ -470,24 +510,29 @@ const getServerData = async (sname, server) => {
           break;
   
         case "7":
-          apiUrl = `https://api2.sms-man.com/control/get-sms?token=${api_key_server}&request_id=${id}`;
+          apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
         case "8":
-          apiUrl = `https://api2.sms-man.com/control/get-sms?token=${api_key_server}&request_id=${id}`;
+          apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
         case "9":
           apiUrl = `http://www.phantomunion.com:10023/pickCode-api/push/sweetWrapper?token=${api_key_server}&serialNumber=${id}`;
           break;
-  
+        case "10":
+            apiUrl=`https://sms-activation-service.pro/stubs/handler_api?api_key=${api_key_server}&action=getStatus&id=${id} `
+            break;
+        case "11":
+          apiUrl=`https://api.sms-man.com/control/get-sms?token=${api_key_server}&request_id=${id}`
+          break;
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
   
       // Fetch data from the API URL
       const response = await fetch(apiUrl, { headers });
-  console.log(id)
+        console.log(id)
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
@@ -514,15 +559,39 @@ const getServerData = async (sname, server) => {
             validOtp = otp;
           }
           break;
-        case "2":
-          responseDataJson = JSON.parse(responseData);
-          if (responseDataJson.sms && responseDataJson.sms.length > 0) {
-            const latestSms = responseDataJson.sms.sort(
-              (a, b) => new Date(b.date) - new Date(a.date)
-            )[0];
-            validOtp = latestSms.text;
-          }
-          break;
+          case "2":
+            try {
+              // Parse the response data as JSON
+              const responseDataJson = JSON.parse(responseData);
+          
+              // Initialize validOtp as an array to store all OTPs
+              validOtp = [];
+          
+              // Check if the "sms" array exists and contains messages
+              if (responseDataJson.sms && responseDataJson.sms.length > 0) {
+                // Sort SMS messages by the most recent date (descending order)
+                const sortedSms = responseDataJson.sms.sort(
+                  (a, b) => new Date(b.date) - new Date(a.date)
+                );
+          
+                // Extract OTPs from all messages and store them in the validOtp array
+                validOtp = sortedSms
+                  .map((sms) => {
+                    const otpMatch = sms.text.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
+                    return otpMatch ? otpMatch[0] : null; // Return OTP if found, otherwise null
+                  })
+                  .filter((otp) => otp !== null); // Remove any null values
+              } else {
+                // No OTP available in the "sms" array
+                console.log("No OTP received in the response.");
+                validOtp = []; // Empty array if no OTPs
+              }
+            } catch (error) {
+              console.error("Error processing case 2 response:", error.message);
+              throw new Error("Failed to process the OTP response for case 2.");
+            }
+            break;
+          
   
         case "3":
           // Check if the response data includes "OK" followed by the OTP
@@ -556,16 +625,39 @@ const getServerData = async (sname, server) => {
           }
           break;
   
-        case "6":
-          // Check if the response data includes "OK" followed by the OTP
-          if (responseData.startsWith("STATUS_OK")) {
-            // Split the response data to extract the part after "STATUS_OK:"
-            const parts = responseData.split(":");
-            const otp = parts[1].trim(); // Trim to remove any leading or trailing spaces
-  
-            validOtp = otp;
-          }
-          break;
+          case "6":
+            try {
+              // Check if the response data starts with "STATUS_OK"
+              if (responseData.startsWith("STATUS_OK")) {
+                // Split the response data to extract the part after "STATUS_OK:"
+                const parts = responseData.split(":");
+                const messageText = parts[1]?.trim(); // Trim to remove any leading or trailing spaces
+          
+                // Use a regular expression to extract the OTP (4-6 digit number)
+                const otpMatch = messageText.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
+          
+                if (otpMatch) {
+                  validOtp = otpMatch[0]; // Store the extracted OTP
+                } else {
+                  console.log("No OTP found in the STATUS_OK message.");
+                  validOtp = null; // No OTP found
+                }
+              } else if (responseData.startsWith("STATUS_WAIT_CODE")) {
+                console.log("Waiting for SMS...");
+                validOtp = null; // No OTP yet, waiting for SMS
+              } else if (responseData.startsWith("STATUS_CANCEL")) {
+                console.log("Activation canceled.");
+                validOtp = null; // Activation was canceled
+              } else {
+                console.log("Unexpected response status.");
+                validOtp = null; // Handle unexpected response
+              }
+            } catch (error) {
+              console.error("Error processing case 6 response:", error.message);
+              throw new Error("Failed to process the OTP response for case 6.");
+            }
+            break;
+          
   
         case "7":
           const response7Data = JSON.parse(responseData);
@@ -581,67 +673,141 @@ const getServerData = async (sname, server) => {
           }
           break;
   
-        case "9":
-          responseDataJson = JSON.parse(responseData);
-          const otp = responseDataJson.data.verificationCode[0].vc;
-          validOtp = otp;
+          case "9":
+            try {
+              // Parse the response data as JSON
+              const responseDataJson = JSON.parse(responseData);
+          
+              // Check if `verificationCode` and its first element exist
+              if (
+                responseDataJson?.data?.verificationCode &&
+                responseDataJson.data.verificationCode.length > 0
+              ) {
+                const vcText = responseDataJson.data.verificationCode[0]?.vc?.trim(); // Get and trim `vc`
+          
+                if (vcText) {
+                  // Use a regular expression to extract the OTP (4-6 digit number)
+                  const otpMatch = vcText.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
+          
+                  if (otpMatch) {
+                    validOtp = otpMatch[0]; // Store the extracted OTP
+                  } else {
+                    console.log("No OTP found in the vc field.");
+                    validOtp = null; // No OTP found in `vc`
+                  }
+                } else {
+                  console.log("vc field is empty or undefined.");
+                  validOtp = null; // No `vc` provided
+                }
+              } else {
+                console.log("Verification code data is missing or empty.");
+                validOtp = null; // No verification code data
+              }
+            } catch (error) {
+              console.error("Error processing case 9 response:", error.message);
+              throw new Error("Failed to process the OTP response for case 9.");
+            }
+            break;
+          
+          case "10":
+            // Check if the response data includes "OK" followed by the OTP
+          if (responseData.startsWith("STATUS_OK")) {
+            // Split the response data to extract the part after "STATUS_OK:"
+            const parts = responseData.split(":");
+            const otp = parts[1].trim(); // Trim to remove any leading or trailing spaces
+  
+            validOtp = otp;
+          }
           break;
+          case "11":
+            try {
+              // Parse the response data as JSON
+              const parsedData = JSON.parse(responseData);
+          
+              // Check if `sms_code` is present, indicating the OTP has been received
+                      if (parsedData.sms_code) {
+                validOtp = parsedData.sms_code; // Store the OTP in `validOtp`
+              } else if (
+                parsedData.error_code === "wait_sms" &&
+                parsedData.error_msg === "Still waiting..."
+              ) {
+                console.log("Waiting for OTP..."); // Optional log to indicate waiting
+                validOtp = null; // No OTP available yet
+              } else {
+                throw new Error("Unexpected response format or missing fields.");
+              }
+            } catch (error) {
+              console.error("Error processing case 11 response:", error.message);
+              throw new Error("Failed to process OTP response.");
+            }
+              break;
+
   
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
-      console.log("userids",validOtp)
-
+      
       if (validOtp) {
         const existingEntry = await NumberHistory.findOne({
           id,
           otp: validOtp,
         });
-        console.log(existingEntry)
-       
-  
-        if (!existingEntry) { 
-          // Format the current date and time using Moment.js
+        console.log("Existing Entry:", existingEntry);
+      
+        if (!existingEntry) {
+          // Fetch transaction data
+          const transaction = await NumberHistory.findOne({ id });
+          console.log("Transaction:", transaction);
+      
+          if (!transaction) {
+            return res.status(404).json({ error: "Transaction not found." });
+          }
+      
+          // Format the current date and time
           const formattedDateTime = moment().format("MM/DD/YYYYTHH:mm:ss A");
-          console.log("id",id)
-          // Find the corresponding transaction history entry
-          // const transaction = await NumberHistory.findOne({ id });
-          
-
-          // Create a new transactionHistory instance and save it to the database
+      
+          // Update the OTP entry format to include "message" as an object, not a string
+          const otpEntry = {
+            message: validOtp, // Valid OTP message here
+            date: new Date(), // Use the current date or the appropriate date
+          };
+      
+          // Create and save the new entry
           const numberHistory = new NumberHistory({
             userId: user._id,
-            service: transaction.service,
+            serviceName: transaction.serviceName,
             price: transaction.price,
             server,
             id,
-            otp: validOtp,
-            status: "Success",
+            otps: [otpEntry],  // Ensure this is an array of objects, not just a string
+            status: "Finished",
             number: transaction.number,
             date_time: formattedDateTime,
           });
+      
           await numberHistory.save();
-  
+          console.log("Saved OTP Entry:", numberHistory);
           // Fetch IP details using the getIpDetails function
-          const ipDetails = await getIpDetails(req);
-        //   // Destructure IP details
-        //   const { city, state, pincode, country, serviceProvider, ip } =
-        //     ipDetails;
-  
-          // Pass the destructured IP details to the numberGetDetails function as a multiline string
-        //   const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-  
-        //   await otpGetDetails({
-        //     email: userData.email,
-        //     serviceName: transaction.service,
-        //     price: transaction.price,
-        //     server,
-        //     number: transaction.number,
-        //     otp: validOtp,
-        //     ip: ipDetailsString,
-        //   });
+        const ipDetails = await getIpDetails(req);
+        // Destructure IP details
+        const { city, state, pincode, country, serviceProvider, ip } =
+          ipDetails;
+
+        // Pass the destructured IP details to the numberGetDetails function as a multiline string
+        const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+        await otpGetDetails({
+          email: userData.email,
+          serviceName: transaction.service,
+          price: transaction.price,
+          server,
+          number: transaction.number,
+          otp: validOtp,
+          ip: ipDetailsString,
+        }); 
         }
       }
+      
       // Automatically trigger the next OTP URL for server 1
       if (server === "1" && validOtp) {
         setTimeout(async () => {
@@ -707,6 +873,24 @@ const getServerData = async (sname, server) => {
         setTimeout(async () => {
           try {
             const nextOtpResponse = await fetch(
+              `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=setStatus&status=3&id=${id}`
+            );
+  
+            if (!nextOtpResponse.ok) {
+              throw new Error("Network response was not ok");
+            }
+  
+            const nextOtpResponseData = await nextOtpResponse.text();
+            console.log("nextotp:", nextOtpResponseData);
+          } catch (nextOtpError) {
+            console.error("Error fetching next OTP:", nextOtpError.message);
+          }
+        }, 1000); // Adjust the delay as needed
+      }
+      if (server === "11" && validOtp) {
+        setTimeout(async () => {
+          try {
+            const nextOtpResponse = await fetch(
               `https://api2.sms-man.com/control/set-status?token=${api_key_server}&request_id=${id}&status=retrysms`
             );
   
@@ -721,7 +905,7 @@ const getServerData = async (sname, server) => {
           }
         }, 1000); // Adjust the delay as needed
       }
-  
+      console.log("otp",validOtp)
       res.status(200).json({ otp: validOtp || "" });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
@@ -788,7 +972,7 @@ const getServerData = async (sname, server) => {
       let apiUrl;
       let headers;
   
-      const user = await User.findOne({ apiKey:api_key });
+      const user = await User.findOne({ apiKey: api_key });
       if (!user) {
         return res.status(400).json({ error: "Invalid api key." });
       }
@@ -799,6 +983,7 @@ const getServerData = async (sname, server) => {
       if (maintainanceServerData.maintainance) {
         return res.status(403).json({ error: "Site is under maintenance." });
       }
+  
       const serverData = await ServerData.findOne({ server });
   
       if (serverData.maintainance) {
@@ -815,22 +1000,23 @@ const getServerData = async (sname, server) => {
       // Find the transaction with the matching ID
       const data = userTransactions.filter((t) => t.id === id);
   
-      if (data.some((t) => t.otp)) {
+      if (data.some((t) => t.otps)) {
         await Order.deleteOne({ numberId: id });
         return res.status(200).json({ access: "Otp Received" });
       }
   
-      if (data.some((t) => t.status === "CANCELLED")) {
+      if (data.some((t) => t.status === "Cancelled")) {
         return res.status(200).json({ access: "Number Cancelled" });
       }
+  
       userTransactions = userTransactions
-        .filter((u) => u.status === "CANCELLED")
+        .filter((u) => u.status === "Cancelled")
         .reverse();
   
       let thirdLastTransactions = null;
   
-      if (userTransactions.length >= 10) {
-        thirdLastTransactions = userTransactions[9];
+      if (userTransactions.length >= 3) {
+        thirdLastTransactions = userTransactions[2];
       }
   
       switch (server) {
@@ -863,17 +1049,22 @@ const getServerData = async (sname, server) => {
           break;
   
         case "7":
-          apiUrl = `https://api2.sms-man.com/control/set-status?token=${serverData.api_key}&request_id=${id}&status=reject`;
+          apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
         case "8":
-          apiUrl = `https://api2.sms-man.com/control/set-status?token=${serverData.api_key}&request_id=${id}&status=reject`;
+          apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
         case "9":
-          apiUrl = `https://php.paidsms.in/p/ccpay.php?type=cancel&number=${data.number}`;
+          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
           break;
-  
+        case "10":
+          apiUrl = `https://sms-activation-service.pro/stubs/handler_api?api_key=${serverData.api_key}&action=setStatus&id=${id}&status=8 `;
+          break;
+        case "11":
+          apiUrl = `https://api2.sms-man.com/control/set-status?token=${serverData.api_key}&request_id=${id}&status=reject`;
+          break;
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
@@ -897,7 +1088,6 @@ const getServerData = async (sname, server) => {
   
       switch (server) {
         case "1":
-          // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("ACCESS_CANCEL")) {
             existingEntry = await NumberHistory.findOne({
               id,
@@ -925,7 +1115,6 @@ const getServerData = async (sname, server) => {
           break;
   
         case "3":
-          // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("ACCESS_CANCEL")) {
             existingEntry = await NumberHistory.findOne({
               id,
@@ -935,7 +1124,6 @@ const getServerData = async (sname, server) => {
           break;
   
         case "4":
-          // Check if the response data includes "OK" followed by the OTP
           if (
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("BAD_STATUS")
@@ -948,7 +1136,6 @@ const getServerData = async (sname, server) => {
           break;
   
         case "5":
-          // Check if the response data includes "OK" followed by the OTP
           if (
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("BAD_ACTION")
@@ -961,7 +1148,6 @@ const getServerData = async (sname, server) => {
           break;
   
         case "6":
-          // Check if the response data includes "OK" followed by the OTP
           if (
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("NO_ACTIVATION")
@@ -975,7 +1161,6 @@ const getServerData = async (sname, server) => {
   
         case "7":
           responseDataJson = JSON.parse(responseData);
-          // Check if the response data includes "OK" followed by the OTP
           if (responseDataJson.success === true || responseDataJson.error_code) {
             existingEntry = await transactionHistory.findOne({
               id,
@@ -986,7 +1171,6 @@ const getServerData = async (sname, server) => {
   
         case "8":
           responseDataJson = JSON.parse(responseData);
-          // Check if the response data includes "OK" followed by the OTP
           if (responseDataJson.success === true || responseDataJson.error_code) {
             existingEntry = await NumberHistory.findOne({
               id,
@@ -996,11 +1180,27 @@ const getServerData = async (sname, server) => {
           break;
   
         case "9":
-          // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("success")) {
             existingEntry = await NumberHistory.findOne({
               id,
               status: "Cancelled",
+            });
+          }
+          break;
+        case "10":
+          if (responseData.startsWith("ACCESS_CANCEL")) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+              status: "Cancelled",
+            });
+          }
+          break;
+        case "11":
+          if (responseData.request_id && responseData.success !== undefined) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+              status: responseData.success ? "Success" : "Failed",
+              request_id: responseData.request_id,
             });
           }
           break;
@@ -1014,30 +1214,24 @@ const getServerData = async (sname, server) => {
         return res.status(200).json({ access: "Otp Received" });
       }
   
-    //   // Fetch IP details using the getIpDetails function
-    //   const ipDetails = await getIpDetails(req);
-    //   // Destructure IP details
-    //   const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+      // Fetch IP details using the getIpDetails function
+      const ipDetails = await getIpDetails(req);
+      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
   
-    //   // Pass the destructured IP details to the numberGetDetails function as a multiline string
-    //   const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
   
       if (!existingEntry) {
-        // Format the current date and time using Moment.js
         const formattedDateTime = moment().format("MM/DD/YYYYTHH:mm:ss A");
   
-        // Find the corresponding transaction history entry
         const transaction = await NumberHistory.findOne({ id });
-        
   
-        // Create a new transactionHistory instance and save it to the database
         const numberHistory = new NumberHistory({
           userId: user._id,
           serviceName: transaction.serviceName,
           price: transaction.price,
           server,
           id,
-          otp: null,
+          otps: null,
           status: "Cancelled",
           number: transaction.number,
           date_time: formattedDateTime,
@@ -1046,24 +1240,22 @@ const getServerData = async (sname, server) => {
   
         if (!transaction.otp) {
           user.balance += parseFloat(transaction.price);
-          // Format balance to 2 decimal places
           user.balance = parseFloat(user.balance.toFixed(2));
           await user.save();
         }
-        // await numberCancelDetails({
-        //   email: userData.email,
-        //   serviceName: transaction.service,
-        //   price: transaction.price,
-        //   server,
-        //   number: transaction.number,
-        //   balance: user.balance,
-        //   ip: ipDetailsString,
-        // });
-        // Delete the order associated with the cancelled number
+        await numberCancelDetails({
+          email: userData.email,
+          serviceName: transaction.serviceName,
+          price: transaction.price,
+          server,
+          number: transaction.number,
+          balance: user.balance,
+          ip: ipDetailsString,
+        });
+  
         await Order.deleteOne({ numberId: id });
       }
   
-      // Check for spam and block user if necessary
       if (
         thirdLastTransactions &&
         isWithinTime(thirdLastTransactions.date_time)
@@ -1092,7 +1284,7 @@ const getServerData = async (sname, server) => {
       console.log(error);
     }
   };
-
+  
 
 
   export {

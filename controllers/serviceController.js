@@ -3,8 +3,9 @@ import axios from 'axios';
 
 import Service from '../models/service.js';
 import { userDiscountModel } from '../models/userDiscount.js'
-
+import User from "../models/user.js"
 import cron from "node-cron"
+import ServerData from '../models/serverData.js';
 // Schedule the task to run every 10 minutes
 // cron.schedule('*/1 * * * *', async () => {
 //     console.log('Running scheduled task: fetchAndStoreServices');
@@ -80,7 +81,7 @@ const calculateUpdatedPrice = (price, serverNumber) => {
       const servicesData = response;
   
       if (!Array.isArray(servicesData)) {
-        console.log("Invalid service data format");
+       
         return;
       }
   
@@ -143,7 +144,8 @@ const calculateUpdatedPrice = (price, serverNumber) => {
         console.timeEnd("findOneAndUpdate");
   
         if (!service) {
-          console.log(`Error storing service: ${name}`);
+        
+          
           return;
         }
   
@@ -257,9 +259,11 @@ const calculateUpdatedPrice = (price, serverNumber) => {
     }
   };
   
-  // Function to update margin amount
-  let marginAmt = 1; // Example margin amount, adjust as necessary
-// Pricing formula function
+  const query = ServerData.findOne({ server: 0 }).select('margin');
+
+ let marginAmt=query.margin
+  
+  // Pricing formula function
 const getPricingFormula = (serverNumber) => {
     // Multiplier for specific server numbers
     const multiplier = [3, 9, 10, 11].includes(serverNumber) ? 95 : 1.1;  // Specific multiplier for servers 3, 9, 10, 11
@@ -355,52 +359,108 @@ export const getServiceData = async (req, res) => {
   
 //loggined user get services data  end point
 const getUserServicesData = async (req, res) => {
-    try {
-           console.time("getServices");
-        const services = await Service.find({ maintenance: false }).lean();
-         console.timeEnd("Service.find");
-        if (!services || services.length === 0) {
-             console.log("No services found");
-            return res.status(404).json({ message: 'No services found' });
-        }
-        console.time("mapping and sorting service");
-        const servicesWithUpdatedPrice = services.map((service) => {
-             const updatedServers= service.servers.map(server => ({
-                   ...server,
-                   updatedPrice: calculateUpdatedPrice(server.price, server.discount)
-               }))
-            const sortedServers = sortServersByPrice(updatedServers.filter((server) => !server.maintenance));
+  try {
+    console.time("getServices");
 
-            return {
-                ...service,
-                servers: sortedServers,
-            };
-        });
-         console.timeEnd("mapping and sorting service");
-          console.time("sortServicesByName");
-        const sortedServices = sortServicesByName(servicesWithUpdatedPrice);
-         console.timeEnd("sortServicesByName");
-          console.timeEnd("getServices");
-        res.status(200).json(sortedServices);
-    } catch (error) {
-         console.timeEnd("getServices");
-        console.error("Error getting services:", error);
-        res.status(500).json({ message: 'Error getting services', error: error.message });
+    const { userId, api_key } = req.query;
+
+    // Validate api_key
+    if (!api_key) {
+      return res.status(400).json({ error: "API key is required" });
     }
+
+    const apikeyrequest = await User.findOne({ apiKey:api_key });
+
+    if (!apikeyrequest) {
+      return res.status(400).json({ error: "Invalid API key" });
+    }
+
+    // Fetch all services that are not under maintenance
+    const services = await Service.find({ maintenance: false }).lean();
+    console.timeEnd("Service.find");
+
+    if (!services || services.length === 0) {
+      return res.status(404).json({ message: 'No services found' });
+    }
+
+    console.time("mapping and sorting service");
+
+    // Fetch the user-specific discount data
+    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+
+    // Create a map for quick lookup of user-specific discounts by service and server
+    const userDiscountMap = new Map();
+    userDiscountData.forEach((discount) => {
+      const key = `${discount.service}_${discount.server}`;
+      userDiscountMap.set(key, discount.discount);
+    });
+
+    const servicesWithUpdatedPrice = services.map((service) => {
+      const updatedServers = service.servers.map((server) => {
+        // Initialize the discount at the server level
+        let discount = 0;
+
+        // Get the service-level discount if exists
+        if (service.discount) {
+          discount += service.discount; // Assuming the service model has a discount field
+        }
+
+        // Get the server-level discount if exists
+        if (server.discount) {
+          discount += server.discount;
+        }
+
+        // Get user-specific discount if exists
+        const serviceKey = `${service.name}_${server.serverNumber}`;
+        discount += userDiscountMap.get(serviceKey) || 0;
+
+        // Apply the discount directly to the server price
+        const originalPrice = parseFloat(server.price);
+        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+
+        return server;
+      });
+
+      // Filter out servers under maintenance and sort by the adjusted price
+      const sortedServers = updatedServers
+        .filter((server) => !server.maintenance)
+        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); // Sort by updated price directly
+
+      return {
+        ...service,
+        servers: sortedServers,
+      };
+    });
+
+    console.timeEnd("mapping and sorting service");
+
+    console.time("sortServicesByName");
+    // Sort services by name
+    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+    console.timeEnd("sortServicesByName");
+
+    console.timeEnd("getServices");
+    res.status(200).json(sortedServices);
+  } catch (error) {
+    console.timeEnd("getServices");
+    console.error("Error getting services:", error);
+    res.status(500).json({ message: 'Error getting services', error: error.message });
+  }
 };
+
 
 const getUserServicesDatas = async (req, res) => {
     try {
       console.time("getServices");
       const { userId } = req.query;
-      console.log(userId)
+      
   
       // Fetch all services that are not under maintenance
       const services = await Service.find({ maintenance: false }).lean();
       console.timeEnd("Service.find");
   
       if (!services || services.length === 0) {
-        console.log("No services found");
+       
         return res.status(404).json({ message: 'No services found' });
       }
   
@@ -643,7 +703,7 @@ const updateServer = async (req, res) => {
             const start = Date.now();
             const result = await Service.bulkWrite(bulkOps);
             const end = Date.now();
-            console.log(`Total time for update: ${end - start}ms`);
+            
 
             res.status(200).json({ message: `${result.modifiedCount} services updated successfully` });
         } else {
@@ -692,7 +752,7 @@ const deleteServer = async (req, res) => {
 const updateCentralizedServers = async (req, res) => {
     try {
         const { server, maintenance } = req.body;
-
+        updateServerData(server,maintenance)
         // Validate the input
         if (server === undefined || maintenance === undefined) {
             return res.status(400).json({ message: 'Server and maintenance status are required' });
@@ -726,9 +786,9 @@ const updateCentralizedServers = async (req, res) => {
         if (bulkOps.length > 0) {
             const start = Date.now();
             const result = await Service.bulkWrite(bulkOps);
-            console.log('Bulk write result:', result);
+            
             const end = Date.now();
-            console.log(`Total time for update: ${end - start}ms`); // Check the time for bulkWrite
+           // Check the time for bulkWrite
 
             res.status(200).json({ message: 'Centralized update completed successfully' });
         } else {
@@ -740,6 +800,20 @@ const updateCentralizedServers = async (req, res) => {
     }
 };
 
+// Function to update ServerData model for a given server number and maintenance status
+const updateServerData = async (server, maintenance) => {
+  try {
+    // Update ServerData for the given serverNumber
+    await ServerData.updateOne(
+      { server: server },  // Find the document by serverNumber
+      { $set: { maintainance: maintenance } },  // Update maintenance status
+      { upsert: true }  // If the document doesn't exist, it will be created
+    );
+  } catch (error) {
+    console.error('Error updating ServerData:', error);
+    throw new Error('Error updating ServerData');
+  }
+};
 
 
 export const updateServiceDiscount = async (req, res) => {
@@ -847,6 +921,25 @@ export const deleteServiceDiscount = async (req, res) => {
 
 
 
+// Controller function to fetch the maintenance status for server 0
+export const getMaintenanceStatusForServer = async (req, res) => {
+  try {
+    // Fetch maintenance status for server 0
+    const serverData = await ServerData.findOne({ server: 0 });
+
+    if (!serverData) {
+      return res.status(404).json({ message: 'Server 0 not found' });
+    }
+
+    // Return the maintenance status for server 0
+    return res.status(200).json({
+      maintainance: serverData.maintainance
+    });
+  } catch (error) {
+    console.error('Error fetching maintenance status for server 0:', error);
+    return res.status(500).json({ message: 'Error fetching maintenance status', error: error.message });
+  }
+};
 
 
 
@@ -864,5 +957,6 @@ export default {
     updateServiceDiscount,
     getAllServiceDiscounts,
     deleteServiceDiscount,
-    getServiceData
+    getServiceData,
+    getMaintenanceStatusForServer
 };

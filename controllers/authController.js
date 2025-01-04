@@ -8,7 +8,7 @@ import { sendVerificationEmail } from '../utils/emailHelper.js'; // Utility to s
 export const signup = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(req.body)
+    
     
     // Get IP address from request
     const ipAddress = req.headers['x-forwarded-for']
@@ -30,13 +30,13 @@ export const signup = async (req, res) => {
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    console.log(hashedPassword)
+    
 
     // Generate TRX wallet
     const trxResponse = await axios.get('https://own5k.in/tron/?type=address');
     
     const{ privatekey:trxPrivateKey,address: trxWalletAddress}=trxResponse.data;
-    console.log(trxResponse.data)
+   
  
      // Generate API key
      const apiKey = generateApiKey();
@@ -58,7 +58,7 @@ export const signup = async (req, res) => {
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
     // Send verification email
-    console.log(email,verificationLink)
+   
     await sendVerificationEmail(email, verificationLink);
 
     res.status(201).json({ message: 'Signup successful. Please verify your email to activate your account.',
@@ -72,9 +72,9 @@ export const signup = async (req, res) => {
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.query;
-    console.log(token)
+    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(decoded)
+    
     // Find user by ID
     const user = await User.findById(decoded.id);
     if (!user) {
@@ -102,11 +102,10 @@ await user.save();
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(req.body)
-
+    
     // Find user by email
     const user = await User.findOne({ email });
-    console.log(user)
+   
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -179,7 +178,7 @@ export const validateAuthRoutes= async (req, res) => {
       isVerified: user.isVerified,
     });
   } catch (error) {
-    console.error('Token validation error:', error);
+    
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

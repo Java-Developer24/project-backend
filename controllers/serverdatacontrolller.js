@@ -9,7 +9,7 @@ import Service from "../models/service.js";
 export const serverData = async (req, res) => {
     try {
       const servers = req.body; // Get the array of server data from the request body
-      console.log(servers)
+     
   
       // Validate that the request contains a non-empty array of server objects
       if (!Array.isArray(servers) || servers.length === 0) {
@@ -268,8 +268,12 @@ export const updateAPIKey= async (req, res) => {
         { margin },
         { new: true }
       );
+      const updateserver=await ServerData.findOneAndUpdate(
+        { server:0 },
+        { margin },
+        { new: true })
   
-      if (!updatedServer) {
+      if (!updatedServer||!updateserver) {
         return res.status(404).json({ message: "Server not found" });
       }
   

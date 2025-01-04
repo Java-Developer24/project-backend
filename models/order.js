@@ -26,6 +26,7 @@ const orderSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  otpType:{type:String},
   orderTime: {
     type: Date,
     required: true,

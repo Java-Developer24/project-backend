@@ -2,11 +2,13 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/database.js';
+import {checkAndCancelExpiredOrders} from "./controllers/servicedatacontroller.js"
 
 import session from 'express-session';
 
 import { configureGoogleSignup, configureGoogleLogin, configurePassport } from './config/passport.js';  // Adjust path if necessary
 
+import { runFraudCheck } from "./utils/blockUsersFraud.js"
 
 
 
@@ -58,7 +60,8 @@ import history from "./routes/history.js"
 import serviceRoutes from './routes/service.js';
 import serverRoutes from "./routes/server.js"
 import unsendRoutes from "./routes/unsend-trx.js"
-
+import blockRoutes from "./routes/block-users.js"
+import configRoutes from "./routes/config.js"
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/history',history)
@@ -68,12 +71,16 @@ app.use('/api/recharge', rechargeRoutes);
 app.use('/api/service', serviceRoutes);
 app.use('/api/server',serverRoutes)
 app.use("/api/unsendtrx",unsendRoutes)
-
+app.use("/api/block",blockRoutes)
+app.use("/api/config",configRoutes)
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.message);
   res.status(err.status || 500).json({ error: err.message });
 });
+// Schedule the checkAndCancelExpiredOrders function to run every 5 minutes
+setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
+setInterval(runFraudCheck, 5000);// Call the function every 5 seconds
 
 // Start the server
 const PORT = process.env.PORT || 3000;

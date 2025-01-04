@@ -1,8 +1,8 @@
-import { UserModel } from "./../models/user.js";
-import { NumberHistory, RechargeHistory  } from "./../models/history.js";
+
+import { NumberHistory, RechargeHistory  } from "../models/history.js";
 import { userBlockDetails } from "./telegram-userblock.js";
 import { BlockModel } from "../models/block.js";
-import { cancelOrder } from "../controllers/service.js";
+import { cancelOrder } from "../controllers/servicedatacontroller.js";
 import { Order } from "../models/order.js";
 import User from "../models/user.js";
 
@@ -15,20 +15,28 @@ const processUserBatch = async (usersBatch) => {
   for (const user of usersBatch) {
     const promise = (async () => {
       try {
+        console.log(`[ProcessUser] Processing user with ID: ${user._id}`);
+
         // Fetch the user's recharge history and calculate the total balance
         const recharges = await RechargeHistory.find({ userId: user._id });
+        console.log(`[ProcessUser] Found ${recharges.length} recharges for user ${user._id}`);
+        
         const totalRecharge = recharges.reduce((total, recharge) => {
           return total + parseFloat(recharge.amount);
         }, 0);
+        console.log(`[ProcessUser] Total recharge amount for user ${user._id}: ${totalRecharge}`);
 
-        const userbalance = await User.findOne({ userId: user._id });
+        const userbalance = await User.findOne({ _id: user._id });
+        
+        console.log(`[ProcessUser] Current balance for user ${user._id}: ${userbalance.balance}`);
 
         // Fetch the user's transactions
         const transactions = await NumberHistory.find({
           userId: user._id,
-          status: "Success",
-          otp: { $exists: true, $ne: null }, // Ensure OTP exists
+          status: "Finished",
+          otp: { $exists: true, $ne: null },
         });
+        console.log(`[ProcessUser] Found ${transactions.length} finished transactions for user ${user._id}`);
 
         // Filter transactions to get only one transaction per unique ID
         const uniqueTransactions = {};
@@ -37,37 +45,40 @@ const processUserBatch = async (usersBatch) => {
             uniqueTransactions[transaction.id] = transaction;
           }
         });
+        console.log(`[ProcessUser] Filtered unique transactions for user ${user._id}`);
 
         // Calculate the total price from the filtered transactions
         const totalTransaction = Object.values(uniqueTransactions).reduce(
           (total, transaction) => total + parseFloat(transaction.price),
           0
         );
+        console.log(`[ProcessUser] Total transaction amount for user ${user._id}: ${totalTransaction}`);
 
         const difference =
-          parseFloat(totalRecharge.toFixed(2)) -
-          parseFloat(totalTransaction.toFixed(2));
-
+          parseFloat(totalRecharge.toFixed(2)) - parseFloat(totalTransaction.toFixed(2));
         const totalDifference =
-          parseFloat(userbalance.balance.toFixed(2)) -
-          parseFloat(difference.toFixed(2));
+          parseFloat(userbalance.balance.toFixed(2)) - parseFloat(difference.toFixed(2));
+
+        console.log(`[ProcessUser] Difference for user ${user._id}: ${totalDifference}`);
 
         // Compare the difference and user balance
         if (totalDifference >= 1) {
-          const freshUser = await UserModel.findById(user._id);
+          const freshUser = await User.findById(user._id);
 
           if (freshUser.blocked) {
+            console.log(`[ProcessUser] User ${freshUser.email} is already blocked. Skipping.`);
             return;
           }
 
           freshUser.blocked = true;
           freshUser.blocked_reason = "Due to Fraud";
+          freshUser.status="blocked"
           await freshUser.save();
-
-          console.log("User blocked:", freshUser.email);
+          console.log(`[ProcessUser] User blocked: ${freshUser.email}`);
 
           // Cancel active orders for the blocked user
           const activeOrders = await Order.find({ userId: user._id });
+          console.log(`[ProcessUser] Found ${activeOrders.length} active orders for user ${user._id}`);
 
           const delay = (ms) =>
             new Promise((resolve) => setTimeout(resolve, ms));
@@ -75,11 +86,11 @@ const processUserBatch = async (usersBatch) => {
           for (const order of activeOrders) {
             try {
               await cancelOrder(order);
+              console.log(`[ProcessUser] Order ${order._id} canceled for user ${user._id}`);
               await delay(100);
             } catch (error) {
               console.error(
-                `Failed to cancel order ${order._id}:`,
-                error.message
+                `[ProcessUser] Failed to cancel order ${order._id}: ${error.message}`
               );
             }
           }
@@ -88,48 +99,72 @@ const processUserBatch = async (usersBatch) => {
             email: freshUser.email,
             reason: "Due to Fraud",
           });
+          console.log(`[ProcessUser] User block details logged for ${freshUser.email}`);
         }
       } catch (error) {
-        console.error(`Error processing user ${user._id}:`, error.message);
+        console.error(`[ProcessUser] Error processing user ${user._id}: ${error.message}`);
       }
     })();
 
     concurrencyPromises.push(promise);
 
     if (concurrencyPromises.length >= CONCURRENCY_LIMIT) {
+      console.log(`[ProcessUser] Concurrency limit reached. Awaiting current batch...`);
       await Promise.all(concurrencyPromises);
       concurrencyPromises.length = 0; // Clear the array
     }
   }
 
   await Promise.all(concurrencyPromises); // Wait for the remaining promises
+  console.log(`[ProcessUser] Finished processing user batch.`);
 };
 
 const blockUsersIfFraudulent = async () => {
   try {
+    console.log(`[FraudCheck] Starting user fraud check...`);
     // Fetch all users
     const allUsers = await User.find({});
+    console.log(`[FraudCheck] Total users fetched: ${allUsers.length}`);
 
     // Limit the number of users to process
     const usersToProcess = allUsers.slice(0, PROCESS_LIMIT);
+    console.log(`[FraudCheck] Users to process: ${usersToProcess.length}`);
 
     await processUserBatch(usersToProcess);
+    console.log(`[FraudCheck] Completed fraud check.`);
   } catch (error) {
-    console.error("Error in blockUsersIfFraudulent:", error);
+    console.error("[FraudCheck] Error in blockUsersIfFraudulent:", error);
     throw new Error("Internal server error");
   }
 };
 
 // Function to call blockUsersIfFraudulent
+
+
 export const runFraudCheck = async () => {
+  console.log(`[FraudCheck] Function executed at: ${new Date().toLocaleString()}`);
   try {
+    console.log('[FraudCheck] Running fraud detection logic...');
+    
+    // Checking for "User_Fraud" block type
+    console.log('[FraudCheck] Fetching block type "User_Fraud"...');
     const checkForBlock = await BlockModel.findOne({
       block_type: "User_Fraud",
     });
-    if (checkForBlock && !checkForBlock.status) {
-      await blockUsersIfFraudulent();
+
+    if (checkForBlock) {
+      console.log(`[FraudCheck] Block type found. Status: ${checkForBlock.status}`);
+      if (!checkForBlock.status) {
+        console.log('[FraudCheck] Block status is inactive. Running blockUsersIfFraudulent...');
+        await blockUsersIfFraudulent();
+        console.log('[FraudCheck] Block users process completed.');
+      } else {
+        console.log('[FraudCheck] Block status is active. No action needed.');
+      }
+    } else {
+      console.log('[FraudCheck] No block type "User_Fraud" found.');
     }
   } catch (error) {
-    console.error("Error processing block check:", error);
+    console.error("[FraudCheck] Error processing block check:", error);
   }
 };

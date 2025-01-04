@@ -1,4 +1,5 @@
 import {NumberHistory,RechargeHistory} from "../models/history.js";
+import ServerData from "../models/serverData.js";
 
 import User from "../models/user.js";
 
@@ -66,7 +67,7 @@ export const saveRechargeHistory = async (req, res) => {
   
       // Save history
       const rechargeHistory = new RechargeHistory(newEntry);
-      console.log(rechargeHistory)
+     
       await rechargeHistory.save();
        // Update the User document with the new rechargeHistory reference
           await User.findByIdAndUpdate(userId, {
@@ -84,7 +85,7 @@ export const getRechargeHistory = async (req, res) => {
     try {
     //   const { userId, from, to, page = 1, limit = 20 } = req.query;
     const { userId, page = 1, limit = 20 } = req.query;
-      console.log(userId)
+      
   
       if (!userId) {
         return res.status(400).json({ message: "User ID is required." });
@@ -108,7 +109,7 @@ export const getRechargeHistory = async (req, res) => {
         
   
       const totalRecords = await RechargeHistory.countDocuments(query);
-      console.log(totalRecords)
+      
   
       res.status(200).json({
         data: history,
@@ -120,38 +121,66 @@ export const getRechargeHistory = async (req, res) => {
     }
   };
 
-  export const getTransactionHistory = async (req, res) => {
-    try {
-      const { userId, status, page = 1, limit = 20 } = req.query;
+export const getTransactionHistory = async (req, res) => {
+  try {
+    // Extract email from URL parameters
+    const { userId } = req.query;
   
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required." });
-      }
-  console.log(userId,status)
-      // Base query
-      const query = { userId };
-      if (status) query.status = status; // Filter by status (Pending, Success, Cancelled)
-  
-      // Pagination
-      const skip = (page - 1) * limit;
-      const history = await NumberHistory.find(query)
-      
-        .sort({ createdAt: -1 }) // Latest first
-        .skip(skip)
-        .limit(Number(limit));
-  
-      const totalRecords = await NumberHistory.countDocuments(query);
-      console.log(totalRecords)
-  
-      res.status(200).json({
-        data: history,
-        totalPages: Math.ceil(totalRecords / limit),
-        currentPage: page,
+    const maintainanceServerData = await ServerData.findOne({ server: 0 });
+    if (maintainanceServerData.maintainance) {
+      return res.status(403).json({ error: "Site is under maintenance." });
+    }
+
+    // Query recharge history data based on the email ID
+    const transactionHistoryData = await NumberHistory.find(
+      { userId },
+     
+    );
+
+    if (!transactionHistoryData || transactionHistoryData.length === 0) {
+      return res.json({
+        message: "No transaction history found for the provided userId",
       });
+    }
+   
+
+    res.status(200).json({data:transactionHistoryData});
+  } catch (error) {
+    console.error("Error fetching transaction history:", error);
+    res.status(500).json({ error: "Failed to fetch transaction history" });
+  }
+  };
+
+export const getTransactionHistoryUser = async (req, res) => {
+    try {
+      // Extract email from URL parameters
+      const { userId } = req.query;
+ 
+      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      if (maintainanceServerData.maintainance) {
+        return res.status(403).json({ error: "Site is under maintenance." });
+      }
+  
+      // Query recharge history data based on the email ID
+      const transactionHistoryData = await NumberHistory.find(
+        { userId },
+        "-_id -__v"
+      );
+  
+      if (!transactionHistoryData || transactionHistoryData.length === 0) {
+        return res.json({
+          message: "No transaction history found for the provided userId",
+        });
+      }
+      
+  
+      res.status(200).json(transactionHistoryData.reverse());
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch transaction history.", error: error.message });
+      console.error("Error fetching transaction history:", error);
+      res.status(500).json({ error: "Failed to fetch transaction history" });
     }
   };
+  
   
  export const getRechargeHistoryAdmin= async (req, res) => {
   const { userId } = req.query;
@@ -221,6 +250,7 @@ export const getTransactionHistoryAdmin=async (req, res) => {
 
     // Fetch number history for the given userId
     const numberHistories = await NumberHistory.find({ userId }).lean();
+    console.log(numberHistories)
 
     // Format the response
     const formattedHistory = numberHistories.map((history) => ({
@@ -228,10 +258,10 @@ export const getTransactionHistoryAdmin=async (req, res) => {
       userId: history.userId,
       id: history._id.toString(),
       number: history.number,
-      otp: history.otps.map((otp) => ({
+      otp: history.otps && Array.isArray(history.otps) ? history.otps.map((otp) => ({
         message: otp.message || "No SMS",
         date: otp.date ? otp.date.toISOString() : null,
-      })),
+      })) : [], // If otps is null or not an array, return an empty array
       date_time: history.date || null,
       service: history.serviceName,
       server: history.server,
@@ -245,5 +275,47 @@ export const getTransactionHistoryAdmin=async (req, res) => {
   } catch (error) {
     console.error('Error fetching number history:', error);
     res.status(500).json({ message: 'Error fetching number history', error });
+  }
+};
+
+export const transactionCount = async (req, res) => {
+  try {
+    const recentTransactionHistory = await NumberHistory.find();
+
+    const transactionsById = recentTransactionHistory.reduce(
+      (acc, transaction) => {
+        if (!acc[transaction.id]) {
+          acc[transaction.id] = [];
+        }
+        acc[transaction.id].push(transaction);
+        return acc;
+      },
+      {}
+    );
+
+    let successCount = 0;
+    let cancelledCount = 0;
+    let pendingCount = 0;
+
+    Object.entries(transactionsById).forEach(([id, transactions]) => {
+      const hasFinished = transactions.some((txn) => txn.status === "Success");
+      const hasCancelled = transactions.some(
+        (txn) => txn.status === "Cancelled"
+      );
+      const hasOtp = transactions.some((txn) => txn.otps !== null);
+
+      if (hasFinished && hasOtp) {
+        successCount++;
+      } else if (hasFinished && hasCancelled) {
+        cancelledCount++;
+      } else if (hasFinished && !hasCancelled && !hasOtp) {
+        pendingCount++;
+      }
+    });
+
+    res.json({ successCount, cancelledCount, pendingCount });
+  } catch (error) {
+    console.error("Error transaction count:", error);
+    res.status(500).json({ error: "Failed to count transaction" });
   }
 };
