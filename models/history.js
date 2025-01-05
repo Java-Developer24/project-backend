@@ -33,14 +33,15 @@ const NumberHistorySchema = new mongoose.Schema({
     },
     status: {
       type: String,
-      enum: ['Success', 'Cancelled',"Pending,Finished"],
+      enum: ['Success', 'Cancelled',"Pending","Finished"],
       required: true,
     },
     date_time: String,
     id:{
       type:String,
       required:true
-    }
+    },
+    reason:String,
    
   });
   const NumberHistory = mongoose.model('NumberHistory', NumberHistorySchema);

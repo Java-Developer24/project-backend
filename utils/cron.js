@@ -5,16 +5,11 @@ import { RechargeHistory, NumberHistory } from "../models/history.js";
 
 import ServerData from "../models/serverData.js";
 
-// Get the start and end time for the last 24 hours in the specified format
 const get24HoursAgo = () => {
-  const end = moment().format("DD/MM/YYYYTHH:mm A"); // Current time in the required format
-  const start = moment().subtract(24, "hours").format("DD/MM/YYYYTHH:mm A"); // 24 hours ago in the required format
-  console.log("Time range for 24 hours ago:", { start, end });
+  const start = moment().startOf("day").format("MM/DD/YYYYTHH:mm:ss A");
+  const end = moment().endOf("day").format("MM/DD/YYYYTHH:mm:ss A");
   return { start, end };
 };
-
-
-
 
 const serverNames = {
   1: "Fastsms",
@@ -103,10 +98,10 @@ const getServerBalance = async (server, apiKey) => {
         balance = data.trim(); // ensure no extra quotes
       } else if (server === 10 ) {
         const data = await response.json();
-        balance = data
+        balance = data.response.toString();
       }else if (server === 11 ) {
         const data = await response.json();
-        balance = data.balance.toString();
+        balance = data;
       }else {
         const data = await response.text();
         if (typeof data === "string" && data.includes("ACCESS_BALANCE:")) {
@@ -130,12 +125,10 @@ export const getServerDetails = async () => {
     const { start, end } = get24HoursAgo();
 
     // Fetch recent recharge history within the last 24 hours
-
-    
     const recentRechargeHistory = await RechargeHistory.find({
       date_time: { $gte: start, $lt: end },
     });
- console.log(recentRechargeHistory)
+
     let totalAmount = 0;
     let trxTotal = 0;
     let upiTotal = 0;
@@ -145,11 +138,11 @@ export const getServerDetails = async () => {
     recentRechargeHistory.forEach((recharge) => {
       const amount = parseFloat(recharge.amount);
       totalAmount += amount;
-      if (recharge.method === "trx") {
+      if (recharge.payment_type === "trx") {
         trxTotal += amount;
-      } else if (recharge.method === "upi") {
+      } else if (recharge.payment_type === "upi") {
         upiTotal += amount;
-      } else if (recharge.method === "Admin") {
+      } else if (recharge.payment_type === "Admin Added") {
         adminAddedTotal += amount;
       }
     });
@@ -158,7 +151,7 @@ export const getServerDetails = async () => {
     const recentTransactionHistory = await NumberHistory.find({
       date_time: { $gte: start, $lt: end },
     });
-          console.log(recentTransactionHistory)
+
     // Group transactions by their ID
     const transactionsById = recentTransactionHistory.reduce(
       (acc, transaction) => {
@@ -176,25 +169,28 @@ export const getServerDetails = async () => {
     let cancelledCount = 0;
     const serverCounts = {};
 
+    // Iterate through each transaction group to determine status and server counts
     for (const [id, transactions] of Object.entries(transactionsById)) {
       const hasFinished = transactions.some((txn) => txn.status === "Success");
-      const hasCancelled = transactions.some((txn) => txn.status === "Cancelled");
+      const hasCancelled = transactions.some(
+        (txn) => txn.status === "Cancelled"
+      );
       const hasOtp = transactions.some((txn) => txn.otps !== null);
-    
-      if (hasCancelled) {
-        cancelledCount++;
-      } else if (hasFinished && hasOtp) {
+
+      if (hasFinished && hasOtp) {
         soldCount++;
-      } else if (hasFinished && !hasOtp) {
+      } else if (hasFinished && hasCancelled) {
+        cancelledCount++;
+      } else if (hasFinished && !hasCancelled && !hasOtp) {
         pendingCount++;
       }
-    
+
       const transactionWithOtp = transactions.find((txn) => txn.otp !== null);
-    
+
       if (transactionWithOtp) {
         // Get the server associated with the OTP
         const server = transactionWithOtp.server;
-    
+
         // Increment the count for that server
         if (!serverCounts[server]) {
           serverCounts[server] = 0;
@@ -202,7 +198,7 @@ export const getServerDetails = async () => {
         serverCounts[server]++;
       }
     }
-    
+
     // Fetch servers and their balances
     const servers = await ServerData.find();
     const serverBalances = await Promise.all(
@@ -260,7 +256,7 @@ export const getServerDetails = async () => {
     result += `Total Pending    => ${pendingCount}\n\n`;
 
     result += `Number Selling Update Via Servers\n`;
-    for (let i = 1; i <= 11; i++) {
+    for (let i = 1; i <= 9; i++) {
       const count = serverCounts[i] || 0;
       result += `Server ${i} => ${count}\n`;
     }
@@ -302,22 +298,19 @@ export const getServerDetails = async () => {
 };
 
 export const scheduleJob = () => {
-  console.log("Scheduling job...");
-  
-  // Run the job immediately for testing
-  runJob();
-
   const now = new Date();
   const minutes = now.getMinutes();
   const seconds = now.getSeconds();
   const milliseconds = now.getMilliseconds();
 
+  // Calculate the time remaining until the next 30-minute interval
   const timeToNextInterval =
     (30 - (minutes % 30)) * 60 * 1000 - seconds * 1000 - milliseconds;
 
+  // Set a timeout to start the interval at the next 30-minute interval
   setTimeout(() => {
-    console.log("Starting scheduled job...");
-    setInterval(runJob, 30 * 60 * 1000); // Run every 30 minutes
+    // Run the job once at the next interval, and then every 30 minutes
+    setInterval(runJob, 30 * 60 * 1000); // 30 minutes in milliseconds
   }, timeToNextInterval);
 };
 

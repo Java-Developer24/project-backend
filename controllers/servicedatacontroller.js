@@ -341,7 +341,9 @@ const getServerData = async (sname, server) => {
       user.balance = parseFloat(user.balance.toFixed(2));
       await user.save();
   
-      const formattedDateTime = moment().format("MM/DD/YYYYTHH:mm:ss A");
+      const formattedDateTime = moment().format("DD/MM/YYYYTHH:mm A");
+
+
   
       const numberHistory = new NumberHistory({
         userId: user._id,
@@ -351,6 +353,7 @@ const getServerData = async (sname, server) => {
         id,
         otps: null,
         status: "Success",
+        reason:"Waiting for SMS",
         number,
         date_time: formattedDateTime,
       });
@@ -393,6 +396,7 @@ const getServerData = async (sname, server) => {
     }
   };
   
+
   const TIME_OFFSET = 60000; // 1 minute in milliseconds
 
 const checkAndCancelExpiredOrders = async () => {
@@ -447,6 +451,12 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
     console.error("Error in callNumberCancelAPI:", error.message);
   }
 };
+
+  
+ 
+
+
+
 
 
   const getOtp = async (req, res) => {
@@ -538,6 +548,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
   
       const responseData = await response.text();
+      console.log("response data",responseData)
   
       if (!responseData || responseData.trim() === "") {
         throw new Error("Received empty response data.");
@@ -598,6 +609,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           if (responseData.startsWith("STATUS_OK")) {
             // Split the response data to extract the OTP
             const parts = responseData.split(":");
+            
             const otp = parts[1]; // Trim to remove any leading or trailing spaces
   
             validOtp = otp;
@@ -746,11 +758,11 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
-      
+      console.log("otp",validOtp)
       if (validOtp) {
-        const existingEntry = await NumberHistory.findOne({
-          id,
-          otp: validOtp,
+        const existingEntry = await NumberHistory.findOneAndUpdate({
+          id},{
+          otp: [validOtp],
         });
         console.log("Existing Entry:", existingEntry);
       
@@ -769,7 +781,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           // Update the OTP entry format to include "message" as an object, not a string
           const otpEntry = {
             message: validOtp, // Valid OTP message here
-            date: new Date(), // Use the current date or the appropriate date
+            
           };
       
           // Create and save the new entry
@@ -780,7 +792,8 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             server,
             id,
             otps: [otpEntry],  // Ensure this is an array of objects, not just a string
-            status: "Finished",
+            status: "Success",
+            reason:"SMS Received",
             number: transaction.number,
             date_time: formattedDateTime,
           });
@@ -918,7 +931,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
     const now = moment();
   
     // Define the moment value to check
-    const dateTimeValue = moment(date_time, "MM/DD/YYYYTHH:mm:ss A");
+    const dateTimeValue = moment(date_time, "DD/MM/YYYYTHH:mm A");
   
     // Calculate the difference in minutes between the two moments
     const differenceInMinutes = now.diff(dateTimeValue, "minutes");
@@ -1088,11 +1101,16 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
   
       switch (server) {
         case "1":
-          if (responseData.startsWith("ACCESS_CANCEL")) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+          if (responseData.startsWith("STATUS_CANCEL")) {
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document
+          );
           }
   
           if (responseData.startsWith("ACCESS_APPROVED")) {
@@ -1104,11 +1122,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
         case "2":
           responseDataJson = JSON.parse(responseData);
           if (responseDataJson.status === "CANCELED") {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+            );}
           if (responseDataJson.status === "order has sms") {
             otpReceived = true;
           }
@@ -1116,11 +1138,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
   
         case "3":
           if (responseData.startsWith("ACCESS_CANCEL")) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+            );}
           break;
   
         case "4":
@@ -1128,11 +1154,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("BAD_STATUS")
           ) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+            );}
           break;
   
         case "5":
@@ -1140,11 +1170,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("BAD_ACTION")
           ) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+            );}
           break;
   
         case "6":
@@ -1152,57 +1186,80 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             responseData.startsWith("ACCESS_CANCEL") ||
             responseData.startsWith("NO_ACTIVATION")
           ) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+            );}
           break;
   
         case "7":
           responseDataJson = JSON.parse(responseData);
           if (responseDataJson.success === true || responseDataJson.error_code) {
-            existingEntry = await transactionHistory.findOne({
-              id,
+            existingEntry = await transactionHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+          )}
           break;
   
         case "8":
           responseDataJson = JSON.parse(responseData);
           if (responseDataJson.success === true || responseDataJson.error_code) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+                otps: null,
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+          );}
           break;
   
         case "9":
           if (responseData.startsWith("success")) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+              otps: null,  
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+          );}
           break;
         case "10":
           if (responseData.startsWith("ACCESS_CANCEL")) {
-            existingEntry = await NumberHistory.findOne({
-              id,
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+              otps: null,  
               status: "Cancelled",
-            });
-          }
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+          );}
           break;
         case "11":
           if (responseData.request_id && responseData.success !== undefined) {
-            existingEntry = await NumberHistory.findOne({
-              id,
-              status: responseData.success ? "Success" : "Failed",
-              request_id: responseData.request_id,
-            });
-          }
+            existingEntry = await NumberHistory.findOneAndUpdate(
+              {id},
+              {
+              otps: null,
+              status: "Cancelled",
+              reason: "SMS not Received"
+            },
+            { new: true }  // Return the updated document);
+          );}
           break;
   
         default:
@@ -1221,7 +1278,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
   
       if (!existingEntry) {
-        const formattedDateTime = moment().format("MM/DD/YYYYTHH:mm:ss A");
+        const formattedDateTime = moment().format("DD/MM/YYYYTHH:mm A");
   
         const transaction = await NumberHistory.findOne({ id });
   
@@ -1233,6 +1290,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           id,
           otps: null,
           status: "Cancelled",
+          reason:"SMS not Received",
           number: transaction.number,
           date_time: formattedDateTime,
         });

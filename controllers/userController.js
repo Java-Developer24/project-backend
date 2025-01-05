@@ -9,7 +9,10 @@ import { RechargeHistory } from "../models/history.js";
 
 import { userDiscountModel } from '../models/userDiscount.js'; // Import user discount model
 
-
+import { getIpDetails } from "../utils/getIpDetails.js";
+import {
+  adminRechargeTeleBot
+} from "../utils/telegram-recharge.js";
 
 import { sendOtpEmail } from "../utils/emailHelper.js";
 import OTP from '../models/otp.js'; // Import OTP model
@@ -61,7 +64,7 @@ export const fetchBalance = async (req, res) => {
     }
 
     res.status(200).json({
-      balance: user.balance,
+      balance: user.balance.toFixed(0),
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch balance.", error: error.message });
@@ -374,6 +377,8 @@ export const blockUser = async (req, res) => {
 export const updateUserBalance = async (req, res) => {
   try {
     const { userId, new_balance } = req.body;
+    const ipDetails = await getIpDetails(req);
+    // Destructure IP details
 
     // Validate input
     if (!userId || typeof new_balance !== 'number') {
@@ -418,6 +423,21 @@ export const updateUserBalance = async (req, res) => {
 
     // Save the RechargeHistory
     await rechargeHistory.save();
+
+    
+    const { city, state, pincode, country, serviceProvider, ip } =
+      ipDetails;
+
+    // Pass the destructured IP details to the numberGetDetails function as a multiline string
+    const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+    await adminRechargeTeleBot({
+      userId,
+      transactionId,
+      new_balance,
+      oldBalance,
+      ip:ipDetailsString
+    });
 
     // Send success response with updated balance
     return res.status(200).json({
