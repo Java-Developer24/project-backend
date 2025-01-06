@@ -1,5 +1,5 @@
 import express from "express";
-import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser } from "../controllers/userController.js";
+import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser, deleteUserAccount, updateUserBalances } from "../controllers/userController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateCaptcha } from "../middleware/authMiddleware.js";
 import { getOrdersByUserId } from "../controllers/userController.js";
@@ -36,6 +36,7 @@ router.get('/get-user', getUserById);
 
 // Route to block a specific user by userId
 router.post('/block-user', blockUser);
+router.delete("/delete-user-account",deleteUserAccount)
 
 router.get("/get-all-blocked-users",getBlockedUserStatus)
 router.get("/get-all-blocked-users-count",getBlockedUserCount)
@@ -43,6 +44,7 @@ router.get("/get-all-blocked-users-count",getBlockedUserCount)
 
 // Route to update  a specific user balance by userId
 router.post('/update-user-balance', updateUserBalance);
+router.post('/update-user-balances', updateUserBalances);
 
 
 router.get('/get-all-user-discount',getAllUserEmails)

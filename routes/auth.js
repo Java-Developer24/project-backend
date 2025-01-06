@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from 'passport';  // Import passport
-import { signup, login, verifyEmail } from '../controllers/authController.js';
+import { signup, login, verifyEmail,adminLogin } from '../controllers/authController.js';
 import { validateCaptcha } from '../middleware/authMiddleware.js';
 import { loginSignupRateLimiter } from '../middleware/authMiddleware.js'; // Ensure this is imported correctly
 const router = express.Router();
@@ -74,6 +74,8 @@ router.post('/signup', loginSignupRateLimiter,validateCaptcha,signup);
 // Login Route
 
 router.post('/login', loginSignupRateLimiter, validateCaptcha, login);
+
+router.post("/admin-login",adminLogin)
 
 
 

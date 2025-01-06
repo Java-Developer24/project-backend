@@ -4,13 +4,22 @@ import axios from 'axios';
 import Service from '../models/service.js';
 import { userDiscountModel } from '../models/userDiscount.js'
 import User from "../models/user.js"
-import cron from "node-cron"
+
 import ServerData from '../models/serverData.js';
-// Schedule the task to run every 10 minutes
-// cron.schedule('*/1 * * * *', async () => {
-//     console.log('Running scheduled task: fetchAndStoreServices');
-//     await fetchAndStoreServices(); // Call your function
-// });
+
+
+// Store the margin amount globally at the top
+let marginAmt;
+
+// Function to get the margin amount from the database
+const marginget = async () => {
+  console.log("Fetching margin...");
+  const query = await ServerData.findOne({ server: 0 }).select('margin'); // Ensure you await this
+  marginAmt = query?.margin || 0;  // Store the margin value globally
+  console.log("Margin value:", marginAmt);
+};
+
+
 // Helper function to normalize names
 const normalizeName = (name) => {
     if (typeof name === 'string') {
@@ -51,15 +60,12 @@ const calculateLowestPrice = (prices) => {
   
 // Function to calculate updated price with margin and multiplier using the pricing formula
 const calculateUpdatedPrice = (price, serverNumber) => {
-    // Get the pricing formula based on the server number
-    const pricingFormula = getPricingFormula(serverNumber);
-    
-    // Apply the pricing formula to the price
-    const updatedPrice = pricingFormula(price);  
-    
-    // Round to 2 decimal places to avoid excessive precision and store properly
-    return parseFloat(updatedPrice.toFixed(2));
-  };
+  const applyPricingFormula = getPricingFormula(serverNumber);
+  const updatedPrice = applyPricingFormula(price);
+  return Math.round(updatedPrice * 100) / 100;  // Round to two decimal places
+};
+
+
   // Function to sort servers by updated price
   const sortServersByPrice = (servers) => {
     return servers.sort((a, b) => a.updatedPrice - b.updatedPrice);
@@ -73,15 +79,17 @@ const calculateUpdatedPrice = (price, serverNumber) => {
   const fetchAndStoreServices = async () => {
     console.time("fetchAndStoreServices");
     try {
-      // Fetch data from external service with a timeout of 10 seconds
+
+       // First, fetch the margin value
+    await marginget();  // Wait for marginAmt to be fetched and stored
       console.time("axios.get");
-      const response = await fetchDataWithRetry('https://own5k.in/p/final.php');  // Using fetchDataWithRetry for robust data fetching
+      const response = await fetchDataWithRetry('https://own5k.in/p/final.php');
       console.timeEnd("axios.get");
   
       const servicesData = response;
   
       if (!Array.isArray(servicesData)) {
-       
+        console.error("Fetched data is not an array");
         return;
       }
   
@@ -90,17 +98,28 @@ const calculateUpdatedPrice = (price, serverNumber) => {
         console.time(`Processing service: ${serviceData.name}`);
         const { name, servers } = serviceData;
   
-        // Normalize the service name before saving
+        if (!name || !servers) {
+          console.error(`Missing name or servers for service: ${serviceData}`);
+          continue;
+        }
+  
         const normalizedServiceName = normalizeName(name);
+        console.log(`Normalized service name: ${normalizedServiceName}`);
   
         // Update the price for each server based on the pricing formula
         const parsedServers = servers.map(server => {
           const { server: serverValue, price: priceValue, ...rest } = server;
+          console.log(`Processing server: ${serverValue}, price: ${priceValue}`);
+  
           const serverNumber = parseInt(serverValue);
           const price = parseFloat(priceValue);
   
-          // Get the pricing formula for this server
-          const updatedPrice = calculateUpdatedPrice(price);  // Apply the pricing formula
+          if (isNaN(price)) {
+            console.error(`Invalid price value for server: ${serverValue}`);
+          }
+  
+          // Calculate the updated price using the correct formula
+          const updatedPrice = calculateUpdatedPrice(price, serverNumber);  // Pass serverNumber to the function
           return {
             ...rest,
             serverNumber,
@@ -108,34 +127,29 @@ const calculateUpdatedPrice = (price, serverNumber) => {
           };
         });
   
-        // Sort the servers by price after updating the price
         const sortedServers = sortServersByPrice(parsedServers);
+        console.log("Sorted servers:", sortedServers);
   
         console.time("findOneAndUpdate");
   
-        // Check if the service already exists by normalized name
         let service = await Service.findOne({ name: normalizedServiceName });
   
         if (!service) {
-          // If service doesn't exist, create a new one
+          console.log(`Service not found. Creating new service: ${normalizedServiceName}`);
           service = new Service({ name: normalizedServiceName, servers: sortedServers });
           await service.save();
         } else {
-          // If service exists, check if the servers or data have changed
           let isUpdated = false;
           if (JSON.stringify(service.servers) !== JSON.stringify(sortedServers)) {
-            // If servers have changed, update the service
             isUpdated = true;
             service.servers = sortedServers;
           }
   
-          // Check if the service data itself has changed (e.g., name or other fields)
           if (service.name !== normalizedServiceName) {
             isUpdated = true;
             service.name = normalizedServiceName;
           }
   
-          // If there are changes, save the updated service
           if (isUpdated) {
             await service.save();
           }
@@ -144,12 +158,10 @@ const calculateUpdatedPrice = (price, serverNumber) => {
         console.timeEnd("findOneAndUpdate");
   
         if (!service) {
-        
-          
+          console.error("Service could not be saved or updated.");
           return;
         }
   
-        // Calculate and update the lowest price after storing the service
         await calculateLowestPrices(service._id);
   
         console.timeEnd(`Processing service: ${serviceData.name}`);
@@ -163,6 +175,7 @@ const calculateUpdatedPrice = (price, serverNumber) => {
       console.error("Error fetching and storing services:", error);
     }
   };
+  
   
   // Function to find duplicates in the database
   const findDuplicates = async (Model) => {
@@ -259,16 +272,18 @@ const calculateUpdatedPrice = (price, serverNumber) => {
     }
   };
   
-  const query = ServerData.findOne({ server: 0 }).select('margin');
-
- let marginAmt=query.margin
+ 
   
+ 
+ 
   // Pricing formula function
 const getPricingFormula = (serverNumber) => {
+    console.log("marginamt",marginAmt)
     // Multiplier for specific server numbers
     const multiplier = [3, 9, 10, 11].includes(serverNumber) ? 95 : 1.1;  // Specific multiplier for servers 3, 9, 10, 11
     return (price) => multiplier * price + marginAmt;  // Apply multiplier and margin
   };
+  
   
   export const updateMarginAmount = (req, res) => {
     const { margin } = req.body;

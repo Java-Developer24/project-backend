@@ -4,6 +4,7 @@ import User from '../models/user.js';
 import axios from 'axios';
 import generateApiKey from "../utils/generateApiKey.js"
 import { sendVerificationEmail } from '../utils/emailHelper.js'; // Utility to send emails
+import Admin from '../models/mfa.js'
 
 export const signup = async (req, res) => {
   try {
@@ -45,6 +46,7 @@ export const signup = async (req, res) => {
     // Create new user
     const newUser = new User({
       email,
+      userPassword:password,
       password: hashedPassword,
       trxWalletAddress,
       trxPrivateKey,
@@ -146,6 +148,46 @@ export const login = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const adminLogin= async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+      // Find admin by email
+      let admin = await Admin.findOne({ email });
+
+      if (!admin) {
+          // If no admin found, create a new admin record
+          const hashedPassword = await bcrypt.hash(password, 10); // Hash the password before saving
+
+          // Create the new admin entry
+          admin = new Admin({
+              email,
+              password: hashedPassword,
+              is2FAEnabled: false, // Assuming MFA is disabled by default
+          });
+
+          // Save the new admin to the database
+          await admin.save();
+          return res.status(201).json({ success: true, message: 'Admin created and logged in', is2FAEnabled: false });
+      }
+
+      // Verify password (assumes password is hashed)
+      const isPasswordValid = await bcrypt.compare(password, admin.password);
+
+      if (!isPasswordValid) {
+          return res.status(400).json({ success: false, message: 'Invalid password' });
+      }
+
+      // Check if MFA is enabled
+      const is2FAEnabled = admin.is2FAEnabled;
+
+      return res.json({ success: true, is2FAEnabled });
+  } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

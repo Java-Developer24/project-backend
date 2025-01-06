@@ -77,7 +77,7 @@ const getServerData = async (sname, server) => {
   };
   
   // Helper function to construct API URL
-  const constructApiUrl = (server, api_key_server, data,otpType) => {
+  const constructApiUrl = (server, api_key_server, data) => {
     switch (server) {
       case "1":
         return `https://fastsms.su/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
@@ -114,8 +114,7 @@ const getServerData = async (sname, server) => {
       case "10":
           return `https://sms-activation-service.pro/stubs/handler_api?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22`;
       case "11":
-      return `https://api.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=${
-    otpType === "Multiple Otp" ? "true" : "false"}`;
+      return `https://api.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=false`;
       default:
         throw new Error("Invalid server value.");
     }
@@ -258,7 +257,7 @@ const getServerData = async (sname, server) => {
   
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { servicecode, api_key, server,otpType } = req.query;
+      const { servicecode, api_key, server} = req.query;
   
       if (!servicecode || !api_key || !server) {
         return res
@@ -297,7 +296,7 @@ const getServerData = async (sname, server) => {
         return res.status(400).json({ error: "Insufficient balance." });
       }
   
-      const apiUrl = constructApiUrl(server, api_key_server, serviceData,otpType);
+      const apiUrl = constructApiUrl(server, api_key_server, serviceData);
   
       let response, responseData;
       let retry = true;
@@ -336,10 +335,15 @@ const getServerData = async (sname, server) => {
   
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
       price = parseFloat((price - totalDiscount).toFixed(2));
-  
-      user.balance -= price;
-      user.balance = parseFloat(user.balance.toFixed(2));
-      await user.save();
+      
+      // Update balance in the database using MongoDB $inc operator
+      await User.updateOne(
+        { _id: user._id },
+        { $inc: { balance: -price } }
+      );
+      
+      
+      
   
       const formattedDateTime = moment().format("DD/MM/YYYYTHH:mm A");
 
@@ -381,7 +385,6 @@ const getServerData = async (sname, server) => {
         service: sname,
         price,
         server,
-        otpType,
         numberId: id,
         number,
         orderTime: new Date(),
@@ -461,7 +464,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
 
   const getOtp = async (req, res) => {
     try {
-      const { id, api_key, server,otpType } = req.query;
+      const { id, api_key, server } = req.query;
       console.log(id)
       console.log(server)
   
@@ -1147,12 +1150,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-          break;
+            if (responseData.startsWith("ACCESS_ACTIVATION") ){
+              otpReceived = true;
+            }
+            break;
+          
   
         case "4":
           if (
-            responseData.startsWith("ACCESS_CANCEL") ||
-            responseData.startsWith("BAD_STATUS")
+            responseData.startsWith("ACCESS_CANCEL")
           ) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
@@ -1163,12 +1169,14 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
+            if (responseData.startsWith("BAD_STATUS") ){
+              otpReceived = true;
+            }
           break;
   
         case "5":
           if (
-            responseData.startsWith("ACCESS_CANCEL") ||
-            responseData.startsWith("BAD_ACTION")
+            responseData.startsWith("ACCESS_CANCEL")
           ) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
@@ -1179,12 +1187,14 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
+            if (responseData.startsWith("BAD_ACTION") ){
+              otpReceived = true;
+            }
           break;
   
         case "6":
           if (
-            responseData.startsWith("ACCESS_CANCEL") ||
-            responseData.startsWith("NO_ACTIVATION")
+            responseData.startsWith("ACCESS_CANCEL")
           ) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
@@ -1195,11 +1205,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
+            if (responseData.startsWith("NO_ACTIVATION") ){
+              otpReceived = true;
+            }
           break;
   
         case "7":
-          responseDataJson = JSON.parse(responseData);
-          if (responseDataJson.success === true || responseDataJson.error_code) {
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
             existingEntry = await transactionHistory.findOneAndUpdate(
               {id},
               {
@@ -1209,11 +1223,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           )}
+          if (responseData.startsWith("BAD_STATUS") ){
+            otpReceived = true;
+          }
           break;
   
         case "8":
-          responseDataJson = JSON.parse(responseData);
-          if (responseDataJson.success === true || responseDataJson.error_code) {
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
               {
@@ -1223,6 +1241,9 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           );}
+          if (responseData.startsWith("BAD_STATUS") ){
+            otpReceived = true;
+          }
           break;
   
         case "9":
@@ -1235,7 +1256,9 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               reason: "SMS not Received"
             },
             { new: true }  // Return the updated document);
-          );}
+          );}if (!responseData.startsWith("success") ){
+            otpReceived = true;
+          }
           break;
         case "10":
           if (responseData.startsWith("ACCESS_CANCEL")) {
@@ -1248,9 +1271,12 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           );}
+          if (responseData.startsWith("BAD_STATUS") ){
+            otpReceived = true;
+          }
           break;
         case "11":
-          if (responseData.request_id && responseData.success !== undefined) {
+          if (responseData.request_id && responseData.success) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
               {
@@ -1259,7 +1285,9 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               reason: "SMS not Received"
             },
             { new: true }  // Return the updated document);
-          );}
+          );}if (responseData.error_msg ){
+            otpReceived = true;
+          }
           break;
   
         default:
@@ -1297,9 +1325,14 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
         await numberHistory.save();
   
         if (!transaction.otp) {
-          user.balance += parseFloat(transaction.price);
-          user.balance = parseFloat(user.balance.toFixed(2));
-          await user.save();
+          const incrementAmount = parseFloat(transaction.price.toFixed(2));
+          
+          // Increment balance in the database
+          await User.updateOne(
+            { _id: user._id },
+            { $inc: { balance: incrementAmount } }
+          );
+        
         }
         await numberCancelDetails({
           email: userData.email,

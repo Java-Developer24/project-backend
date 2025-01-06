@@ -8,6 +8,7 @@ const router = express.Router();
 // import serverController from '../controllers/serverController.js'
 import otpCheckController from "../controllers/otpCheckController.js"
 import {updateAPIKey,addServerDataAdmin,updateExchangeRate,updateMarginAmount,serverData,getServerData,addSeverDiscount,getServerDiscount,deleteServerDiscount} from "../controllers/serverdatacontrolller.js"
+import { serverBalances } from '../controllers/getServerBalances.js';
 
 
 // router.post('/number', getNumberController);
@@ -25,6 +26,7 @@ router.post("/update-api-key",updateAPIKey)
 router.post( "/update-exchange-rate",updateExchangeRate)
 router.post("/update-margin-amount",updateMarginAmount)
 router.post("/add-server-data-admin",addServerDataAdmin)
+router.get("/server-balances",serverBalances)
 
 
 

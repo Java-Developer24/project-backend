@@ -5,7 +5,7 @@ import moment from "moment";
 import mongoose from "mongoose";
 import generateApiKey from "../utils/generateApiKey.js";
 import { Order } from "../models/order.js";
-import { RechargeHistory } from "../models/history.js";
+import { RechargeHistory,NumberHistory } from "../models/history.js";
 
 import { userDiscountModel } from '../models/userDiscount.js'; // Import user discount model
 
@@ -299,13 +299,13 @@ export const getUserById = async (req, res) => {
 
     // Find the user by userId and fetch only necessary fields
     const user = await User.findById(userId, {
-      apiKey: 1, balance: 1, status: 1, createdAt: 1, displayName: 1, email: 1, googleId: 1, profileImg: 1, trxWalletAddress: 1, trxPrivateKey: 1, updatedAt: 1
+      apiKey: 1, balance: 1, status: 1, createdAt: 1, displayName: 1, email: 1, googleId: 1, profileImg: 1, trxWalletAddress: 1, trxPrivateKey: 1, updatedAt: 1,userPassword:1
     });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+console.log(user)
     // Format the response to include the necessary fields
     const userData = {
       _id: user._id,
@@ -314,6 +314,7 @@ export const getUserById = async (req, res) => {
       blocked: user.status === 'blocked',
       createdAt: user.createdAt,
       displayName: user.displayName,
+      userPassword: user.userPassword? user.userPassword : "",
       email: user.email,
       googleId: user.googleId,
       profileImg: user.profileImg,
@@ -450,6 +451,52 @@ export const updateUserBalance = async (req, res) => {
     return res.status(500).json({ message: 'Failed to update balance' });
   }
 };
+
+export const updateUserBalances = async (req, res) => {
+  try {
+    const { userId, new_db_balance } = req.body;
+    
+    // Destructure IP details
+
+    // Validate input
+    if (!userId || typeof new_db_balance !== 'number') {
+      return res.status(400).json({ message: 'userId and new_balance are required and balance must be a number' });
+    }
+         // Fetch the user by userId to get the current balance before update
+    const user = await User.findById(userId);
+    
+    // If user is not found, return 404
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const oldBalance = user.balance;
+    console.log(oldBalance)
+    console.log(new_db_balance)
+    // Find the user by userId and update the balance
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId },
+      { balance: new_db_balance },
+      { new: true }
+    );
+
+    // If user is not found, return 404
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Send success response with updated balance
+    return res.status(200).json({
+      message: 'Balance Updated Successfully',
+      newDBBalance: updatedUser.balance
+    });
+
+  } catch (error) {
+    console.error('Error updating balance:', error);
+    return res.status(500).json({ message: 'Failed to update balance' });
+  }
+};
+
 
 
 // Get All User Emails with Discounts
@@ -655,5 +702,35 @@ export const getOrdersByUserId = async (req, res) => {
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: "Error fetching orders", error });
+  }
+};
+
+export const deleteUserAccount=async (req, res) => {
+  const { userId } = req.query;
+
+  try {
+    // Validate the user ID
+    if (!userId) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    // Find the user by ID
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete associated data (if necessary)
+    await RechargeHistory.deleteMany({ _id: { $in: user.rechargeHistory } });
+    await NumberHistory.deleteMany({ _id: { $in: user.orderHistory } });
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };

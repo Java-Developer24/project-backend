@@ -8,7 +8,7 @@ import {getNumber,getOtp,numberCancel} from "../controllers/servicedatacontrolle
 
 // router.get('/fetchAndStoreServices', serviceController.fetchAndStoreServices);
 // router.get('/fetch-services', serviceController.getUserServicesData);
-router.get("/get-service-data-admin", serviceController.getUserServicesData)//admin dashboard 
+router.get("/get-service-data-admin", serviceController.getUserServicesDatas)//admin dashboard 
 
 router.get("/fetch-update-compare-services",serviceController.fetchAndStoreServices)
 router.get('/get-service-server-data',serviceController.getUserServicesDatas)//frontend dashboard
