@@ -1,7 +1,8 @@
 import User from "../models/user.js";
 import bcrypt from 'bcrypt';
-import moment from "moment";
+import moment from "moment-timezone";
 
+import Configuration from "../models/configuration.js";
 import mongoose from "mongoose";
 import generateApiKey from "../utils/generateApiKey.js";
 import { Order } from "../models/order.js";
@@ -409,8 +410,8 @@ export const updateUserBalance = async (req, res) => {
     }
 
     // Generate a unique transaction ID (could be a random string or a UUID)
-    const transactionId = `Admin-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const formattedDate = moment().format("DD/MM/YYYYTHH:mm A");
+    const transactionId = `Admin-${Date.now()}`;
+    const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
 
     // Create a RechargeHistory entry for the admin's action
     const rechargeHistory = new RechargeHistory({
@@ -732,5 +733,91 @@ export const deleteUserAccount=async (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     return res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+
+export const updateOtpTimeWindow = async (req, res) => {
+  try {
+    const { time } = req.body;
+   
+
+    if (!time || isNaN(time)) {
+      return res.status(400).json({ error: "Invalid OTP time window" });
+    }
+
+    const config = await Configuration.findOneAndUpdate(
+      { key: "otpTimeWindow" },
+      { value: time },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({ message: "OTP time window updated", config });
+  } catch (error) {
+    console.error("[AdminUpdate] Error updating OTP time window:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+export const getOtpTimeWindow = async (req, res) => {
+  try {
+    // Fetch the OTP time window from the Configuration collection
+    const config = await Configuration.findOne({ key: "otpTimeWindow" });
+
+    // If no configuration is found, return an error
+    if (!config) {
+      return res.status(404).json({ error: "OTP time window not set" });
+    }
+
+    // Return the current OTP time window value
+    return res.status(200).json({
+      otpTimeWindow: config.value,
+    });
+  } catch (error) {
+    console.error("[AdminGet] Error fetching OTP time window:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+export const forceOrderAndNumberHistoryDelete = async (req, res) => {
+  const { userId, numberId, number } = req.query;
+  console.log(req.query)
+
+  try {
+     // Step 1: Call the cancel API
+     const response = await fetch(
+      `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
+    );
+
+    // Check if the cancellation was successful
+    const cancelData = await response.json();
+    if (!cancelData.success) {
+      return res.status(400).json({ message: "Failed to cancel the number." });
+    }
+
+    // Step 2: Verify and delete the order
+    const order = await Order.findOneAndDelete({ userId, numberId, number });
+    console.log(order);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    // Step 3: Verify and delete the number entry in NumberHistory
+    const numberHistory = await NumberHistory.findOneAndDelete({ userId, id: numberId, number });
+    if (!numberHistory) {
+      return res.status(404).json({ message: "Number history not found." });
+    }
+
+
+    // Step 4: Send success message
+    res.status(200).json({
+      message: "Order and number history deleted successfully. User balance updated.",
+      updatedBalance: user.balance,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred.", error });
   }
 };

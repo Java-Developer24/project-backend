@@ -6,6 +6,7 @@ import { userDiscountModel } from '../models/userDiscount.js'
 import User from "../models/user.js"
 
 import ServerData from '../models/serverData.js';
+import Admin from '../models/mfa.js';
 
 
 // Store the margin amount globally at the top
@@ -936,23 +937,52 @@ export const deleteServiceDiscount = async (req, res) => {
 
 
 
-// Controller function to fetch the maintenance status for server 0
 export const getMaintenanceStatusForServer = async (req, res) => {
   try {
     // Fetch maintenance status for server 0
     const serverData = await ServerData.findOne({ server: 0 });
 
     if (!serverData) {
-      return res.status(404).json({ message: 'Server 0 not found' });
+      return res.status(404).json({ message: "Server 0 not found" });
     }
 
-    // Return the maintenance status for server 0
+    // Get the admin IP from the database
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found in the database" });
+    }
+
+    // Get the user's IP address from the request
+    const userIp = req.ip;
+
+    // Check if maintenance is on
+    if (serverData.maintainance) {
+      // If IP matches the admin's IP, allow access
+      if (userIp === admin.adminIp) {
+        return res.status(200).json({
+          maintainance: true, // Maintenance is on
+          adminAccess: true, // Admin is allowed to access
+          message: "Admin access granted during maintenance.",
+        });
+      }
+
+      // If IP does not match, block access
+      return res.status(503).json({
+        maintainance: true,
+        message: "The site is under maintenance.",
+      });
+    }
+
+    // If maintenance is not on, return the status as normal
     return res.status(200).json({
-      maintainance: serverData.maintainance
+      maintainance: false,
     });
   } catch (error) {
-    console.error('Error fetching maintenance status for server 0:', error);
-    return res.status(500).json({ message: 'Error fetching maintenance status', error: error.message });
+    console.error("Error fetching maintenance status for server 0:", error);
+    return res.status(500).json({
+      message: "Error fetching maintenance status",
+      error: error.message,
+    });
   }
 };
 

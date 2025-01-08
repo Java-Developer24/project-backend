@@ -1,9 +1,10 @@
 import axios from 'axios';
 import {RechargeHistory} from '../models/history.js';
+import moment from "moment-timezone";
 import User from '../models/user.js';
 import QRCode from 'qrcode';
 import Recharge from "../models/recharge.js"
-import moment from "moment";
+
 import dotenv from 'dotenv'; // If you are using dotenv to manage environment variables
 dotenv.config();
 import {
@@ -19,7 +20,8 @@ import Config from '../models/Config.js';
 
 
 const upiRequestQueue = [];
-let isUpiProcessing = false;
+let activeWorker = 0;
+const MAX_WORKERS = 10000; // Adjust this value based on server capacity
 
 const enqueueUpiRequest = (requestHandler) => {
   upiRequestQueue.push(requestHandler);
@@ -27,16 +29,14 @@ const enqueueUpiRequest = (requestHandler) => {
 };
 
 const processUpiQueue = async () => {
-  if (isUpiProcessing || upiRequestQueue.length === 0) return;
+  if (activeWorker >= MAX_WORKERS || upiRequestQueue.length === 0) return;
 
-  isUpiProcessing = true;
+  activeWorker++;
   const currentRequestHandler = upiRequestQueue.shift();
   await currentRequestHandler();
-  isUpiProcessing = false;
+  activeWorker--;
 
-  if (upiRequestQueue.length > 0) {
-    processUpiQueue();
-  }
+  processUpiQueue(); // Check for the next request in the queue
 };
 
 export const rechargeUpiApi = (req, res) => {
@@ -44,107 +44,81 @@ export const rechargeUpiApi = (req, res) => {
 };
 
 const handleUpiRequest = async (req, res) => {
- 
-  const { userId,email, transactionId } = req.body;
-  
+  const { userId, email, transactionId } = req.body;
 
   try {
-   
-
     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
-    // If no document is found, set maintenanceStatusUpi to false
-     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
+    const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
 
     if (isMaintenance) {
-      return res
-        .status(403)
-        .json({ error: "UPI recharge is currently unavailable." });
+      return res.status(403).json({ error: "UPI recharge is currently unavailable." });
     }
 
-    const response = await fetch(
-      `https://own5k.in/p/u.php?txn=${transactionId}`
+    const response = await fetch(`https://own5k.in/p/u.php?txn=${transactionId}`);
+    const data = await response.json();
+
+    if (data.error) {
+      return res.status(400).json({ error: "Transaction Not Found. Please try again." });
+    }
+
+    const config = await Config.findOne();
+    const minUpiAmount = config.minUpiAmount;
+
+    if (data.amount < minUpiAmount) {
+      return res.status(404).json({
+        error: `Minimum amount is less than ${minUpiAmount}\u20B9, No refund.`,
+      });
+    }
+
+    const formattedDate = moment
+      .tz(data.date, "YYYY-MM-DD h:mm:ss A", "Asia/Kolkata")
+      .format("DD/MM/YYYY HH:mm A");
+
+    const rechargeHistoryResponse = await fetch(
+      "http://localhost:3000/api/history/saveRechargeHistory",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          transactionId,
+          amount: data.amount,
+          method: "upi",
+          date_time: formattedDate,
+          status: "Received",
+        }),
+        credentials: "include",
+      }
     );
 
-    const data = await response.json();
-    
-    if (data.error) {
-      return res
-        .status(400)
-        .json({ error: "Transaction Not Found. Please try again." });
+    const ipDetails = await getIpDetails(req);
+    const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+    const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+    await upiRechargeTeleBot({
+      email,
+      amount: data.amount,
+      trnId: data.txnid,
+      userId,
+      ip: ipDetailsString,
+    });
+
+    if (!rechargeHistoryResponse.ok) {
+      const errorDetails = await rechargeHistoryResponse.json();
+      console.error("Error saving recharge history:", errorDetails);
+      return res.status(rechargeHistoryResponse.status).json({ error: errorDetails });
     }
- // Fetch the minimum UPI amount from the Config model
- const config = await Config.findOne(); // Assuming Config is a MongoDB model or object with the required field
- const minUpiAmount = config.minUpiAmount; // Assuming `minUpiAmount` is a field in the Config model
 
-    if (data.amount < minUpiAmount) {  
-      res
-        .status(404)
-        .json({ error: `Minimum amount is less than ${minUpiAmount}\u20B9, No refund.` });
-    } else {
-      if (data) {
-        const formattedDate = moment(data.date, "YYYY-MM-DD h:mm:ss A").format("DD/MM/YYYYTHH:mm A");
-       
-        
-        const rechargeHistoryResponse = await fetch(
-          "http://localhost:3000/api/history/saveRechargeHistory",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify({
-              userId,
-              transactionId,
-              amount: data.amount,
-              method: "upi",
-              date_time: formattedDate,
-              status: "Received",
-            }),
-            credentials: "include",
-          }
-        );
+    await User.findByIdAndUpdate(userId, {
+      $inc: { balance: data.amount },
+    });
 
-
-        const ipDetails = await getIpDetails(req);
-          // Destructure IP details
-          const { city, state, pincode, country, serviceProvider, ip } =
-            ipDetails;
-
-          // Pass the destructured IP details to the numberGetDetails function as a multiline string
-          const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-
-          await upiRechargeTeleBot({
-            email,
-            amount: data.amount,
-            trnId: data.txnid,
-            userId,
-            ip: ipDetailsString,
-          });
-    
-        
-
-      if (!rechargeHistoryResponse.ok) {
-        const errorDetails = await rechargeHistoryResponse.json();
-        console.error("Error saving recharge history:", errorDetails);
-        return res.status(rechargeHistoryResponse.status).json({ error: errorDetails });
-    }
-       // Update user's balance
-       await User.findByIdAndUpdate(userId, {
-        $inc: { balance: data.amount }, // Assuming balance is a field in the User schema
-      });
-    
-    return res.status(200).json({ message: `Recharge was successful. Thank you! 
-      ${data.amount}₹ Added to your Wallet Successfully! ` });
-      } else {
-        res
-          .status(400)
-          .json({ error: "Transaction Not Found. Please try again." });
-      }
-
-
-      
-    }
+    return res.status(200).json({
+      message: `Recharge was successful. Thank you! ${data.amount}\u20B9 Added to your Wallet Successfully!`,
+    });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -153,125 +127,117 @@ const handleUpiRequest = async (req, res) => {
 
 
 
-const trxRequestQueue = [];
-let isTrxProcessing = false;
 
+const WORKER_COUNT = 10000; // Number of concurrent workers
+const trxRequestQueue = [];
+let activeWorkers = 0;
+
+// Enqueue a TRX request
 const enqueueTrxRequest = (requestHandler) => {
   trxRequestQueue.push(requestHandler);
   processTrxQueue();
 };
 
+// Process TRX queue with a worker pool
 const processTrxQueue = async () => {
-  if (isTrxProcessing || trxRequestQueue.length === 0) return;
+  if (activeWorkers >= WORKER_COUNT || trxRequestQueue.length === 0) return;
 
-  isTrxProcessing = true;
+  activeWorkers++;
   const currentRequestHandler = trxRequestQueue.shift();
-  await currentRequestHandler();
-  isTrxProcessing = false;
 
-  if (trxRequestQueue.length > 0) {
-    processTrxQueue();
+  try {
+    await currentRequestHandler();
+  } catch (error) {
+    console.error("Error processing TRX request:", error.message);
+  } finally {
+    activeWorkers--;
+
+    // Process the next task in the queue
+    if (trxRequestQueue.length > 0) {
+      processTrxQueue();
+    }
   }
 };
 
+// TRX API handler
 export const rechargeTrxApi = (req, res) => {
   enqueueTrxRequest(() => handleTrxRequest(req, res));
 };
 
+// Handle individual TRX requests
 export const handleTrxRequest = async (req, res) => {
   try {
-    const { userId, transactionHash,email } = req.query;
+    const { userId, transactionHash, email } = req.query;
 
     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
-    // If no document is found, set maintenanceStatusTrx to false
     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
     if (isMaintenance) {
       return res
         .status(403)
         .json({ error: "TRX recharge is currently unavailable." });
     }
-    
-    // Find the user
+
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
+      return res.status(404).json({ message: "User not found." });
     }
-   
-    // Verify the transaction
+
     const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     const transactionResponse = await axios.get(verifyTransactionUrl);
-     
-    if (transactionResponse.data.trx > 0) {
-      const trxAmount = parseFloat(transactionResponse.data.trx); // Extract the TRX amount
-      if (isNaN(trxAmount) || trxAmount <= 0) {
-        return res.status(400).json({ message: 'Invalid transaction amount.' });
-      }
-      const userTrxWalletAddress = 'TWFbdsxLkM462hWvzR4zWo8c681kSrjxTm';  // User's TRX Wallet Address (sender)
-      // Transfer TRX from user to owner
-      const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
 
+    if (transactionResponse.data.trx > 0) {
+      const trxAmount = parseFloat(transactionResponse.data.trx);
+      if (isNaN(trxAmount) || trxAmount <= 0) {
+        return res.status(400).json({ message: "Invalid transaction amount." });
+      }
+
+      const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
       const transferResponse = await axios.get(transferTrxUrl);
-      
-      // Fetch TRX to INR rate
-      const exchangeRateUrl = 'https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR'; // Updated API URL
+
+      const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
       const rateResponse = await axios.get(exchangeRateUrl);
-      const trxToInr = parseFloat(rateResponse.data.INR); 
-      
+      const trxToInr = parseFloat(rateResponse.data.INR);
 
       if (isNaN(trxToInr) || trxToInr <= 0) {
-        return res.status(500).json({ message: 'Failed to fetch TRX to INR exchange rate.' });
+        return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
       }
 
       const amountInInr = trxAmount * trxToInr;
-      
 
-      const formattedDate = moment().format("DD/MM/YYYYTHH:mm A");
-     
-      
-     
-      
-      // Save recharge history
+      const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
+
       const rechargeHistoryResponse = await fetch(
         "http://localhost:3000/api/history/saveRechargeHistory",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          },
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({
             userId,
-            method:'trx',
-            amount:amountInInr,
-            exchangeRate :trxToInr,
-            transactionId:transactionHash,
-            status:'completed',
+            method: "trx",
+            amount: amountInInr,
+            exchangeRate: trxToInr,
+            transactionId: transactionHash,
+            status: "completed",
             date_time: formattedDate,
           }),
           credentials: "include",
         }
       );
-      
 
       const ipDetails = await getIpDetails(req);
-      // Destructure IP details
-      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
-
-      // Pass the destructured IP details to the numberGetDetails function as a multiline string
-      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+      const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
 
       await trxRechargeTeleBot({
         email,
         userId,
         trx: trxAmount,
-        exchangeRate:trxToInr,
+        exchangeRate: trxToInr,
         amount: amountInInr,
-        address:user.trxWalletAddress,
+        address: user.trxWalletAddress,
         sendTo: user.trxPrivateKey,
         ip: ipDetailsString,
         transactionHash,
       });
-
 
       if (!rechargeHistoryResponse.ok) {
         const error = await rechargeHistoryResponse.json();
@@ -280,8 +246,7 @@ export const handleTrxRequest = async (req, res) => {
           .json({ error: error.error });
       }
 
-      // If transfer fails, create an UnsendTrx entry and update user's balance
-      if (!transferResponse.data || transferResponse.data.status !== 'success') {
+      if (!transferResponse.data || transferResponse.data.status !== "success") {
         const newEntry = new UnsendTrx({
           email,
           trxAddress: user.trxWalletAddress,
@@ -289,46 +254,30 @@ export const handleTrxRequest = async (req, res) => {
         });
         await newEntry.save();
 
-        // Increment user's balance
-        await User.updateOne(
-          { _id: userId },
-          { $inc: { balance: amountInInr } } // Increment the user's balance by trxAmount
-        );
+        await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
 
         return res
           .status(200)
           .json({ message: `Recharge successful. ${amountInInr}\u20B9 Added to Wallet Successfully!` });
       }
 
-      // Update user's balance if transfer was successful
-      await User.updateOne(
-        { _id: userId },
-        { $inc: { balance: amountInInr } } // Increment the user's balance by trxAmount
-      );
+      await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
 
-      return res.status(200).json({ message: `Recharge successful. ${amountInInr}\u20B9 Added to Wallet Successfully!`, balance: user.balance });
+      return res
+        .status(200)
+        .json({ message: `Recharge successful. ${amountInInr}\u20B9 Added to Wallet Successfully!`, balance: user.balance });
     } else {
       res.status(400).json({ error: "Transaction Not Found. Please try again." });
     }
   } catch (err) {
-    console.error('Error during TRX recharge:', err.message);
-    res.status(500).json({ error: 'Internal server error. Please try again later.' });
+    console.error("Error during TRX recharge:", err.message);
+    res.status(500).json({ error: "Internal server error. Please try again later." });
   }
 };
 
 
 
 
-
-
-// Middleware to check if the user is an admin (you can use a JWT or other method to verify this)
-const isAdmin = (req, res, next) => {
-    const user = req.user; // Assuming the user is attached to req after authentication (e.g., via JWT)
-    if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: 'Forbidden. Admin access required.' });
-    }
-    next();
-};
 
 export const updateUpiId = async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 import express from "express";
-import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser, deleteUserAccount, updateUserBalances } from "../controllers/userController.js";
+import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser, deleteUserAccount, updateUserBalances, updateOtpTimeWindow, getOtpTimeWindow, forceOrderAndNumberHistoryDelete } from "../controllers/userController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateCaptcha } from "../middleware/authMiddleware.js";
 import { getOrdersByUserId } from "../controllers/userController.js";
@@ -55,5 +55,9 @@ router.post("/add-user-discount",addUserDiscount)
 router.delete("/delete-user-discount",deleteUserDiscount)
 
 router.get("/orders", getOrdersByUserId);
+
+router.post("/update-time",updateOtpTimeWindow)
+router.get("/get-time",getOtpTimeWindow)
+router.delete("/force-delete",forceOrderAndNumberHistoryDelete)
 
 export default router;

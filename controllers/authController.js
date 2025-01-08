@@ -151,6 +151,51 @@ export const login = async (req, res) => {
   }
 };
 
+export const adminloginOnBehalfOfUser = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    console.log(req.body)
+    // Find user by email
+    const user = await User.findOne({_id: userId });
+    console.log(user)
+   
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+  
+
+   
+
+     // Generate JWT token
+     const jwtToken = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Save the token in the database
+    user.jwtToken = jwtToken;  
+    await user.save();
+    console.log("token:",jwtToken)
+
+     // Return token and user data to the frontend
+     res.status(200).json({
+      message: 'Login successful',
+      token: jwtToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        balance: user.balance,
+        apiKey: user.apiKey,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const adminLogin= async (req, res) => {
   const { email, password } = req.body;
 

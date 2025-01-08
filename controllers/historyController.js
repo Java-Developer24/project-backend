@@ -319,3 +319,52 @@ export const transactionCount = async (req, res) => {
     res.status(500).json({ error: "Failed to count transaction" });
   }
 };
+
+
+// Endpoint: delete-recharge-history
+export const deleteRechargeHistory = async (req, res) => {
+  const { id } = req.query;
+
+  try {
+    // Validate the input
+    if (!id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    // Search and delete the transaction
+    const result = await RechargeHistory.findOneAndDelete({transactionId:id});
+    if (!result) {
+      return res.status(404).json({ "success": true,message: "Transaction not found." });
+    }
+
+    // Send success response
+    res.status(200).json({ message: "Recharge history deleted successfully." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred.", error });
+  }
+};
+
+// Endpoint: delete-numberhistory
+export const deleteNumberHistory = async (req, res) => {
+  const { id } = req.query;
+
+  try {
+    // Validate the input
+    if (!id) {
+      return res.status(400).json({ message: "Number history ID is required." });
+    }
+
+    // Search and delete the number history entry
+    const result = await NumberHistory.findByIdAndDelete(id);
+    if (!result) {
+      return res.status(404).json({ message: "Number history entry not found." });
+    }
+
+    // Send success response
+    res.status(200).json({ message: "Number history deleted successfully." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "An error occurred.", error });
+  }
+};

@@ -1,4 +1,6 @@
-import moment from "moment";
+
+import moment from "moment-timezone";
+
 import Service from '../models/service.js';
 import { NumberHistory } from "./../models/history.js";
 import User from "../models/user.js";
@@ -36,25 +38,30 @@ const getServerData = async (sname, server) => {
   };
   
   const requestQueue = [];
-  let isProcessing = false;
-  
-  const enqueueRequest = (requestHandler) => {
-    requestQueue.push(requestHandler);
-    processQueue();
-  };
-  
-  const processQueue = async () => {
-    if (isProcessing || requestQueue.length === 0) return;
-  
-    isProcessing = true;
-    const currentRequestHandler = requestQueue.shift();
+const MAX_WORKERS = 10000; // Adjust the number of workers based on your needs
+let activeWorkers = 0;
+
+const enqueueRequest = (requestHandler) => {
+  requestQueue.push(requestHandler);
+  processQueue();
+};
+
+const processQueue = async () => {
+  if (activeWorkers >= MAX_WORKERS || requestQueue.length === 0) return;
+
+  activeWorkers++;
+  const currentRequestHandler = requestQueue.shift();
+
+  try {
     await currentRequestHandler();
-    isProcessing = false;
-  
-    if (requestQueue.length > 0) {
-      processQueue();
-    }
-  };
+  } catch (error) {
+    console.error("Error processing request:", error);
+  } finally {
+    activeWorkers--;
+    processQueue();
+  }
+};
+
   
   // Helper function to get API key and check maintenance
   const getServerMaintenanceData = async (server) => {
@@ -334,7 +341,8 @@ const getServerData = async (sname, server) => {
       }
   
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
-      price = parseFloat((price - totalDiscount).toFixed(2));
+      const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
+      price=parseFloat((Originalprice - totalDiscount).toFixed(2))
       
       // Update balance in the database using MongoDB $inc operator
       await User.updateOne(
@@ -345,7 +353,10 @@ const getServerData = async (sname, server) => {
       
       
   
-      const formattedDateTime = moment().format("DD/MM/YYYYTHH:mm A");
+      const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
+      const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmm");
+      const requestId=uniqueID
+
 
 
   
@@ -355,6 +366,8 @@ const getServerData = async (sname, server) => {
         price,
         server,
         id,
+        requestId, 
+        Discount:totalDiscount,
         otps: null,
         status: "Success",
         reason:"Waiting for SMS",
@@ -379,12 +392,14 @@ const getServerData = async (sname, server) => {
   
       const expirationTime = new Date();
       expirationTime.setMinutes(expirationTime.getMinutes() + 20);
+      console.log(expirationTime)
   
       const newOrder = new Order({
         userId: user._id,
         service: sname,
         price,
         server,
+        requestId,
         numberId: id,
         number,
         orderTime: new Date(),
@@ -392,7 +407,7 @@ const getServerData = async (sname, server) => {
       });
       await newOrder.save();
   
-      res.status(200).json({ number, id });
+      res.status(200).json({ number, requestId });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message });
@@ -400,37 +415,41 @@ const getServerData = async (sname, server) => {
   };
   
 
-  const TIME_OFFSET = 60000; // 1 minute in milliseconds
+  const TIME_OFFSET = 20000; // 1 minute in milliseconds
 
-const checkAndCancelExpiredOrders = async () => {
-  try {
-    const currentTime = new Date();
-    const expiredOrders = await Order.find({
-      expirationTime: { $lte: new Date(currentTime.getTime() + TIME_OFFSET) },
-    });
-
-    for (const order of expiredOrders) {
-      const timeDifference =
-        new Date(order.expirationTime).getTime() - currentTime.getTime() - TIME_OFFSET;
-
-      if (timeDifference >= 0) {
-        // Schedule cancellation if within future range
-        setTimeout(() => cancelOrder(order), timeDifference);
-      } else {
-        // Immediately cancel already expired orders
-        await cancelOrder(order);
+  const checkAndCancelExpiredOrders = async () => {
+    try {
+      const currentTime = new Date();
+      const expiredOrders = await Order.find({
+        expirationTime: { $lte: new Date(currentTime.getTime() + TIME_OFFSET) },
+      });
+ 
+      for (const order of expiredOrders) {
+        const timeDifference = new Date(order.expirationTime).getTime() - currentTime.getTime();
+  console.log("time difference",timeDifference)
+  console.log("diferenece",timeDifference >= 0)
+        
+    if (timeDifference >= 0) {
+          setTimeout(() => cancelOrder(order), timeDifference);
+          // Schedule cancellation if within future range
+           
+        } else  {
+          // Immediately cancel already expired orders
+          await cancelOrder(order);
+        }
       }
+    } catch (error) {
+      console.error("Error in checkAndCancelExpiredOrders:", error.message);
     }
-  } catch (error) {
-    console.error("Error in checkAndCancelExpiredOrders:", error.message);
-  }
-};
-
+  };
+  
 export const cancelOrder = async (order) => {
   try {
     const user = await User.findOne({ _id: order.userId });
 
     if (user && user.apiKey) {
+      console.log("cancelling the order")
+      console.log("ordernumberid",user.apiKey)
       await callNumberCancelAPI(user.apiKey, order.numberId, order.server);
     } else {
       console.error(`No API key found for user ${order.userId}`);
@@ -445,7 +464,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
     const response = await fetch(
       `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
     );
-
+    
     if (!response.ok) {
       const errorResponse = await response.json();
       console.error(`API call failed:`, errorResponse);
@@ -464,11 +483,11 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
 
   const getOtp = async (req, res) => {
     try {
-      const { id, api_key, server } = req.query;
-      console.log(id)
+      const { requestId, api_key, server } = req.query;
+      
       console.log(server)
   
-      if (!id) {
+      if (!requestId) {
         return res.status(400).json({ error: "ID is required." });
       }
       if (!server) {
@@ -487,6 +506,12 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
   
       const userData = await User.findById({ _id: user._id });
+      // Fetch the actual ID based on the provided request ID
+    const transaction = await NumberHistory.findOne({ requestId: requestId }); // Fetch the actual ID from the database
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+    const id = transaction.id; // Get the actual ID from the transaction data
   
       // Check server maintenance and get API key
       const serverData = await getServerMaintenanceData(server);
@@ -588,17 +613,14 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
                   (a, b) => new Date(b.date) - new Date(a.date)
                 );
           
-                // Extract OTPs from all messages and store them in the validOtp array
-                validOtp = sortedSms
-                  .map((sms) => {
-                    const otpMatch = sms.text.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
-                    return otpMatch ? otpMatch[0] : null; // Return OTP if found, otherwise null
-                  })
-                  .filter((otp) => otp !== null); // Remove any null values
+                // Map each SMS text to an object with an 'otp' field and add to validOtp
+                validOtp = sortedSms.map((sms) => ({
+                  otp: sms.text.replace(/Message ID:.*$/, "").trim(), // Remove "Message ID" part and trim
+                }));
               } else {
-                // No OTP available in the "sms" array
-                console.log("No OTP received in the response.");
-                validOtp = []; // Empty array if no OTPs
+                // No SMS messages available
+                console.log("No SMS messages received in the response.");
+                validOtp = []; // Empty array if no messages
               }
             } catch (error) {
               console.error("Error processing case 2 response:", error.message);
@@ -606,7 +628,6 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
             break;
           
-  
         case "3":
           // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("STATUS_OK")) {
@@ -648,11 +669,10 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
                 const parts = responseData.split(":");
                 const messageText = parts[1]?.trim(); // Trim to remove any leading or trailing spaces
           
-                // Use a regular expression to extract the OTP (4-6 digit number)
-                const otpMatch = messageText.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
+                
           
-                if (otpMatch) {
-                  validOtp = otpMatch[0]; // Store the extracted OTP
+                if (messageText) {
+                  validOtp = messageText; // Store the extracted OTP
                 } else {
                   console.log("No OTP found in the STATUS_OK message.");
                   validOtp = null; // No OTP found
@@ -700,24 +720,15 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               ) {
                 const vcText = responseDataJson.data.verificationCode[0]?.vc?.trim(); // Get and trim `vc`
           
-                if (vcText) {
-                  // Use a regular expression to extract the OTP (4-6 digit number)
-                  const otpMatch = vcText.match(/\b\d{4,6}\b/); // Match 4-6 digit numbers
+                
           
-                  if (otpMatch) {
-                    validOtp = otpMatch[0]; // Store the extracted OTP
+                  if (vcText) {
+                    validOtp = vcText; // Store the extracted OTP
                   } else {
                     console.log("No OTP found in the vc field.");
                     validOtp = null; // No OTP found in `vc`
                   }
-                } else {
-                  console.log("vc field is empty or undefined.");
-                  validOtp = null; // No `vc` provided
-                }
-              } else {
-                console.log("Verification code data is missing or empty.");
-                validOtp = null; // No verification code data
-              }
+                } 
             } catch (error) {
               console.error("Error processing case 9 response:", error.message);
               throw new Error("Failed to process the OTP response for case 9.");
@@ -763,9 +774,13 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
       console.log("otp",validOtp)
       if (validOtp) {
+        const otpEntry = {
+          message: [validOtp], // Valid OTP message here
+          
+        };
         const existingEntry = await NumberHistory.findOneAndUpdate({
           id},{
-          otp: [validOtp],
+          otps: [otpEntry],
         });
         console.log("Existing Entry:", existingEntry);
       
@@ -779,11 +794,11 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
       
           // Format the current date and time
-          const formattedDateTime = moment().format("MM/DD/YYYYTHH:mm:ss A");
+          const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
       
           // Update the OTP entry format to include "message" as an object, not a string
           const otpEntry = {
-            message: validOtp, // Valid OTP message here
+            message: [validOtp], // Valid OTP message here
             
           };
       
@@ -793,6 +808,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             serviceName: transaction.serviceName,
             price: transaction.price,
             server,
+            Discount:totalDiscount,
             id,
             otps: [otpEntry],  // Ensure this is an array of objects, not just a string
             status: "Success",
@@ -946,24 +962,33 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
 
 
 
-  const cancelRequestQueue = [];
-  let isCancelProcessing = false;
+ 
   
+  const cancelRequestQueue = [];
+  const MAX_WORKER = 10000; // Number of concurrent workers
+  let activeWorker = 0;
+  
+  // Enqueue a cancel request
   const enqueueCancelRequest = (requestHandler) => {
     cancelRequestQueue.push(requestHandler);
     processCancelQueue();
   };
   
+  // Process the cancel queue using a worker pool
   const processCancelQueue = async () => {
-    if (isCancelProcessing || cancelRequestQueue.length === 0) return;
-  
-    isCancelProcessing = true;
-    const currentRequestHandler = cancelRequestQueue.shift();
-    await currentRequestHandler();
-    isCancelProcessing = false;
-  
-    if (cancelRequestQueue.length > 0) {
-      processCancelQueue();
+    while (activeWorker < MAX_WORKER && cancelRequestQueue.length > 0) {
+      const currentRequestHandler = cancelRequestQueue.shift();
+      activeWorker++;
+      currentRequestHandler()
+        .then(() => {
+          activeWorker--;
+          processCancelQueue();
+        })
+        .catch((error) => {
+          console.error("Error processing request:", error);
+          activeWorker--;
+          processCancelQueue();
+        });
     }
   };
   
@@ -1034,7 +1059,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       if (userTransactions.length >= 3) {
         thirdLastTransactions = userTransactions[2];
       }
-  
+  console.log("order cancellations request")
       switch (server) {
         case "1":
           apiUrl = `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&id=${id}&status=8`;
@@ -1116,7 +1141,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           );
           }
   
-          if (responseData.startsWith("ACCESS_APPROVED")) {
+          else if (responseData.startsWith("ACCESS_APPROVED")) {
             otpReceived = true;
           }
   
@@ -1134,7 +1159,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-          if (responseDataJson.status === "order has sms") {
+          else if (responseDataJson.status === "order has sms") {
             otpReceived = true;
           }
           break;
@@ -1150,7 +1175,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-            if (responseData.startsWith("ACCESS_ACTIVATION") ){
+           else if (responseData.startsWith("ACCESS_ACTIVATION") ){
               otpReceived = true;
             }
             break;
@@ -1169,7 +1194,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-            if (responseData.startsWith("BAD_STATUS") ){
+            else if (responseData.startsWith("BAD_STATUS") ){
               otpReceived = true;
             }
           break;
@@ -1187,7 +1212,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-            if (responseData.startsWith("BAD_ACTION") ){
+            else if (responseData.startsWith("BAD_ACTION") ){
               otpReceived = true;
             }
           break;
@@ -1205,7 +1230,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
             );}
-            if (responseData.startsWith("NO_ACTIVATION") ){
+           else if (responseData.startsWith("NO_ACTIVATION") ){
               otpReceived = true;
             }
           break;
@@ -1223,7 +1248,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           )}
-          if (responseData.startsWith("BAD_STATUS") ){
+         else if (responseData.startsWith("BAD_STATUS") ){
             otpReceived = true;
           }
           break;
@@ -1241,7 +1266,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           );}
-          if (responseData.startsWith("BAD_STATUS") ){
+         else if (responseData.startsWith("BAD_STATUS") ){
             otpReceived = true;
           }
           break;
@@ -1256,7 +1281,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               reason: "SMS not Received"
             },
             { new: true }  // Return the updated document);
-          );}if (!responseData.startsWith("success") ){
+          );} else if (!responseData.startsWith("success") ){
             otpReceived = true;
           }
           break;
@@ -1271,7 +1296,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             },
             { new: true }  // Return the updated document);
           );}
-          if (responseData.startsWith("BAD_STATUS") ){
+          else if (responseData.startsWith("BAD_STATUS") ){
             otpReceived = true;
           }
           break;
@@ -1285,7 +1310,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               reason: "SMS not Received"
             },
             { new: true }  // Return the updated document);
-          );}if (responseData.error_msg ){
+          );}else if (responseData.error_msg ){
             otpReceived = true;
           }
           break;
@@ -1306,7 +1331,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
   
       if (!existingEntry) {
-        const formattedDateTime = moment().format("DD/MM/YYYYTHH:mm A");
+        const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
   
         const transaction = await NumberHistory.findOne({ id });
   
@@ -1323,8 +1348,10 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           date_time: formattedDateTime,
         });
         await numberHistory.save();
-  
-        if (!transaction.otp) {
+      
+      }
+      const transaction = await NumberHistory.findOne({ id });
+        if (!transaction.otps) {
           const incrementAmount = parseFloat(transaction.price.toFixed(2));
           
           // Increment balance in the database
@@ -1345,7 +1372,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
         });
   
         await Order.deleteOne({ numberId: id });
-      }
+      
   
       if (
         thirdLastTransactions &&

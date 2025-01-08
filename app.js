@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/database.js';
-import {checkAndCancelExpiredOrders} from "./controllers/servicedatacontroller.js"
+import { checkAndCancelExpiredOrders} from "./controllers/servicedatacontroller.js"
 import {scheduleJob} from "./utils/telegram-recharge-transaction.js"
 import session from 'express-session';
 
@@ -39,7 +39,7 @@ app.use(
 
 // Middleware
 app.use(express.json());
-
+// app.use(captureIpMiddleware);
 
 // Session middleware (required for passport)
 app.use(
@@ -64,6 +64,9 @@ import unsendRoutes from "./routes/unsend-trx.js"
 import blockRoutes from "./routes/block-users.js"
 import configRoutes from "./routes/config.js"
 import mfaRoutes from "./routes/mfa.js"
+import infoRoutes from "./routes/info.js"
+import { captureIpMiddleware} from './middleware/getIPMiddleware.js';
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/history',history)
@@ -76,6 +79,8 @@ app.use("/api/unsendtrx",unsendRoutes)
 app.use("/api/block",blockRoutes)
 app.use("/api/config",configRoutes)
 app.use("/api/mfa",mfaRoutes)
+app.use("/api/info",infoRoutes)
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.message);
@@ -83,7 +88,7 @@ app.use((err, req, res, next) => {
 });
 // Schedule the checkAndCancelExpiredOrders function to run every 5 minutes
 // setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
-setInterval(runFraudCheck, 5000);// Call the function every 5 seconds
+// setInterval(runFraudCheck, 5000);// Call the function every 5 seconds
 // scheduleJob()
 
 // Start the server

@@ -4,6 +4,7 @@ import speakeasy from "speakeasy"
 import qrcode from "qrcode"
 import  Admin from "../models/mfa.js"
 
+
 export const enable2FA = async (req, res) => {
     try {
         const { tempEmail } = req.body;
@@ -106,3 +107,53 @@ export const disable2FA = async (req, res) => {
         res.status(500).json({ message: 'Error disabling 2FA.' });
     }
 };
+
+
+export const getAdminIP= async (req, res) => {
+    try {
+      const admin = await Admin.findOne();
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+      }
+      res.status(200).json({ adminIp: admin.adminIp });
+    } catch (error) {
+      console.error('Error fetching admin IP:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+
+  
+  export const updateAdminIP = async (req, res) => {
+    const { ip } = req.body;
+  
+    // Default IP to use if none is provided
+    const defaultIp = '::1'; // Change this to the desired default IP
+  
+    if (!ip) {
+      return res.status(400).json({ message: 'IP address is required' });
+    }
+  
+    try {
+      const admin = await Admin.findOne();
+  
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+      }
+  
+      // If adminIp is not set, use the default IP
+      if (!admin.adminIp) {
+        admin.adminIp = defaultIp;
+      } else {
+        // If adminIp exists, update it with the new IP
+        admin.adminIp = ip;
+      }
+  
+      await admin.save();
+  
+      res.status(200).json({ message: 'Admin IP updated successfully', adminIp: admin.adminIp });
+    } catch (error) {
+      console.error('Error updating admin IP:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+  

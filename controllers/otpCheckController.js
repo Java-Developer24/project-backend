@@ -1,5 +1,7 @@
 import Service from "../models/service.js"  
 import ServerData from "../models/serverData.js";
+import Configuration from "../models/configuration.js";
+
 const searchCodes = async (codes) => {
   const results = [];
 
@@ -58,20 +60,32 @@ const otpCheck = async (req, res) => {
     const serverData = await ServerData.findOne({ server: 1 });
 
     const encodedOtp = encodeURIComponent(otp);
-    const message = `Dear user, your OTP is ${encodedOtp}. The request originated from IP .`;
-    // URL encode the message
-const encodedMessage = encodeURIComponent(message);
-
-
     const response = await fetch(
-      `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=getOtp&sms=${encodedMessage}`
+      `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=getOtp&sms=${encodedOtp}`
     );
 
     const data = await response.json();
 
-    // Handle different types of responses
     if (data === false) {
-      return res.status(404).json({ error: "OTP not found" });
+      // Fetch the dynamic timing window from the configuration model
+      const config = await Configuration.findOne({ key: "otpTimeWindow" });
+      const timeWindowInMinutes = config ? config.value : 60; // Default to 60 minutes if not configured
+
+      const timeLimit = new Date(Date.now() - timeWindowInMinutes * 60 * 1000);
+
+      // Search in the database for the OTP
+      const dbResults = await NumberHistory.find({
+        otp,
+        ...(req.query.service === "any other"
+          ? { createdAt: { $gte: timeLimit } } // Filter for last `timeWindowInMinutes` only
+          : {}), // No filter for other services
+      }).sort({ createdAt: 1 }); // Return the oldest entry
+
+      if (dbResults.length > 0) {
+        return res.status(200).json({ result: dbResults[0] });
+      } else {
+        return res.status(404).json({ error: "No OTP found in the database" });
+      }
     } else if (Array.isArray(data)) {
       let codes = [];
 
@@ -79,32 +93,28 @@ const encodedMessage = encodeURIComponent(message);
       if (data[0].includes("|")) {
         codes = data[0]
           .split("|")
-          .map((part) => part.replace(/\d/g, "").trim()) // Remove digits and trim
-          .filter((part) => part.length > 0); // Remove empty parts
+          .map((part) => part.replace(/\d/g, "").trim())
+          .filter((part) => part.length > 0);
       } else {
-        codes.push(data[0].replace(/\d/g, "").trim()); // Handle single string
+        codes.push(data[0].replace(/\d/g, "").trim());
       }
 
-      
-
-      // Search for codes and get results
+      // Search for codes in the database
       const results = await searchCodes(codes);
 
       if (results.length > 0) {
         return res.status(200).json({ results });
       } else {
-        return res
-          .status(404)
-          .json({ error: "No valid data found for the provided codes" });
+        return res.status(404).json({ error: "No valid data found for the provided codes" });
       }
     } else {
       return res.status(500).json({ error: "Unexpected response format" });
     }
   } catch (error) {
+    console.error("[OtpCheck] Error:", error);
     res.status(500).json({ error: "Internal server error" });
-    console.error(error);
   }
 };
-  
+
   
   export default otpCheck;
