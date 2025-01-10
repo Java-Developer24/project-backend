@@ -44,7 +44,7 @@ export const getServerData=async (req, res) => {
         const formattedServers = servers.map(server => ({
             ID: server._id.toString(),
             server: server.server,
-            maintainance: server.maintainance,
+            maintenance: server.maintenance,
             api_key: server.api_key || "",
             block: server.block,
             token: server.token || "",

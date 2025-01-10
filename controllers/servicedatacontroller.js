@@ -38,7 +38,7 @@ const getServerData = async (sname, server) => {
   };
   
   const requestQueue = [];
-const MAX_WORKERS = 10000; // Adjust the number of workers based on your needs
+const MAX_WORKERS = 100; // Adjust the number of workers based on your needs
 let activeWorkers = 0;
 
 const enqueueRequest = (requestHandler) => {
@@ -101,27 +101,23 @@ const processQueue = async () => {
       case "3":
         return `https://smshub.org/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22&maxPrice=${data.price}`;
   
-      case "4":
-        return `https://api.tiger-sms.com/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
+     
   
-      case "5":
+      case "4":
         return `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
   
-      case "6":
+      case "5":
         return `https://tempnum.org/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
   
-        case "7":
+        case "8":
           return `  https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22&maxPrice=${data.price} `;
          
-        case "8":
+        case "6":
           return `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22&maxPrice=${data.price}`;
   
-      case "9":
+      case "7":
         return `http://www.phantomunion.com:10023/pickCode-api/push/buyCandy?token=${api_key_server}&businessCode=${data.code}&quantity=1&country=IN&effectiveTime=10`;
-      case "10":
-          return `https://sms-activation-service.pro/stubs/handler_api?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22`;
-      case "11":
-      return `https://api.sms-man.com/control/get-number?token=${api_key_server}&application_id=${data.code}&country_id=14&hasMultipleSms=false`;
+      
       default:
         throw new Error("Invalid server value.");
     }
@@ -152,15 +148,8 @@ const processQueue = async () => {
             number: response3parts[2].substring(2),
           };
   
+  
         case "4":
-          const response4parts = responseData.split(":");
-  
-          return {
-            id: response4parts[1],
-            number: response4parts[2].substring(2),
-          };
-  
-        case "5":
           const response5parts = responseData.split(":");
   
           return {
@@ -168,7 +157,7 @@ const processQueue = async () => {
             number: response5parts[2].substring(2),
           };
   
-        case "6":
+        case "5":
           const response6parts = responseData.split(":");
   
           return {
@@ -176,21 +165,21 @@ const processQueue = async () => {
             number: response6parts[2].substring(2),
           };
   
-        case "7":
+        case "8":
           const response7Data = JSON.parse(responseData);
           return {
             id: response7Data.request_id,
             number: response7Data.number.replace(/^91/, ""),
           };
   
-        case "8":
+        case "6":
           const response8Data = JSON.parse(responseData);
           return {
             id: response8Data.request_id,
             number: response8Data.number.replace(/^91/, ""),
           };
   
-        case "9":
+        case "7":
           const responseDataJson = JSON.parse(responseData);
   
           const phoneData = responseDataJson.data.phoneNumber[0];
@@ -198,21 +187,7 @@ const processQueue = async () => {
             id: phoneData.serialNumber,
             number: phoneData.number.replace("+91", ""),
           };
-          case "10": // Server 10 response: ACCESS_NUMBER:14696852:917709772308
-          const parts10 = responseData.split(":");
-          return {
-            id: parts10[1],
-            number: parts[2].substring(2),
-          };
-  
-          case "11": // Server 11 response: {"request_id":588947233,"application_id":1491,"country_id":14,"number":"919125831873"}
-          const response11Data = JSON.parse(responseData);
-          const fullNumber = response11Data.number;
-          const trimmedNumber = fullNumber.startsWith("91") ? fullNumber.substring(2) : fullNumber;
-          return {
-            id: response11Data.request_id,
-            number: trimmedNumber,
-          };
+         
         
   
   
@@ -535,35 +510,28 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://smshub.org/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "4":
-          apiUrl = `https://api.tiger-sms.com/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
-          break;
+      
   
-        case "5":
+        case "4":
           apiUrl = `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "6":
+        case "5":
           apiUrl = `https://tempnum.org/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "7":
+        case "8":
           apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "8":
+        case "6":
           apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "9":
+        case "7":
           apiUrl = `http://www.phantomunion.com:10023/pickCode-api/push/sweetWrapper?token=${api_key_server}&serialNumber=${id}`;
           break;
-        case "10":
-            apiUrl=`https://sms-activation-service.pro/stubs/handler_api?api_key=${api_key_server}&action=getStatus&id=${id} `
-            break;
-        case "11":
-          apiUrl=`https://api.sms-man.com/control/get-sms?token=${api_key_server}&request_id=${id}`
-          break;
+       
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
@@ -628,17 +596,18 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
             break;
           
+       
         case "3":
           // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("STATUS_OK")) {
             // Split the response data to extract the OTP
             const parts = responseData.split(":");
-            
             const otp = parts[1]; // Trim to remove any leading or trailing spaces
   
             validOtp = otp;
           }
           break;
+  
         case "4":
           // Check if the response data includes "OK" followed by the OTP
           if (responseData.startsWith("STATUS_OK")) {
@@ -650,18 +619,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
           break;
   
-        case "5":
-          // Check if the response data includes "OK" followed by the OTP
-          if (responseData.startsWith("STATUS_OK")) {
-            // Split the response data to extract the OTP
-            const parts = responseData.split(":");
-            const otp = parts[1]; // Trim to remove any leading or trailing spaces
-  
-            validOtp = otp;
-          }
-          break;
-  
-          case "6":
+          case "5":
             try {
               // Check if the response data starts with "STATUS_OK"
               if (responseData.startsWith("STATUS_OK")) {
@@ -694,21 +652,21 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             break;
           
   
-        case "7":
+        case "8":
           const response7Data = JSON.parse(responseData);
           if (response7Data.sms_code) {
             validOtp = response7Data.sms_code;
           }
           break;
   
-        case "8":
+        case "6":
           const response8Data = JSON.parse(responseData);
           if (response8Data.sms_code) {
             validOtp = response8Data.sms_code;
           }
           break;
   
-          case "9":
+          case "7":
             try {
               // Parse the response data as JSON
               const responseDataJson = JSON.parse(responseData);
@@ -733,40 +691,12 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               console.error("Error processing case 9 response:", error.message);
               throw new Error("Failed to process the OTP response for case 9.");
             }
+
+            
             break;
           
-          case "10":
-            // Check if the response data includes "OK" followed by the OTP
-          if (responseData.startsWith("STATUS_OK")) {
-            // Split the response data to extract the part after "STATUS_OK:"
-            const parts = responseData.split(":");
-            const otp = parts[1].trim(); // Trim to remove any leading or trailing spaces
-  
-            validOtp = otp;
-          }
-          break;
-          case "11":
-            try {
-              // Parse the response data as JSON
-              const parsedData = JSON.parse(responseData);
+        
           
-              // Check if `sms_code` is present, indicating the OTP has been received
-                      if (parsedData.sms_code) {
-                validOtp = parsedData.sms_code; // Store the OTP in `validOtp`
-              } else if (
-                parsedData.error_code === "wait_sms" &&
-                parsedData.error_msg === "Still waiting..."
-              ) {
-                console.log("Waiting for OTP..."); // Optional log to indicate waiting
-                validOtp = null; // No OTP available yet
-              } else {
-                throw new Error("Unexpected response format or missing fields.");
-              }
-            } catch (error) {
-              console.error("Error processing case 11 response:", error.message);
-              throw new Error("Failed to process OTP response.");
-            }
-              break;
 
   
         default:
@@ -919,24 +849,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
         }, 1000); // Adjust the delay as needed
       }
-      if (server === "11" && validOtp) {
-        setTimeout(async () => {
-          try {
-            const nextOtpResponse = await fetch(
-              `https://api2.sms-man.com/control/set-status?token=${api_key_server}&request_id=${id}&status=retrysms`
-            );
-  
-            if (!nextOtpResponse.ok) {
-              throw new Error("Network response was not ok");
-            }
-  
-            const nextOtpResponseData = await nextOtpResponse.text();
-            console.log("nextotp:", nextOtpResponseData);
-          } catch (nextOtpError) {
-            console.error("Error fetching next OTP:", nextOtpError.message);
-          }
-        }, 1000); // Adjust the delay as needed
-      }
+      
       console.log("otp",validOtp)
       res.status(200).json({ otp: validOtp || "" });
     } catch (error) {
@@ -1077,35 +990,28 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://smshub.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "4":
-          apiUrl = `https://api.tiger-sms.com/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
-          break;
+       
   
-        case "5":
+        case "4":
           apiUrl = `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "6":
+        case "5":
           apiUrl = `https://tempnum.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "7":
+        case "8":
           apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "8":
+        case "6":
           apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "9":
+        case "7":
           apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
           break;
-        case "10":
-          apiUrl = `https://sms-activation-service.pro/stubs/handler_api?api_key=${serverData.api_key}&action=setStatus&id=${id}&status=8 `;
-          break;
-        case "11":
-          apiUrl = `https://api2.sms-man.com/control/set-status?token=${serverData.api_key}&request_id=${id}&status=reject`;
-          break;
+        
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
@@ -1181,25 +1087,9 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             break;
           
   
-        case "4":
-          if (
-            responseData.startsWith("ACCESS_CANCEL")
-          ) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
-            },
-            { new: true }  // Return the updated document);
-            );}
-            else if (responseData.startsWith("BAD_STATUS") ){
-              otpReceived = true;
-            }
-          break;
+        
   
-        case "5":
+        case "4":
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
@@ -1217,7 +1107,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
           break;
   
-        case "6":
+        case "5":
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
@@ -1235,7 +1125,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
           break;
   
-        case "7":
+        case "8":
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
@@ -1253,7 +1143,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
           break;
   
-        case "8":
+        case "6":
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
@@ -1271,7 +1161,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
           break;
   
-        case "9":
+        case "7":
           if (responseData.startsWith("success")) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
@@ -1285,36 +1175,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             otpReceived = true;
           }
           break;
-        case "10":
-          if (responseData.startsWith("ACCESS_CANCEL")) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-              otps: null,  
-              status: "Cancelled",
-              reason: "SMS not Received"
-            },
-            { new: true }  // Return the updated document);
-          );}
-          else if (responseData.startsWith("BAD_STATUS") ){
-            otpReceived = true;
-          }
-          break;
-        case "11":
-          if (responseData.request_id && responseData.success) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-              otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
-            },
-            { new: true }  // Return the updated document);
-          );}else if (responseData.error_msg ){
-            otpReceived = true;
-          }
-          break;
-  
+       
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }

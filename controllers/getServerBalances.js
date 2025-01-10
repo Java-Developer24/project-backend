@@ -32,15 +32,9 @@ const getServer3Balance = async () => {
   return { balance:  parseFloat(parts[1]) , currency: '$' };
 };
 // Add similar functions for other servers...
-const getServer4Balance = async () => {
-    const response = await axios.get(
-      'https://api.tiger-sms.com/stubs/handler_api.php?api_key=aHy99pGILr2nqgamVsqHZBLwjaTRHPua&action=getBalance'
-    );
-    const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: 'p' };
-  };
+
   // Add similar functions for other servers...
-const getServer5Balance = async () => {
+const getServer4Balance = async () => {
     const response = await axios.get(
       'https://api.grizzlysms.com/stubs/handler_api.php?api_key=937c498d19cabb18cfa63659a45301a0&action=getBalance'
     );
@@ -48,7 +42,7 @@ const getServer5Balance = async () => {
     return { balance: parseFloat(parts[1]), currency: 'p' };
   };
   // Add similar functions for other servers...
-const getServer6Balance = async () => {
+const getServer5Balance = async () => {
     const response = await axios.get(
       'https://tempnum.org/stubs/handler_api.php?api_key=7a4936c941ed582380d5063ff8d0dad8&action=getBalance '
     );
@@ -56,7 +50,7 @@ const getServer6Balance = async () => {
     return { balance: parseFloat(parts[1]), currency: 'p' };
   };
   // Add similar functions for other servers...
-const getServer7Balance = async () => {
+const getServer8Balance = async () => {
     const response = await axios.get(
       'https://smsbower.online/stubs/handler_api.php?api_key=22vgH70wFS4eLr2C6wv0tct8BPzeJpzE&action=getBalance'
     );
@@ -64,7 +58,7 @@ const getServer7Balance = async () => {
     return { balance: parseFloat(parts[1]), currency: 'p' };
   };
   // Add similar functions for other servers...
-const getServer8Balance = async () => {
+const getServer6Balance = async () => {
     const response = await axios.get(
       'https://api.sms-activate.guru/stubs/handler_api.php?api_key=A5e72d2bd426A1b93989Ac9456d83127&action=getBalance'
     );
@@ -72,26 +66,14 @@ const getServer8Balance = async () => {
     return { balance: parseFloat(parts[1]), currency: 'p' };
   };
   // Add similar functions for other servers...
-const getServer9Balance = async () => {
+const getServer7Balance = async () => {
     const response = await axios.get(
       'https://own5k.in/p/ccpay.php?type=balance'
     );
     return { balance: parseFloat(response.data), currency: '$' };
   };
   // Add similar functions for other servers...
-const getServer10Balance = async () => {
-    const response = await axios.get(
-      'https://sms-activation-service.pro/stubs/handler_api?api_key=7a1173a532da29c13120b48844df8167&action=getBalance'
-    );
-    return { balance: parseFloat(response.data), currency: 'p' };
-  };
-  // Add similar functions for other servers...
-const getServer11Balance = async () => {
-    const response = await axios.get(
-      'https://api.sms-man.com/control/get-balance?token=VfZhhiDivmWNfIrTrjgGgd7JKqWgudc'
-    );
-    return { balance: parseFloat(response.data.balance), currency: 'p' };
-  };
+
 
 // Combine all balance functions
 export const serverBalances= async (req, res) => {
@@ -105,9 +87,7 @@ export const serverBalances= async (req, res) => {
       server6: await getServer6Balance(),
       server7: await getServer7Balance(),
       server8: await getServer8Balance(),
-      server9: await getServer9Balance(),
-      server10: await getServer10Balance(),
-      server11: await getServer11Balance(),
+      
 
 
       

@@ -8,295 +8,255 @@ import User from "../models/user.js"
 import ServerData from '../models/serverData.js';
 import Admin from '../models/mfa.js';
 
+;
 
-// Store the margin amount globally at the top
-let marginAmt;
-
-// Function to get the margin amount from the database
-const marginget = async () => {
-  console.log("Fetching margin...");
-  const query = await ServerData.findOne({ server: 0 }).select('margin'); // Ensure you await this
-  marginAmt = query?.margin || 0;  // Store the margin value globally
-  console.log("Margin value:", marginAmt);
+// / Function to get margin and exchange rate from the database based on server number
+const getServerData = async (serverNumber) => {
+  console.log(`Fetching data for server ${serverNumber}...`);
+  const serverData = await ServerData.findOne({ server: serverNumber }).select('margin exchangeRate'); // Fetch margin and exchange rate for the server
+  if (!serverData) {
+    console.error(`No data found for server ${serverNumber}`);
+    return { margin: 0, exchangeRate: 1 }; // Default values in case data is not found
+  }
+  console.log(`Fetched margin: ${serverData.margin}, exchangeRate: ${serverData.exchangeRate} for server ${serverNumber}`);
+  return serverData;  // Return the fetched data
 };
-
 
 // Helper function to normalize names
 const normalizeName = (name) => {
-    if (typeof name === 'string') {
-      return name
-        .toLowerCase()
-        .replace(/\s+/g, '')  // Remove spaces
-        .replace(/[^a-z0-9]/g, '');  // Remove non-alphanumeric characters
-    }
-    return '';  // Return empty string if name is not a string
-  };
-  
+  if (typeof name === 'string') {
+    return name
+      .toLowerCase()
+      .replace(/\s+/g, '')  // Remove spaces
+      .replace(/[^a-z0-9]/g, '');  // Remove non-alphanumeric characters
+  }
+  return '';  // Return empty string if name is not a string
+};
+
 // Function to calculate the lowest price from an array of server prices
 const calculateLowestPrice = (prices) => {
-    return Math.min(...prices);  // Returns the lowest price from the array
-  };
-  
-  // Function to update the lowestPrice field for all servers
-  const calculateLowestPrices = async (serviceId) => {
-    const service = await Service.findById(serviceId);
-    const prices = service.servers.map(server => server.price);  // Extracting prices of all servers
-    const lowestPrice = calculateLowestPrice(prices);  // Calculating the lowest price
-    service.lowestPrice = lowestPrice;  // Update the lowestPrice field in the database
-    await service.save();  // Save the updated service
-  };
-  
-  // Function to fetch data with retry mechanism
-  const fetchDataWithRetry = async (url, retries = 3, delay = 2000) => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const response = await axios.get(url, { timeout: 10000 });
-        return response.data;
-      } catch (error) {
-        if (attempt === retries) throw error; // Propagate the error on the last attempt
-        await new Promise(resolve => setTimeout(resolve, delay)); // Delay before retry
-      }
+  return Math.min(...prices);  // Returns the lowest price from the array
+};
+
+// Function to update the lowestPrice field for all servers
+const calculateLowestPrices = async (serviceId) => {
+  const service = await Service.findById(serviceId);
+  const prices = service.servers.map(server => server.price);  // Extracting prices of all servers
+  const lowestPrice = calculateLowestPrice(prices);  // Calculating the lowest price
+  service.lowestPrice = lowestPrice;  // Update the lowestPrice field in the database
+  await service.save();  // Save the updated service
+};
+
+// Function to fetch data with retry mechanism
+const fetchDataWithRetry = async (url, retries = 3, delay = 2000) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await axios.get(url, { timeout: 10000 });
+      return response.data;
+    } catch (error) {
+      if (attempt === retries) throw error; // Propagate the error on the last attempt
+      await new Promise(resolve => setTimeout(resolve, delay)); // Delay before retry
     }
-  };
-  
-// Function to calculate updated price with margin and multiplier using the pricing formula
-const calculateUpdatedPrice = (price, serverNumber) => {
-  const applyPricingFormula = getPricingFormula(serverNumber);
-  const updatedPrice = applyPricingFormula(price);
+  }
+};
+
+const calculateUpdatedPrice = async (price, serverNumber) => {
+  const serverData = await getServerData(serverNumber);  // Get margin and exchangeRate based on server number
+  const { margin, exchangeRate } = serverData;
+
+  // Perform the calculation without rounding prematurely
+  const intermediatePrice = price * exchangeRate;; // Add margin to the price
+  const updatedPrice = intermediatePrice+ margin   // Apply exchange rate
+
+  // Round the final price to two decimal places after applying all calculations
   return Math.round(updatedPrice * 100) / 100;  // Round to two decimal places
+};
+// Function to sort servers by updated price
+const sortServersByPrice = (servers) => {
+  return servers.sort((a, b) => a.updatedPrice - b.updatedPrice);
+};
+
+// Function to sort services by name
+const sortServicesByName = (services) => {
+  return services.sort((a, b) => a.name.localeCompare(b.name));
+};
+
+// Fetch and store services with proper margin and exchange rate application
+const fetchAndStoreServices = async () => {
+  console.time("fetchAndStoreServices");
+  try {
+    const response = await fetchDataWithRetry('https://own5k.in/p/final.php'); // Fetch data from external API
+    const servicesData = response;
+
+    if (!Array.isArray(servicesData)) {
+      console.error("Fetched data is not an array");
+      return;
+    }
+
+    for (const serviceData of servicesData) {
+      const { name, servers } = serviceData;
+
+      if (!name || !servers) {
+        console.error(`Missing name or servers for service: ${serviceData}`);
+        continue;
+      }
+
+      const normalizedServiceName = normalizeName(name);  // Normalize service name
+
+      const parsedServers = await Promise.all(servers.map(async (server) => {
+        const { server: serverValue, price: priceValue, ...rest } = server;
+        const serverNumber = parseInt(serverValue);
+        const price = parseFloat(priceValue);
+
+        if (isNaN(price)) {
+          console.error(`Invalid price value for server: ${serverValue}`);
+          return null;
+        }
+
+        // Calculate the updated price using margin and exchange rate
+        const updatedPrice = await calculateUpdatedPrice(price, serverNumber);  // Pass serverNumber to calculateUpdatedPrice
+
+        return {
+          ...rest,
+          serverNumber,
+          price: updatedPrice,  // Set the updated price
+        };
+      }));
+
+      // Filter out null values (if any invalid server data was encountered)
+      const validServers = parsedServers.filter(server => server !== null);
+
+      const sortedServers = sortServersByPrice(validServers);  // Sort servers by updated price
+
+      let service = await Service.findOne({ name: normalizedServiceName });
+
+      if (!service) {
+        console.log(`Service not found. Creating new service: ${normalizedServiceName}`);
+        service = new Service({ name: normalizedServiceName, servers: sortedServers });
+        await service.save();
+      } else {
+        let isUpdated = false;
+        if (JSON.stringify(service.servers) !== JSON.stringify(sortedServers)) {
+          isUpdated = true;
+          service.servers = sortedServers;
+        }
+
+        if (service.name !== normalizedServiceName) {
+          isUpdated = true;
+          service.name = normalizedServiceName;
+        }
+
+        if (isUpdated) {
+          await service.save();
+        }
+      }
+
+      await calculateLowestPrices(service._id);  // Update lowestPrice field for the service
+    }
+
+    console.log('Services fetched and stored successfully');
+  } catch (error) {
+    console.error("Error fetching and storing services:", error);
+  }
 };
 
 
-  // Function to sort servers by updated price
-  const sortServersByPrice = (servers) => {
-    return servers.sort((a, b) => a.updatedPrice - b.updatedPrice);
-  };
-  
-  // Function to sort services by name
-  const sortServicesByName = (services) => {
-    return services.sort((a, b) => a.name.localeCompare(b.name));
-  };
-  
-  const fetchAndStoreServices = async () => {
-    console.time("fetchAndStoreServices");
-    try {
+// Function to find duplicates in the database
+const findDuplicates = async (Model) => {
+  const documents = await Model.find().exec();
+  const nameCounts = {};
+  const duplicates = [];
 
-       // First, fetch the margin value
-    await marginget();  // Wait for marginAmt to be fetched and stored
-      console.time("axios.get");
-      const response = await fetchDataWithRetry('https://own5k.in/p/final.php');
-      console.timeEnd("axios.get");
-  
-      const servicesData = response;
-  
-      if (!Array.isArray(servicesData)) {
-        console.error("Fetched data is not an array");
-        return;
-      }
-  
-      console.time("Service Processing");
-      for (const serviceData of servicesData) {
-        console.time(`Processing service: ${serviceData.name}`);
-        const { name, servers } = serviceData;
-  
-        if (!name || !servers) {
-          console.error(`Missing name or servers for service: ${serviceData}`);
-          continue;
-        }
-  
-        const normalizedServiceName = normalizeName(name);
-        console.log(`Normalized service name: ${normalizedServiceName}`);
-  
-        // Update the price for each server based on the pricing formula
-        const parsedServers = servers.map(server => {
-          const { server: serverValue, price: priceValue, ...rest } = server;
-          console.log(`Processing server: ${serverValue}, price: ${priceValue}`);
-  
-          const serverNumber = parseInt(serverValue);
-          const price = parseFloat(priceValue);
-  
-          if (isNaN(price)) {
-            console.error(`Invalid price value for server: ${serverValue}`);
-          }
-  
-          // Calculate the updated price using the correct formula
-          const updatedPrice = calculateUpdatedPrice(price, serverNumber);  // Pass serverNumber to the function
-          return {
-            ...rest,
-            serverNumber,
-            price: updatedPrice,  // Set the updated price
-          };
-        });
-  
-        const sortedServers = sortServersByPrice(parsedServers);
-        console.log("Sorted servers:", sortedServers);
-  
-        console.time("findOneAndUpdate");
-  
-        let service = await Service.findOne({ name: normalizedServiceName });
-  
-        if (!service) {
-          console.log(`Service not found. Creating new service: ${normalizedServiceName}`);
-          service = new Service({ name: normalizedServiceName, servers: sortedServers });
-          await service.save();
-        } else {
-          let isUpdated = false;
-          if (JSON.stringify(service.servers) !== JSON.stringify(sortedServers)) {
-            isUpdated = true;
-            service.servers = sortedServers;
-          }
-  
-          if (service.name !== normalizedServiceName) {
-            isUpdated = true;
-            service.name = normalizedServiceName;
-          }
-  
-          if (isUpdated) {
-            await service.save();
-          }
-        }
-  
-        console.timeEnd("findOneAndUpdate");
-  
-        if (!service) {
-          console.error("Service could not be saved or updated.");
-          return;
-        }
-  
-        await calculateLowestPrices(service._id);
-  
-        console.timeEnd(`Processing service: ${serviceData.name}`);
-      }
-      console.timeEnd("Service Processing");
-      console.timeEnd("fetchAndStoreServices");
-  
-      console.log('Services fetched and stored successfully');
-    } catch (error) {
-      console.timeEnd("fetchAndStoreServices");
-      console.error("Error fetching and storing services:", error);
+  documents.forEach((doc) => {
+    const name = doc.name;
+    if (nameCounts[name]) {
+      nameCounts[name]++;
+    } else {
+      nameCounts[name] = 1;
     }
-  };
-  
-  
-  // Function to find duplicates in the database
-  const findDuplicates = async (Model) => {
-    const documents = await Model.find().exec();
-    const nameCounts = {};
-    const duplicates = [];
-  
-    documents.forEach((doc) => {
-      const name = doc.name;
-      if (nameCounts[name]) {
-        nameCounts[name]++;
-      } else {
-        nameCounts[name] = 1;
-      }
+  });
+
+  for (const [name, count] of Object.entries(nameCounts)) {
+    if (count > 1) {
+      duplicates.push({ name, count });
+    }
+  }
+
+  return duplicates;
+};
+
+// Function to check for duplicates and respond
+export const checkDuplicates = async (req, res) => {
+  try {
+    const serverListDuplicates = await findDuplicates(ServerList);
+
+    res.json({
+      serverListDuplicates,
     });
-  
-    for (const [name, count] of Object.entries(nameCounts)) {
-      if (count > 1) {
-        duplicates.push({ name, count });
-      }
-    }
-  
-    return duplicates;
-  };
-  
-  // Function to check for duplicates and respond
-  export const checkDuplicates = async (req, res) => {
-    try {
-      const serverListDuplicates = await findDuplicates(ServerList);
-  
-      res.json({
-        serverListDuplicates,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Internal server error" });
-    }
-  };
-  
-  // Merge duplicate services by merging servers and updating service codes
-  export const mergeDuplicates = async () => {
-    try {
-      const serverListDuplicates = await findDuplicates(ServerList);
-  
-      for (const duplicate of serverListDuplicates) {
-        const duplicateDocs = await ServerList.find({
-          name: duplicate.name,
-        }).exec();
-  
-        if (duplicateDocs.length > 1) {
-          // Merge logic: Choose one as the master and merge others into it
-          const masterDoc = duplicateDocs[0];
-          const docsToMerge = duplicateDocs.slice(1);
-  
-          for (const doc of docsToMerge) {
-            // Merge servers
-            masterDoc.servers.push(...doc.servers);
-  
-            // Remove merged document
-            await ServerList.deleteOne({ _id: doc._id });
-          }
-  
-          // Remove duplicate servers in the masterDoc
-          const uniqueServers = Array.from(
-            new Set(masterDoc.servers.map((server) => JSON.stringify(server)))
-          ).map((server) => JSON.parse(server));
-          masterDoc.servers = uniqueServers;
-  
-          await masterDoc.save();
-        }
-      }
-  
-      console.log("Duplicates merged successfully");
-      await updateServiceCodes(); // Call the function to update service codes
-      console.log("Service code added successfully");
-    } catch (error) {
-      console.error("Error merging duplicates:", error);
-    }
-  };
-  
-  // Update service codes for each service
-  const updateServiceCodes = async () => {
-    try {
-      const serverList = await ServerList.find().exec();
-  
-      for (const server of serverList) {
-        const normalizedCode = normalizeName(server.name);
-        server.service_code = normalizedCode;
-        await server.save();
-      }
-  
-      console.log("Service codes updated successfully");
-    } catch (error) {
-      console.error("Error updating service codes:", error);
-    }
-  };
-  
- 
-  
- 
- 
-  // Pricing formula function
-const getPricingFormula = (serverNumber) => {
-    console.log("marginamt",marginAmt)
-    // Multiplier for specific server numbers
-    const multiplier = [3, 9, 10, 11].includes(serverNumber) ? 95 : 1.1;  // Specific multiplier for servers 3, 9, 10, 11
-    return (price) => multiplier * price + marginAmt;  // Apply multiplier and margin
-  };
-  
-  
-  export const updateMarginAmount = (req, res) => {
-    const { margin } = req.body;
-    if (margin == null || isNaN(margin)) {
-      return res.status(400).json({ error: 'Invalid margin amount.' });
-    }
-    marginAmt = parseFloat(margin);
-    res.json({ message: 'Margin amount updated successfully.', marginAmt });
-  };
-  
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
-export const getServiceData = async (req, res) => {
+// Merge duplicate services by merging servers and updating service codes
+export const mergeDuplicates = async () => {
+  try {
+    const serverListDuplicates = await findDuplicates(ServerList);
+
+    for (const duplicate of serverListDuplicates) {
+      const duplicateDocs = await ServerList.find({
+        name: duplicate.name,
+      }).exec();
+
+      if (duplicateDocs.length > 1) {
+        // Merge logic: Choose one as the master and merge others into it
+        const masterDoc = duplicateDocs[0];
+        const docsToMerge = duplicateDocs.slice(1);
+
+        for (const doc of docsToMerge) {
+          // Merge servers
+          masterDoc.servers.push(...doc.servers);
+
+          // Remove merged document
+          await ServerList.deleteOne({ _id: doc._id });
+        }
+
+        // Remove duplicate servers in the masterDoc
+        const uniqueServers = Array.from(
+          new Set(masterDoc.servers.map((server) => JSON.stringify(server)))
+        ).map((server) => JSON.parse(server));
+        masterDoc.servers = uniqueServers;
+
+        await masterDoc.save();
+      }
+    }
+
+    console.log("Duplicates merged successfully");
+    await updateServiceCodes(); // Call the function to update service codes
+    console.log("Service code added successfully");
+  } catch (error) {
+    console.error("Error merging duplicates:", error);
+  }
+};
+
+// Update service codes for each service
+const updateServiceCodes = async () => {
+  try {
+    const serverList = await ServerList.find().exec();
+
+    for (const server of serverList) {
+      const normalizedCode = normalizeName(server.name);
+      server.service_code = normalizedCode;
+      await server.save();
+    }
+
+    console.log("Service codes updated successfully");
+  } catch (error) {
+    console.error("Error updating service codes:", error);
+  }
+};
+
+  export const getServiceData = async (req, res) => {
     console.time("fetchAndSendServices");
   
     try {
@@ -314,56 +274,69 @@ export const getServiceData = async (req, res) => {
       console.time("Service Processing");
   
       // Process the data
-      const processedServices = servicesData.map((serviceData) => {
-        const { name, servers } = serviceData;
+      const processedServices = await Promise.all(
+        servicesData.map(async (serviceData) => {
+          const { name, servers } = serviceData;
   
-        if (!name || !Array.isArray(servers)) {
-          console.warn(`Skipping invalid service entry: ${JSON.stringify(serviceData)}`);
-          return null;
-        }
-  
-        // Normalize the service name
-        const normalizedServiceName = normalizeName(name);
-  
-        // Update and calculate prices for servers
-        const parsedServers = servers.map((server) => {
-          const { server: serverValue, price: priceValue, ...rest } = server;
-  
-          // Validate server and price values
-          const serverNumber = parseInt(serverValue, 10);
-          const price = parseFloat(priceValue);
-  
-          if (isNaN(serverNumber) || isNaN(price)) {
-            console.warn(`Skipping invalid server data: ${JSON.stringify(server)}`);
+          if (!name || !Array.isArray(servers)) {
+            console.warn(`Skipping invalid service entry: ${JSON.stringify(serviceData)}`);
             return null;
           }
   
-          // Get and apply the pricing formula
-          const updatedPriceFormula = getPricingFormula('https://own5k.in/p/final.php', serverNumber);
-          const updatedPrice = updatedPriceFormula(price);
-          const roundedPrice = parseFloat(updatedPrice.toFixed(2)); // Round to 2 decimal places
+          // Normalize the service name
+          const normalizedServiceName = normalizeName(name);
+  
+          // Update and calculate prices for servers
+          const parsedServers = await Promise.all(
+            servers.map(async (server) => {
+              const { server: serverValue, price: priceValue, ...rest } = server;
+  
+              // Validate server and price values
+              const serverNumber = parseInt(serverValue, 10);
+              const price = parseFloat(priceValue);
+  
+              if (isNaN(serverNumber) || isNaN(price)) {
+                console.warn(`Skipping invalid server data: ${JSON.stringify(server)}`);
+                return null;
+              }
+  
+              try {
+                // Get and apply the pricing formula
+                const updatedPriceFormula = await getPricingFormula(serverNumber);
+                const updatedPrice = updatedPriceFormula(price);
+                const roundedPrice = parseFloat(updatedPrice.toFixed(2)); // Round to 2 decimal places
+  
+                return {
+                  ...rest,
+                  serverNumber,
+                  price: roundedPrice,
+                };
+              } catch (error) {
+                console.error(`Error updating price for server ${serverNumber}:`, error);
+                return null;
+              }
+            })
+          );
+  
+          const validServers = parsedServers.filter(Boolean); // Remove invalid server entries
+  
+          // Sort servers by price
+          const sortedServers = sortServersByPrice(validServers);
   
           return {
-            ...rest,
-            serverNumber,
-            price: roundedPrice,
+            name: normalizedServiceName,
+            servers: sortedServers,
           };
-        }).filter(Boolean); // Remove invalid server entries
+        })
+      );
   
-        // Sort servers by price
-        const sortedServers = sortServersByPrice(parsedServers);
-  
-        return {
-          name: normalizedServiceName,
-          servers: sortedServers,
-        };
-      }).filter(Boolean); // Remove invalid service entries
+      const validServices = processedServices.filter(Boolean); // Remove invalid service entries
   
       console.timeEnd("Service Processing");
       console.timeEnd("fetchAndSendServices");
   
       // Send the processed services as a response
-      res.status(200).json({ services: processedServices });
+      res.status(200).json({ services: validServices });
     } catch (error) {
       console.timeEnd("fetchAndSendServices");
       console.error("Error fetching and processing services:", error);
@@ -373,7 +346,7 @@ export const getServiceData = async (req, res) => {
   
   
   
-//loggined user get services data  end point
+//APi page of  user get services data  end point
 const getUserServicesData = async (req, res) => {
   try {
     console.time("getServices");
@@ -718,6 +691,7 @@ const updateServer = async (req, res) => {
             // Execute the bulk write operation to update all services with the specified serverNumber
             const start = Date.now();
             const result = await Service.bulkWrite(bulkOps);
+            await updateServerData(serverNumber, maintenance); // Ensure this function updates your ServerData model appropriately
             const end = Date.now();
             
 
@@ -802,7 +776,7 @@ const updateCentralizedServers = async (req, res) => {
         if (bulkOps.length > 0) {
             const start = Date.now();
             const result = await Service.bulkWrite(bulkOps);
-            
+            await updateServerData(server, maintenance); // Ensure this function updates your ServerData model appropriately
             const end = Date.now();
            // Check the time for bulkWrite
 
@@ -816,13 +790,29 @@ const updateCentralizedServers = async (req, res) => {
     }
 };
 
+
+const updateServerDatas = async (req,res) => {
+  const { server, maintenance } = req.body;
+  try {
+    // Update ServerData for the given serverNumber
+    await ServerData.updateOne(
+      { server: server },  // Find the document by serverNumber
+      { $set: { maintenance:maintenance } },  // Update maintenance status
+      { upsert: true }  // If the document doesn't exist, it will be created
+    );
+    res.json({message:"Site set under master Maintenence"})
+  } catch (error) {
+    console.error('Error updating ServerData:', error);
+    throw new Error('Error updating ServerData');
+  }
+};
 // Function to update ServerData model for a given server number and maintenance status
 const updateServerData = async (server, maintenance) => {
   try {
     // Update ServerData for the given serverNumber
     await ServerData.updateOne(
       { server: server },  // Find the document by serverNumber
-      { $set: { maintainance: maintenance } },  // Update maintenance status
+      { $set: { maintenance: maintenance } },  // Update maintenance status
       { upsert: true }  // If the document doesn't exist, it will be created
     );
   } catch (error) {
@@ -956,7 +946,7 @@ export const getMaintenanceStatusForServer = async (req, res) => {
     const userIp = req.ip;
 
     // Check if maintenance is on
-    if (serverData.maintainance) {
+    if (serverData.maintenance) {
       // If IP matches the admin's IP, allow access
       if (userIp === admin.adminIp) {
         return res.status(200).json({
@@ -967,7 +957,7 @@ export const getMaintenanceStatusForServer = async (req, res) => {
       }
 
       // If IP does not match, block access
-      return res.status(503).json({
+      return res.status(200).json({
         maintainance: true,
         message: "The site is under maintenance.",
       });
@@ -1003,5 +993,6 @@ export default {
     getAllServiceDiscounts,
     deleteServiceDiscount,
     getServiceData,
-    getMaintenanceStatusForServer
+    getMaintenanceStatusForServer,
+    updateServerDatas
 };

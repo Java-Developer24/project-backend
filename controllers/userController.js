@@ -418,11 +418,11 @@ export const updateUserBalance = async (req, res) => {
       userId,
       transactionId,
       method: 'Admin', // Indicating that the balance update was performed by an admin
-      amount: new_balance - oldBalance, // The amount added or deducted
+      amount: parseFloat((new_balance - oldBalance).toFixed(2)), // The amount added or deducted
       date_time: formattedDate,
       status: 'Completed', // Assuming the transaction is successful
     });
-
+    
     // Save the RechargeHistory
     await rechargeHistory.save();
 

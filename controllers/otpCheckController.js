@@ -1,6 +1,7 @@
 import Service from "../models/service.js"  
 import ServerData from "../models/serverData.js";
 import Configuration from "../models/configuration.js";
+import Admin from '../models/mfa.js'
 
 const searchCodes = async (codes) => {
   const results = [];
@@ -57,6 +58,15 @@ const otpCheck = async (req, res) => {
       return res.status(400).json({ error: "Api Key is required" });
     }
 
+    // Fetch the checkopt value from AdminSchema to determine behavior
+    const adminSettings = await Admin.findOne({});
+    if (!adminSettings) {
+      return res.status(500).json({ error: "Admin settings not found" });
+    }
+
+    const checkopt = adminSettings.checkOtp; // check whether to query the OTP in DB or not
+
+    // Always execute the OTP validation with external service
     const serverData = await ServerData.findOne({ server: 1 });
 
     const encodedOtp = encodeURIComponent(otp);
@@ -66,27 +76,33 @@ const otpCheck = async (req, res) => {
 
     const data = await response.json();
 
-    if (data === false) {
-      // Fetch the dynamic timing window from the configuration model
-      const config = await Configuration.findOne({ key: "otpTimeWindow" });
-      const timeWindowInMinutes = config ? config.value : 60; // Default to 60 minutes if not configured
+    // If checkopt is true, proceed to check the OTP in the database
+    if (checkopt) {
+      if (data === false) {
+        // Fetch the dynamic timing window from the configuration model
+        const config = await Configuration.findOne({ key: "otpTimeWindow" });
+        const timeWindowInMinutes = config ? config.value : 60; // Default to 60 minutes if not configured
 
-      const timeLimit = new Date(Date.now() - timeWindowInMinutes * 60 * 1000);
+        const timeLimit = new Date(Date.now() - timeWindowInMinutes * 60 * 1000);
 
-      // Search in the database for the OTP
-      const dbResults = await NumberHistory.find({
-        otp,
-        ...(req.query.service === "any other"
-          ? { createdAt: { $gte: timeLimit } } // Filter for last `timeWindowInMinutes` only
-          : {}), // No filter for other services
-      }).sort({ createdAt: 1 }); // Return the oldest entry
+        // Search in the database for the OTP
+        const dbResults = await NumberHistory.find({
+          otp,
+          ...(req.query.service === "any other"
+            ? { createdAt: { $gte: timeLimit } } // Filter for last `timeWindowInMinutes` only
+            : {}), // No filter for other services
+        }).sort({ createdAt: 1 }); // Return the oldest entry
 
-      if (dbResults.length > 0) {
-        return res.status(200).json({ result: dbResults[0] });
-      } else {
-        return res.status(404).json({ error: "No OTP found in the database" });
+        if (dbResults.length > 0) {
+          return res.status(200).json({ result: dbResults[0] });
+        } else {
+          return res.status(404).json({ error: "No OTP found in the database" });
+        }
       }
-    } else if (Array.isArray(data)) {
+    }
+
+    // If response data is an array, extract the OTP codes
+    if (Array.isArray(data)) {
       let codes = [];
 
       // Extract codes from response
@@ -116,5 +132,56 @@ const otpCheck = async (req, res) => {
   }
 };
 
-  
+
+
+// Endpoint to update checkOtp value in the Admin collection
+export const checkOtpUpdate= async (req, res) => {
+  try {
+    // Extract the checkOtp value from the request body
+    const { checkOtp } = req.body;
+
+    // Validate the input
+    if (typeof checkOtp !== 'boolean') {
+      return res.status(400).json({ error: "Invalid input: checkOtp must be a boolean value" });
+    }
+
+    // Update the checkOtp value in the Admin collection
+    const updatedAdmin = await Admin.findOneAndUpdate(
+      {}, // No filter, updating the first document it finds
+      { $set: { checkOtp: checkOtp } }, // Set the new value for checkOtp
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedAdmin) {
+      return res.status(404).json({ error: "Admin settings not found" });
+    }
+
+    return res.status(200).json({ message: `checkOtp updated to ${checkOtp}`, updatedAdmin });
+
+  } catch (error) {
+    console.error('Error updating checkOtp:', error);
+    res.status(500).json({ error: 'Error updating checkOtp', details: error.message });
+  }
+};
+
+
+export const getOtpcheck= async (req, res) => {
+  try {
+    // Fetch the first document from the Admin collection
+    const adminSettings = await Admin.findOne({});
+
+    if (!adminSettings) {
+      return res.status(404).json({ error: "Admin settings not found" });
+    }
+
+    // Return the current checkOtp value
+    return res.status(200).json({ checkOtp: adminSettings.checkOtp });
+
+  } catch (error) {
+    console.error('Error fetching checkOtp:', error);
+    res.status(500).json({ error: 'Error fetching checkOtp', details: error.message });
+  }
+};
+
+
   export default otpCheck;

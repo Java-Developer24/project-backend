@@ -4,7 +4,7 @@ const serverSchema = new mongoose.Schema(
   {
     ID: { type: String, required: true },
     server: { type: Number, required: true },
-    maintainance: { type: Boolean, required: true },
+    maintenance: { type: Boolean, required: true },
     api_key: { type: String, required: false },
     block: { type: Boolean, required: true },
     token: { type: String, required: false },

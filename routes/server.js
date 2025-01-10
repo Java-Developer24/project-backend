@@ -6,7 +6,7 @@ const router = express.Router();
 // import nextOtpController from '../controllers/nextOtpController.js';
 // import cancelNumberController from '../controllers/cancelNumberController.js';
 // import serverController from '../controllers/serverController.js'
-import otpCheckController from "../controllers/otpCheckController.js"
+import otpCheckController, { checkOtpUpdate, getOtpcheck } from "../controllers/otpCheckController.js"
 import {updateAPIKey,addServerDataAdmin,updateExchangeRate,updateMarginAmount,serverData,getServerData,addSeverDiscount,getServerDiscount,deleteServerDiscount} from "../controllers/serverdatacontrolller.js"
 import { serverBalances } from '../controllers/getServerBalances.js';
 
@@ -16,6 +16,9 @@ import { serverBalances } from '../controllers/getServerBalances.js';
 // router.post('/next-otp', nextOtpController);
 // router.post('/cancel-number', cancelNumberController);
 router.get("/check-otp", otpCheckController);
+router.post("/update-check-otp",checkOtpUpdate)
+router.post("/get-check-otp",getOtpcheck)
+
 router.post('/create-server',serverData)
 router.get("/get-server",getServerData)
 router.post('/add-server-discount',addSeverDiscount)
