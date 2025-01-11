@@ -942,8 +942,8 @@ export const getMaintenanceStatusForServer = async (req, res) => {
       return res.status(404).json({ message: "Admin not found in the database" });
     }
 
-    // Get the user's IP address from the request
-    const userIp = req.ip;
+    // Get the user's IP address from the middleware
+    const userIp = req.clientIp;
 
     // Check if maintenance is on
     if (serverData.maintenance) {

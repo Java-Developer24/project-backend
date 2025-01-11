@@ -2,6 +2,7 @@ import express from 'express';
 const router = express.Router();
 import serviceController from '../controllers/serviceController.js';
 import {getNumber,getOtp,numberCancel} from "../controllers/servicedatacontroller.js"
+import { captureIpMiddleware } from '../middleware/getIPMiddleware.js';
 
 
 
@@ -24,7 +25,8 @@ router.post ("/add-service-discount",serviceController.updateServiceDiscount)
 
 router.get ("/get-all-service-discount",serviceController.getAllServiceDiscounts)
 router.delete ("/delete-service-discount",serviceController.deleteServiceDiscount)
-router.get("/maintenance",serviceController.getMaintenanceStatusForServer)
+router.get("/maintenance", captureIpMiddleware, getMaintenanceStatusForServer);
+
 
 router.get("/get-number",getNumber)
 router.get("/get-otp", getOtp);
