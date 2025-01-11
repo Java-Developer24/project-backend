@@ -1,9 +1,20 @@
 import Recharge from "../models/recharge.js";
+import ServerData from "../models/serverData.js";
 
 // Modified check maintenance function to dynamically check based on rechargeType
 export const checkMaintenance = async (req, res, next) => {
   try {
     const { rechargeType } = req.query; // Extract rechargeType from query params
+    // Fetch maintenance status for server 0
+    const serverData = await ServerData.findOne({ server: 0 });
+    // Check if maintenance is on
+    if (serverData.maintenance) {
+      
+        return res.status(200).json({
+          maintainance: true, // Maintenance is on
+          
+        });
+      }
    
 
     // If no rechargeType is provided, return an error
