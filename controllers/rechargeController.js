@@ -16,6 +16,7 @@ import { getIpDetails } from "../utils/getIpDetails.js";
 
 import {UnsendTrx} from "../models/unsend-trx.js"
 import Config from '../models/Config.js';
+import ServerData from '../models/serverData.js';
 
 
 
@@ -47,6 +48,17 @@ const handleUpiRequest = async (req, res) => {
   const { userId, email, transactionId } = req.body;
 
   try {
+
+    // Fetch maintenance status for server 0
+    const serverData = await ServerData.findOne({ server: 0 });
+    // Check if maintenance is on
+    if (serverData.maintenance) {
+      
+        return res.status(200).json({
+          maintainance: true, // Maintenance is on
+          
+        });
+      }
     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
 
