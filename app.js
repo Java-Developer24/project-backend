@@ -39,7 +39,7 @@ app.use(
 
 // Middleware
 app.use(express.json());
-// app.use(captureIpMiddleware);
+app.use(captureIpMiddleware);
 
 // Session middleware (required for passport)
 app.use(
