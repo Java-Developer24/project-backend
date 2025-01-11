@@ -25,7 +25,7 @@ router.post ("/add-service-discount",serviceController.updateServiceDiscount)
 
 router.get ("/get-all-service-discount",serviceController.getAllServiceDiscounts)
 router.delete ("/delete-service-discount",serviceController.deleteServiceDiscount)
-router.get("/maintenance", captureIpMiddleware, getMaintenanceStatusForServer);
+router.get("/maintenance", captureIpMiddleware, serviceController.getMaintenanceStatusForServer);
 
 
 router.get("/get-number",getNumber)
