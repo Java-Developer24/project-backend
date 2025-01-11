@@ -31,7 +31,7 @@ const app = express();
 // Configure CORS
 app.use(
   cors({
-    origin: ["https://www.tech-developer.online", "https://admin.tech-developer.online/login","http://localhost:5174"], // Explicitly set frontend origin
+    origin: ["https://www.tech-developer.online", "https://admin.tech-developer.online/login","http://localhost:5174","http://localhost:5173"], // Explicitly set frontend origin
     credentials: true,              // Allow credentials (cookies, Authorization headers, etc.)
   })
 );
