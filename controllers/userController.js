@@ -65,7 +65,7 @@ export const fetchBalance = async (req, res) => {
     }
 
     res.status(200).json({
-      balance: user.balance.toFixed(0),
+      balance: user.balance.toFixed(2),
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch balance.", error: error.message });

@@ -1,11 +1,16 @@
 import moment from "moment";
 import fetch from "node-fetch";
 
-export const userBlockDetails = async ({ email, reason, ip }) => {
+export const userBlockDetails = async ({ email, totalRecharge, usedBalance,toBeBalance,currentBalance,fraudAmount,reason,ip }) => {
   try {
     let result = "User Block\n\n";
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
+    result += `Total Rc => ${totalRecharge}\n\n`;
+    result += `Used Balance => ${usedBalance}\n\n`;
+    result += `To Be Balance => ${toBeBalance}\n\n`;
+    result += `Current Balance => ${currentBalance}\n\n`;
+    result += `Fraud Amount => ${fraudAmount}\n\n`;
     result += `Reason => ${reason}\n\n`;
     result += `IP Details => ${ip}\n\n`;
 

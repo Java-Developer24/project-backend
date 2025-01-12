@@ -18,6 +18,7 @@ import {
     numberCancelDetails
    
   } from "../utils/telegram-service.js";
+import { runFraudCheck } from "../utils/blockUsersFraud.js";
 
 
 const getServerData = async (sname, server) => {
@@ -257,6 +258,8 @@ const processQueue = async () => {
       const sname = serverCode.name;
   
       const user = await User.findOne({apiKey: api_key });
+       // Run fraud check for the user before proceeding
+    await runFraudCheck(user._id);  // Pass the userId to the fraud check function
       if (!user) {
         return res.status(400).json({ error: "Invalid API key." });
       }
@@ -1233,31 +1236,8 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
         });
   
         await Order.deleteOne({ numberId: id });
-      
-  
-      if (
-        thirdLastTransactions &&
-        isWithinTime(thirdLastTransactions.date_time)
-      ) {
-        const checkForBlock = await BlockModel.findOne({
-          block_type: "Number_Cancel",
-        });
-        if (!checkForBlock.status) {
-          if (!userData.blocked) {
-            userData.blocked = true;
-            userData.blocked_reason = "Number Cancelled Repeatedly";
-            await userData.save();
-            await userBlockDetails({
-              email: userData.email,
-              ip: ipDetailsString,
-              reason: "Number Cancel",
-            });
-          }
-          res.status(403).json({ error: "Spam detected, user blocked." });
-        } else res.status(200).json({ access: "Number Cancelled" });
-      } else {
         res.status(200).json({ access: "Number Cancelled" });
-      }
+  
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
       console.log(error);

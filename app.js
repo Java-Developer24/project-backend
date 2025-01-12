@@ -87,8 +87,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message });
 });
 // Schedule the checkAndCancelExpiredOrders function to run every 5 minutes
-// setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
-// setInterval(runFraudCheck, 5000);// Call the function every 5 seconds
+setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
+
 // scheduleJob()
 
 // Start the server

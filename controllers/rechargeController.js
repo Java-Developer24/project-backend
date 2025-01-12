@@ -219,7 +219,7 @@ export const handleTrxRequest = async (req, res) => {
       const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
 
       const rechargeHistoryResponse = await fetch(
-        "http://localhost:3000/api/history/saveRechargeHistory",
+        "https://project-backend-xo17.onrender.com/api/history/saveRechargeHistory",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
