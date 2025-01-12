@@ -3,12 +3,11 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/database.js';
 import { checkAndCancelExpiredOrders} from "./controllers/servicedatacontroller.js"
-import {scheduleJob} from "./utils/telegram-recharge-transaction.js"
 import session from 'express-session';
-
+import  "./config/cron.js"
 import { configureGoogleSignup, configureGoogleLogin, configurePassport } from './config/passport.js';  // Adjust path if necessary
 
-import { runFraudCheck } from "./utils/blockUsersFraud.js"
+
 
 
 
