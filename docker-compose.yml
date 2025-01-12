@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGO_URI=mongodb+srv://backend:HKYGXDUcxzxW1oO2@cluster0.1pebo.mongodb.net/backend-project1
+      - JWT_SECRET=backend
+      - GOOGLE_CLIENT_ID=17924887327-1n75ttduqhgbt8lk2bu47jco57450j58.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=GOCSPX-PzjdN76VaN0eKgtgaSYStrTG3MX
+      - EMAIL_USER=polagounibalakrishna@gmail.com
+      - EMAIL_PASS=qydc uyyx rrdq kzd
+      - FRONTEND_URL=http://localhost:5173
+      - BACKEND_URL=http://localhost:3000
+      - OWNER_WALLET_ADDRESS=TLSmP7GgeqjkUhhHwoNtdPBVdBMYYVcCs
+      - UPI_ID=8w0u0r5g4t66736@fbpe
+      - API_KEY=your_api_key
+      - SESSION_SECRET=backend
+    
