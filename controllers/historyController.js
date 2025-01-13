@@ -256,7 +256,7 @@ export const getTransactionHistoryAdmin=async (req, res) => {
     const formattedHistory = numberHistories.map((history) => ({
       ID: history._id,
       userId: history.userId,
-      id: history._id.toString(),
+      id: history.id.toString(),
       number: history.number,
       otp: history.otps && Array.isArray(history.otps) ? history.otps.map((otp) => ({
         message: otp.message || "No SMS",
