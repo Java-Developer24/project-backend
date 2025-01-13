@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticateUser } from "../middleware/authMiddleware.js";
-import {transactionCount,getTransactionHistoryAdmin,getTransactionHistoryUser,getRechargeHistoryAdmin,getTotalRechargeBalance, getRechargeHistory, getTransactionHistory, deleteNumberHistory, deleteRechargeHistory } from "../controllers/historyController.js";
+import {transactionCount,getTransactionHistoryAdmin,getTransactionHistoryUser,getRechargeHistoryAdmin,getTotalRechargeBalance, getRechargeHistory, getTransactionHistory, deleteNumberHistory, deleteRechargeHistory, activeOrders } from "../controllers/historyController.js";
 
 import { saveRechargeHistory, saveNumberHistory } from "../controllers/historyController.js";
 
@@ -25,6 +25,7 @@ router.get("/get-transaction-history-admin",getTransactionHistoryAdmin)
 router.get("/transaction-history-count", transactionCount);
 router.delete("/delete-numberhistory",deleteNumberHistory)
 router.delete("/delete-recharge-history",deleteRechargeHistory)
+router.get("/get-all-active-orders",activeOrders)
 
 
 export default router;

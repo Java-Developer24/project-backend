@@ -1,4 +1,5 @@
 import {NumberHistory,RechargeHistory} from "../models/history.js";
+import { Order } from "../models/order.js";
 import ServerData from "../models/serverData.js";
 
 import User from "../models/user.js";
@@ -366,5 +367,23 @@ export const deleteNumberHistory = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "An error occurred.", error });
+  }
+};
+
+export const  activeOrders = async (req, res) => {
+  try {
+    // Fetch all orders with status 'ACTIVE'
+    const activeOrders = await Order.find({ status: "ACTIVE" });
+
+    // If no active orders are found, return an empty array
+    if (activeOrders.length === 0) {
+      return res.status(200).json({ message: "No active orders found" });
+    }
+
+    // Return the active orders as response
+    return res.status(200).json( activeOrders );
+  } catch (error) {
+    console.error("Error fetching active orders:", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

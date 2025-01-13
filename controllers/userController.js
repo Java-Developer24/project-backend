@@ -782,10 +782,14 @@ export const getOtpTimeWindow = async (req, res) => {
 
 
 export const forceOrderAndNumberHistoryDelete = async (req, res) => {
-  const { userId, numberId, number } = req.query;
+  const { userId, numberId, number,server } = req.query;
   console.log(req.query)
 
   try {
+    const user = await User.findById(userId);
+
+    const apiKey=user.apiKey;
+    console.log(apiKey) 
      // Step 1: Call the cancel API
      const response = await fetch(
       `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
@@ -793,22 +797,19 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
 
     // Check if the cancellation was successful
     const cancelData = await response.json();
-    if (!cancelData.success) {
-      return res.status(400).json({ message: "Failed to cancel the number." });
-    }
+    console.log(cancelData)
+    // // if (!cancelData.success) {
+    // //   return res.status(400).json({ message: "Failed to cancel the number." });
+    // }
 
     // Step 2: Verify and delete the order
     const order = await Order.findOneAndDelete({ userId, numberId, number });
-    console.log(order);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found." });
-    }
+    
+   
 
     // Step 3: Verify and delete the number entry in NumberHistory
     const numberHistory = await NumberHistory.findOneAndDelete({ userId, id: numberId, number });
-    if (!numberHistory) {
-      return res.status(404).json({ message: "Number history not found." });
-    }
+    
 
 
     // Step 4: Send success message
