@@ -37,6 +37,8 @@ app.use(
       "http://localhost:5174",
       "http://localhost:5173",
       "http://frontend-app-react.s3-website.ap-south-1.amazonaws.com",
+      "http://frontend.tech-developer.online",
+      "https://adminpanel.tech-developer.online",
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })

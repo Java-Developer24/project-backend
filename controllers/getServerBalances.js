@@ -1,79 +1,133 @@
 import axios from "axios"
+import ServerData from "../models/serverData.js";
 
 
 
 // Define functions to fetch balances for each server
 const getServer1Balance = async () => {
-  const response = await axios.get(
-    'https://fastsms.su/stubs/handler_api.php?api_key=cfb7e4c410ef1b96da87cf72fa11189badd&action=getBalance'
-  );
-  const parts = response.data.split(":");
-  return { balance: parseFloat(parts[1]), currency: 'p' };
+  try {
+    const serverData = await ServerData.findOne({ server: "1" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
+    );
+    const parts = response.data.split(":");
+    return { balance: parseFloat(parts[1]), currency: "p" };
+  } catch (error) {
+    console.error("Error fetching Server 1 balance:", error.message);
+    return {};
+  }
 };
 
 const getServer2Balance = async () => {
-    const response = await axios.get('https://5sim.net/v1/user/profile', {
+  try {
+    const serverData = await ServerData.findOne({ server: "2" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get("https://5sim.net/v1/user/profile", {
       headers: {
-        Authorization: `Bearer eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjcyMDUyNzgsImlhdCI6MTczNTY2OTI3OCwicmF5IjoiOWMyYTg1NmM4ZjQ2YmNlZWFmZThjOWI4OTE1MTM4NWQiLCJzdWIiOjI2ODY5Nzl9.tizb0wZwREa_x1e345Q7qjLZ3gqGFzQjwjOyREgyTrWigcJ7UQNZA6NWMbIHl3yDxTnb0gYtzqpezl7XJ35MV6c8om1PfAGXmCqyvoLAGtwleUBJ65e1zQ8XWzBF2WkwdDK7GIOZhdDn38myywyjkUuiQJgV_zJ9EpDOMf11WMcRQHvpFvy0JWwsMxy-fcY6u8bbtvxDkPM21N9iAlSXbME84bjoAtR-I94WD7ztUyCprZzeAeB87A8lyC1ncvkLRyfKFgcx8WBQEJi4nrIo-iATw93oNU3Le-Gt_FlVcISPFyNHo4G-4bC4EXfJy0xRgMtHD22JfGOj0Yppy7RjpQ`,
+        Authorization: `Bearer ${serverData.api_key}`,
         Accept: "application/json",
       },
     });
-  return { balance: parseFloat(response.data.balance), currency: 'p' };
+    return { balance: parseFloat(response.data.balance), currency: "p" };
+  } catch (error) {
+    console.error("Error fetching Server 2 balance:", error.message);
+    return {};
+  }
 };
 
-// Add similar functions for other servers...
 const getServer3Balance = async () => {
-  const response = await axios.get(
-    'https://smshub.org/stubs/handler_api.php?api_key=224356U85b8978f6a47faab51436b821be07584&action=getBalance'
-  );
-  
-  const parts = response.data.split(":");
-  
-  return { balance:  parseFloat(parts[1]) , currency: '$' };
+  try {
+    const serverData = await ServerData.findOne({ server: "3" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      `https://smshub.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
+    );
+    const parts = response.data.split(":");
+    return { balance: parseFloat(parts[1]), currency: "$" };
+  } catch (error) {
+    console.error("Error fetching Server 3 balance:", error.message);
+    return {};
+  }
 };
-// Add similar functions for other servers...
 
-  // Add similar functions for other servers...
 const getServer4Balance = async () => {
+  try {
+    const serverData = await ServerData.findOne({ server: "4" });
+    if (!serverData) throw new Error("Server data not found");
     const response = await axios.get(
-      'https://api.grizzlysms.com/stubs/handler_api.php?api_key=937c498d19cabb18cfa63659a45301a0&action=getBalance'
+      `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
     );
     const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: 'p' };
-  };
-  // Add similar functions for other servers...
-const getServer5Balance = async () => {
-    const response = await axios.get(
-      'https://tempnum.org/stubs/handler_api.php?api_key=7a4936c941ed582380d5063ff8d0dad8&action=getBalance '
-    );
-    const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: 'p' };
-  };
-  // Add similar functions for other servers...
-const getServer8Balance = async () => {
-    const response = await axios.get(
-      'https://smsbower.online/stubs/handler_api.php?api_key=22vgH70wFS4eLr2C6wv0tct8BPzeJpzE&action=getBalance'
-    );
-    const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: 'p' };
-  };
-  // Add similar functions for other servers...
-const getServer6Balance = async () => {
-    const response = await axios.get(
-      'https://api.sms-activate.guru/stubs/handler_api.php?api_key=A5e72d2bd426A1b93989Ac9456d83127&action=getBalance'
-    );
-    const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: 'p' };
-  };
-  // Add similar functions for other servers...
-const getServer7Balance = async () => {
-    const response = await axios.get(
-      'https://own5k.in/p/ccpay.php?type=balance'
-    );
-    return { balance: parseFloat(response.data), currency: '$' };
-  };
-  // Add similar functions for other servers...
+    return { balance: parseFloat(parts[1]), currency: "p" };
+  } catch (error) {
+    console.error("Error fetching Server 4 balance:", error.message);
+    return {};
+  }
+};
 
+const getServer5Balance = async () => {
+  try {
+    const serverData = await ServerData.findOne({ server: "5" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      `https://tempnum.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
+    );
+    const parts = response.data.split(":");
+    return { balance: parseFloat(parts[1]), currency: "p" };
+  } catch (error) {
+    console.error("Error fetching Server 5 balance:", error.message);
+    return {};
+  }
+};
+
+const getServer6Balance = async () => {
+  try {
+    const serverData = await ServerData.findOne({ server: "6" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
+    );
+    const parts = response.data.split(":");
+    return { balance: parseFloat(parts[1]), currency: "p" };
+  } catch (error) {
+    console.error("Error fetching Server 6 balance:", error.message);
+    return {};
+  }
+};
+
+const getServer8Balance = async () => {
+  try {
+    const serverData = await ServerData.findOne({ server: "8" });
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      "https://own5k.in/p/ccpay.php?type=balance"
+    );
+    
+    return { balance: parseFloat(response), currency: "$" };
+  } catch (error) {
+    console.error("Error fetching Server 8 balance:", error.message);
+    return {};
+  }
+};
+
+const getServer7Balance = async () => {
+  try {
+    const serverData = await ServerData.findOne({ server: "7" });
+   
+    if (!serverData) throw new Error("Server data not found");
+    const response = await axios.get(
+      `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
+    );
+    console.log(response)
+    const parts = response.data.split(":");
+    return { balance: parseFloat(parts[1]), currency: "$" };
+  } catch (error) {
+    console.error("Error fetching Server 7 balance:", error.message);
+    return {"balance": null,
+        "currency": "p"};
+  }
+};
 
 // Combine all balance functions
 export const serverBalances= async (req, res) => {
