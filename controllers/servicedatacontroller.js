@@ -9,8 +9,7 @@ import { userDiscountModel } from '../models/userDiscount.js'
 import { Order } from "./../models/order.js";
 import fetch from "node-fetch";
 import ServerData from "../models/serverData.js";
-import { userBlockDetails } from "../utils/telegram-userblock.js";
-import {BlockModel} from "../models/block.js"
+
 import {
 
     numberGetDetails,
@@ -68,7 +67,7 @@ const processQueue = async () => {
   const getServerMaintenanceData = async (server) => {
     // Check if the server is under maintenance
     const maintainanceServerData = await ServerData.findOne({ server: 0 });
-    if (maintainanceServerData.maintainance) {
+    if (maintainanceServerData.maintenance) {
       throw new Error("Site is under maintenance.");
     }
   
@@ -77,7 +76,7 @@ const processQueue = async () => {
       throw new Error("Server data not found.");
     }
   
-    if (serverData.maintainance) {
+    if (serverData.maintenance) {
       throw new Error(`Server ${server} is under maintenance.`);
     }
   
@@ -110,13 +109,13 @@ const processQueue = async () => {
       case "5":
         return `https://tempnum.org/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22`;
   
-        case "8":
+        case "7":
           return `  https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&country=22&maxPrice=${data.price} `;
          
         case "6":
           return `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getNumber&service=${data.code}&operator=any&country=22&maxPrice=${data.price}`;
   
-      case "7":
+      case "8":
         return `http://www.phantomunion.com:10023/pickCode-api/push/buyCandy?token=${api_key_server}&businessCode=${data.code}&quantity=1&country=IN&effectiveTime=10`;
       
       default:
@@ -166,7 +165,7 @@ const processQueue = async () => {
             number: response6parts[2].substring(2),
           };
   
-        case "8":
+        case "7":
           const response7Data = JSON.parse(responseData);
           return {
             id: response7Data.request_id,
@@ -180,7 +179,7 @@ const processQueue = async () => {
             number: response8Data.number.replace(/^91/, ""),
           };
   
-        case "7":
+        case "8":
           const responseDataJson = JSON.parse(responseData);
   
           const phoneData = responseDataJson.data.phoneNumber[0];
@@ -393,27 +392,39 @@ const processQueue = async () => {
   };
   
 
-  const TIME_OFFSET = 20000; // 1 minute in milliseconds
+
 
   const checkAndCancelExpiredOrders = async () => {
     try {
       const currentTime = new Date();
+      console.log("Current Time:", currentTime);
+  
+      // Fetch orders expiring within TIME_OFFSET or already expired
       const expiredOrders = await Order.find({
-        expirationTime: { $lte: new Date(currentTime.getTime() + TIME_OFFSET) },
+        expirationTime: { $lte: new Date(currentTime.getTime() + 960000) },
       });
- 
+  
+      console.log("Expired Orders Found:", expiredOrders.length);
+  
       for (const order of expiredOrders) {
-        const timeDifference = new Date(order.expirationTime).getTime() - currentTime.getTime();
-  console.log("time difference",timeDifference)
-  console.log("diferenece",timeDifference >= 0)
-        
-    if (timeDifference >= 0) {
-          setTimeout(() => cancelOrder(order), timeDifference);
-          // Schedule cancellation if within future range
-           
-        } else  {
+        console.log("Processing Order ID:", order._id);
+  
+        const expirationTime = new Date(order.expirationTime);
+        // Deduct 60000 milliseconds (1 minute) from the actual expiration time
+        const timeDifference = expirationTime.getTime() - currentTime.getTime() - 960000;
+        console.log("Expiration Time:", expirationTime);
+        console.log("Time Difference (ms):", timeDifference);
+  
+        if (timeDifference <= 0) {
           // Immediately cancel already expired orders
+          console.log(`Immediately cancelling already expired order ${order._id}`);
           await cancelOrder(order);
+        } else if (timeDifference <= TIME_OFFSET) {
+          // Schedule cancellation for orders expiring within TIME_OFFSET
+          console.log(`Scheduling cancellation for order ${order._id} after ${timeDifference}ms`);
+          setTimeout(() => cancelOrder(order), timeDifference);
+        } else {
+          console.log(`Order ${order._id} is still valid and not expiring soon.`);
         }
       }
     } catch (error) {
@@ -421,36 +432,52 @@ const processQueue = async () => {
     }
   };
   
-export const cancelOrder = async (order) => {
-  try {
-    const user = await User.findOne({ _id: order.userId });
-
-    if (user && user.apiKey) {
-      console.log("cancelling the order")
-      console.log("ordernumberid",user.apiKey)
-      await callNumberCancelAPI(user.apiKey, order.numberId, order.server);
-    } else {
-      console.error(`No API key found for user ${order.userId}`);
+  export const cancelOrder = async (order) => {
+    try {
+      console.log("Cancelling Order ID:", order._id);
+  
+      const user = await User.findOne({ _id: order.userId });
+      console.log("User Found for Order:", user ? user._id : "No user found");
+  
+      if (user && user.apiKey) {
+        console.log("User's API Key:", user.apiKey);
+        console.log("Order Number ID:", order.numberId);
+        console.log("Order Server:", order.server);
+  
+        await callNumberCancelAPI(user.apiKey, order.numberId, order.server);
+      } else {
+        console.error(`No API key found for user ${order.userId}`);
+      }
+    } catch (error) {
+      console.error(`Error cancelling order ${order._id}:`, error.message);
     }
-  } catch (error) {
-    console.error(`Error cancelling order ${order._id}:`, error.message);
-  }
-};
-
-const callNumberCancelAPI = async (apiKey, numberId, server) => {
-  try {
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
-    );
-    
-    if (!response.ok) {
-      const errorResponse = await response.json();
-      console.error(`API call failed:`, errorResponse);
+  };
+  
+  const callNumberCancelAPI = async (apiKey, numberId, server) => {
+    try {
+      console.log("Calling Cancel API...");
+      console.log("API Key:", apiKey);
+      console.log("Number ID:", numberId);
+      console.log("Server:", server);
+  
+      const response = await fetch(
+        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
+      );
+  
+      console.log("API Response Status:", response.status);
+  
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        console.error(`API call failed:`, errorResponse);
+      } else {
+        console.log("API call successful");
+      }
+    } catch (error) {
+      console.error("Error in callNumberCancelAPI:", error.message);
     }
-  } catch (error) {
-    console.error("Error in callNumberCancelAPI:", error.message);
-  }
-};
+  };
+  
+  
 
   
  
@@ -494,7 +521,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       // Check server maintenance and get API key
       const serverData = await getServerMaintenanceData(server);
       const api_key_server = serverData.api_key; // Fetch API key from ServerModel
-      console.log(api_key_server)
+     
   
       switch (server) {
         case "1":
@@ -523,7 +550,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://tempnum.org/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "8":
+        case "7":
           apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
@@ -531,7 +558,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${api_key_server}&action=getStatus&id=${id}`;
           break;
   
-        case "7":
+        case "8":
           apiUrl = `http://www.phantomunion.com:10023/pickCode-api/push/sweetWrapper?token=${api_key_server}&serialNumber=${id}`;
           break;
        
@@ -575,29 +602,43 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
               const responseDataJson = JSON.parse(responseData);
           
               // Initialize validOtp as an array to store all OTPs
-              validOtp = [];
+              let validOtp = [];
           
               // Check if the "sms" array exists and contains messages
-              if (responseDataJson.sms && responseDataJson.sms.length > 0) {
-                // Sort SMS messages by the most recent date (descending order)
-                const sortedSms = responseDataJson.sms.sort(
-                  (a, b) => new Date(b.date) - new Date(a.date)
-                );
+              if (responseDataJson.sms && Array.isArray(responseDataJson.sms)) {
+                if (responseDataJson.sms.length > 0) {
+                  // Sort SMS messages by the most recent date (descending order)
+                  const sortedSms = responseDataJson.sms.sort(
+                    (a, b) => new Date(b.date) - new Date(a.date)
+                  );
           
-                // Map each SMS text to an object with an 'otp' field and add to validOtp
-                validOtp = sortedSms.map((sms) => ({
-                  otp: sms.text.replace(/Message ID:.*$/, "").trim(), // Remove "Message ID" part and trim
-                }));
+                  // Map each SMS text to an object with an 'otp' field and add to validOtp
+                  validOtp = sortedSms.map((sms) => ({
+                    otp: sms.text.replace(/Message ID:.*$/, "").trim(), // Remove "Message ID" part and trim
+                  }));
+          
+                  console.log("OTP received:", validOtp);
+                } else {
+                  // If the array is empty, log that no OTP is available yet
+                  console.log("OTP array is empty, waiting for new OTP messages.");
+                }
               } else {
-                // No SMS messages available
-                console.log("No SMS messages received in the response.");
-                validOtp = []; // Empty array if no messages
+                // If sms is not an array or doesn't exist, log an error
+                console.error("Invalid SMS data format, 'sms' is missing or not an array.");
               }
+          
+              // Handle validOtp (optional, e.g., you could trigger further actions here)
+              if (validOtp.length === 0) {
+                // You can handle the case when no OTP has been received yet
+                console.log("No OTP messages received yet.");
+              }
+          
             } catch (error) {
               console.error("Error processing case 2 response:", error.message);
               throw new Error("Failed to process the OTP response for case 2.");
             }
             break;
+          
           
        
         case "3":
@@ -654,22 +695,76 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
             break;
           
+            case "7":
+              try {
+                // Check if the response data starts with "STATUS_OK"
+                if (responseData.startsWith("STATUS_OK"||"STATUS_WAIT_RETRY")) {
+                  // Split the response data to extract the part after "STATUS_OK:"
+                  const parts = responseData.split(":");
+                  const messageText = parts[1]?.trim(); // Trim to remove any leading or trailing spaces
+            
+                  
+            
+                  if (messageText) {
+                    validOtp = messageText; // Store the extracted OTP
+                  } else {
+                    console.log("No OTP found in the STATUS_OK message.");
+                    validOtp = null; // No OTP found
+                  }
+                } else if (responseData.startsWith("STATUS_WAIT_CODE")) {
+                  console.log("Waiting for SMS...");
+                  validOtp = null; // No OTP yet, waiting for SMS
+                } else if (responseData.startsWith("STATUS_CANCEL")) {
+                  console.log("Activation canceled.");
+                  validOtp = null; // Activation was canceled
+                } else {
+                  console.log("Unexpected response status.");
+                  validOtp = null; // Handle unexpected response
+                }
+              } catch (error) {
+                console.error("Error processing case 6 response:", error.message);
+                throw new Error("Failed to process the OTP response for case 6.");
+              }
+              break;
+            
+       
   
-        case "8":
-          const response7Data = JSON.parse(responseData);
-          if (response7Data.sms_code) {
-            validOtp = response7Data.sms_code;
-          }
-          break;
+      
+              case "6":
+                try {
+                  // Check if the response data starts with "STATUS_OK"
+                  if (responseData.startsWith("STATUS_OK"||"STATUS_WAIT_RETRY")) {
+                    // Split the response data to extract the part after "STATUS_OK:"
+                    const parts = responseData.split(":");
+                    const messageText = parts[1]?.trim(); // Trim to remove any leading or trailing spaces
+              
+                    
+              
+                    if (messageText) {
+                      validOtp = messageText; // Store the extracted OTP
+                    } else {
+                      console.log("No OTP found in the STATUS_OK message.");
+                      validOtp = null; // No OTP found
+                    }
+                  } else if (responseData.startsWith("STATUS_WAIT_CODE")) {
+                    console.log("Waiting for SMS...");
+                    validOtp = null; // No OTP yet, waiting for SMS
+                  } else if (responseData.startsWith("STATUS_CANCEL")) {
+                    console.log("Activation canceled.");
+                    validOtp = null; // Activation was canceled
+                  } else {
+                    console.log("Unexpected response status.");
+                    validOtp = null; // Handle unexpected response
+                  }
+                } catch (error) {
+                  console.error("Error processing case 6 response:", error.message);
+                  throw new Error("Failed to process the OTP response for case 6.");
+                }
+                break;
+              
+         
   
-        case "6":
-          const response8Data = JSON.parse(responseData);
-          if (response8Data.sms_code) {
-            validOtp = response8Data.sms_code;
-          }
-          break;
-  
-          case "7":
+          case "8":
             try {
               // Parse the response data as JSON
               const responseDataJson = JSON.parse(responseData);
@@ -691,7 +786,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
                   }
                 } 
             } catch (error) {
-              console.error("Error processing case 9 response:", error.message);
+              console.error("Error processing case 8 response:", error.message);
               throw new Error("Failed to process the OTP response for case 9.");
             }
 
@@ -707,14 +802,11 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
       console.log("otp",validOtp)
       if (validOtp) {
-        const otpEntry = {
-          message: [validOtp], // Valid OTP message here
-          
-        };
-        const existingEntry = await NumberHistory.findOneAndUpdate({
-          id},{
-          otps: [otpEntry],
-        });
+       
+        const existingEntry = await NumberHistory.findOne({
+          id,
+          "otps.message": validOtp,
+      });
         console.log("Existing Entry:", existingEntry);
       
         if (!existingEntry) {
@@ -731,8 +823,8 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       
           // Update the OTP entry format to include "message" as an object, not a string
           const otpEntry = {
-            message: [validOtp], // Valid OTP message here
-            
+            message: validOtp, // Store the OTP message as a string
+            date: new Date(), // Add the current date or the OTP's date
           };
       
           // Create and save the new entry
@@ -814,7 +906,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
   
       // Automatically trigger the next OTP URL for server 5
-      if (server === "5" && validOtp) {
+      if (server === "4" && validOtp) {
         setTimeout(async () => {
           try {
             const nextOtpResponse = await fetch(
@@ -834,7 +926,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       }
   
       // Automatically trigger the next OTP URL for server 8
-      if (server === "8" && validOtp) {
+      if (server === "6" && validOtp) {
         setTimeout(async () => {
           try {
             const nextOtpResponse = await fetch(
@@ -861,19 +953,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
     }
   };
   
-  const isWithinTime = (date_time) => {
-    // Get the current moment
-    const now = moment();
-  
-    // Define the moment value to check
-    const dateTimeValue = moment(date_time, "DD/MM/YYYYTHH:mm A");
-  
-    // Calculate the difference in minutes between the two moments
-    const differenceInMinutes = now.diff(dateTimeValue, "minutes");
-  
-    // Check if the difference is less than or equal to 3 minutes
-    return Math.abs(differenceInMinutes) <= 3;
-  };
+ 
   
 
 
@@ -937,45 +1017,22 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
       const userData = await User.findById(user._id);
   
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
-      if (maintainanceServerData.maintainance) {
+      if (maintainanceServerData.maintenance) {
         return res.status(403).json({ error: "Site is under maintenance." });
       }
   
       const serverData = await ServerData.findOne({ server });
   
-      if (serverData.maintainance) {
+      if (serverData.maintenance) {
         return res
           .status(403)
           .json({ message: `Server ${server} is under maintenance.` });
       }
   
       // Fetch user's transaction history to check for consecutive cancellations
-      let userTransactions = await NumberHistory.find({
-        userId: user._id,
-      });
+      
   
-      // Find the transaction with the matching ID
-      const data = userTransactions.filter((t) => t.id === id);
-  
-      if (data.some((t) => t.otps)) {
-        await Order.deleteOne({ numberId: id });
-        return res.status(200).json({ access: "Otp Received" });
-      }
-  
-      if (data.some((t) => t.status === "Cancelled")) {
-        return res.status(200).json({ access: "Number Cancelled" });
-      }
-  
-      userTransactions = userTransactions
-        .filter((u) => u.status === "Cancelled")
-        .reverse();
-  
-      let thirdLastTransactions = null;
-  
-      if (userTransactions.length >= 3) {
-        thirdLastTransactions = userTransactions[2];
-      }
-  console.log("order cancellations request")
+    
       switch (server) {
         case "1":
           apiUrl = `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&id=${id}&status=8`;
@@ -1003,7 +1060,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://tempnum.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "8":
+        case "7":
           apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
@@ -1011,7 +1068,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
           break;
   
-        case "7":
+        case "8":
           apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
           break;
         
@@ -1128,7 +1185,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
             }
           break;
   
-        case "8":
+        case "7":
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
@@ -1164,7 +1221,7 @@ const callNumberCancelAPI = async (apiKey, numberId, server) => {
           }
           break;
   
-        case "7":
+        case "8":
           if (responseData.startsWith("success")) {
             existingEntry = await NumberHistory.findOneAndUpdate(
               {id},
