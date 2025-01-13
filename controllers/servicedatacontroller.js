@@ -401,7 +401,7 @@ const processQueue = async () => {
   
       // Fetch orders expiring within TIME_OFFSET or already expired
       const expiredOrders = await Order.find({
-        expirationTime: { $lte: new Date(currentTime.getTime() + 960000) },
+        expirationTime: { $lte: new Date(currentTime.getTime() + 120000) },
       });
   
       console.log("Expired Orders Found:", expiredOrders.length);
@@ -411,7 +411,7 @@ const processQueue = async () => {
   
         const expirationTime = new Date(order.expirationTime);
         // Deduct 60000 milliseconds (1 minute) from the actual expiration time
-        const timeDifference = expirationTime.getTime() - currentTime.getTime() - 960000;
+        const timeDifference = expirationTime.getTime() - currentTime.getTime() - 120000;
         console.log("Expiration Time:", expirationTime);
         console.log("Time Difference (ms):", timeDifference);
   
