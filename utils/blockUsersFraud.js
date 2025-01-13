@@ -147,7 +147,7 @@ export const runFraudCheck = async (userId) => {
 
     if (checkForBlock) {
       console.log(`[FraudCheck] Block type found. Status: ${checkForBlock.status}`);
-      if (!checkForBlock.status) {
+      if (checkForBlock.status) {
         console.log("[FraudCheck] Block type is inactive. Initiating user blocking process.");
         // Call the function for a specific user instead of batch
         await blockUserIfFraudulentById(userId);

@@ -98,13 +98,12 @@ const getServer6Balance = async () => {
 
 const getServer8Balance = async () => {
   try {
-    const serverData = await ServerData.findOne({ server: "8" });
-    if (!serverData) throw new Error("Server data not found");
+    
     const response = await axios.get(
       "https://own5k.in/p/ccpay.php?type=balance"
     );
     
-    return { balance: parseFloat(response), currency: "p" };
+    return { balance: parseFloat(response.data), currency: "p" };
   } catch (error) {
     console.error("Error fetching Server 8 balance:", error.message);
     return {};
