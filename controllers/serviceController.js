@@ -412,8 +412,9 @@ const getUserServicesData = async (req, res) => {
 
       // Filter out servers under maintenance and sort by the adjusted price
       const sortedServers = updatedServers
-        .filter((server) => !server.maintenance)
-        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); // Sort by updated price directly
+      .filter((server) => !server.maintenance)
+      .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
+ 
 
       return {
         ...service,
@@ -495,14 +496,15 @@ const getUserServicesDatas = async (req, res) => {
       });
 
       // Filter out servers under maintenance and sort by the adjusted price
-      const sortedServers = updatedServers
-        .filter((server) => !server.maintenance)
-        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); // Sort by updated price directly
+     // Filter out servers under maintenance and sort by server number (ascending order)
+     const filteredServers = updatedServers
+     .filter((server) => !server.maintenance)
+     .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
 
       return {
         name: service.name,
-        servers: sortedServers,
-        lowestPrice: service.lowestPrice // Assuming `lowestPrice` is already part of the service model
+        servers: filteredServers,
+        // Assuming `lowestPrice` is already part of the service model
       };
     });
 

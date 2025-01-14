@@ -311,7 +311,7 @@ console.log(user)
     const userData = {
       _id: user._id,
       api_key: user.apiKey,
-      balance: user.balance,
+      balance: user.balance.toFixed(2),
       blocked: user.status === 'blocked',
       createdAt: user.createdAt,
       displayName: user.displayName,

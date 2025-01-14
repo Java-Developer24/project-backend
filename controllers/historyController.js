@@ -259,6 +259,7 @@ export const getTransactionHistoryAdmin=async (req, res) => {
       userId: history.userId,
       id: history.id.toString(),
       number: history.number,
+      requestId:history.requestId,
       otp: history.otp  ?? [], // If otps is null or not an array, return an empty array
       date_time: history.date || null,
       service: history.serviceName,
