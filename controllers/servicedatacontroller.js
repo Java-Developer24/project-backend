@@ -1216,9 +1216,7 @@ const processQueue = async () => {
           date_time: formattedDateTime,
         });
         await numberHistory.save();
-      
-      }
-      const transaction = await NumberHistory.findOne({ id });
+        
         if (!transaction.otp) {
           const incrementAmount = parseFloat(transaction.price.toFixed(2));
           
@@ -1240,6 +1238,8 @@ const processQueue = async () => {
         });
   
         await Order.deleteOne({ numberId: id });
+      }
+      
         res.status(200).json({ access: "Number Cancelled" });
   
     } catch (error) {
