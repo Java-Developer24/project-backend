@@ -975,8 +975,8 @@ const processQueue = async () => {
       if (!user) {
         return res.status(400).json({ error: "Invalid api key." });
       }
-      const rechargeHistory = await RechargeHistory.findById(id);
-      const rechargeId=rechargeHistory.rechargeId
+      const numberHistory = await NumberHistory.findOne({id:id});
+      const rechargeId=numberHistory.rechargeId
       const userData = await User.findById(user._id);
   
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
