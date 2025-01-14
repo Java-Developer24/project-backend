@@ -795,6 +795,7 @@ const processQueue = async () => {
             serviceName: transaction.serviceName,
             price: transaction.price,
             server,
+            requestId,
             id,
             otp: validOtp,  // Ensure this is an array of objects, not just a string
             status: "Success",
@@ -974,7 +975,8 @@ const processQueue = async () => {
       if (!user) {
         return res.status(400).json({ error: "Invalid api key." });
       }
-  
+      const rechargeHistory = await RechargeHistory.findById(id);
+      const rechargeId=rechargeHistory.rechargeId
       const userData = await User.findById(user._id);
   
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
@@ -1205,6 +1207,7 @@ const processQueue = async () => {
           serviceName: transaction.serviceName,
           price: transaction.price,
           server,
+          rechargeId,
           id,
           otp: null,
           status: "Cancelled",
