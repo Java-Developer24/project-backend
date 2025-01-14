@@ -112,6 +112,13 @@ export const login = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
+    // Check if the user doesn't have a password (indicating Google sign-in)
+    if (!user.password) {
+      return res.status(400).json({
+        message: 'This account is registered with Google. Please log in using Google.',
+      });
+    }
+
     // Check email verification
     if (!user.isVerified) {
       return res.status(400).json({ message: 'Please verify your email before logging in.' });

@@ -19,19 +19,13 @@ const NumberHistorySchema = new mongoose.Schema({
     },
     Discount: {
       type: Number,
-      required: true,
     },
     number: {
       type: String,
       required: true,
     },
     requestId:Number,
-    otps: [
-      {
-        message: String, // OTP message or "No SMS" if cancelled
-        date: Date, // Date of the SMS
-      },
-    ],
+    otp: String,
     date: {
       type: Date,
       default: Date.now,

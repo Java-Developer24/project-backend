@@ -345,7 +345,7 @@ const processQueue = async () => {
         id,
         requestId, 
         Discount:totalDiscount,
-        otps: null,
+        otp: null,
         status: "Success",
         reason:"Waiting for SMS",
         number,
@@ -576,7 +576,7 @@ const processQueue = async () => {
       const responseData = await response.text();
       console.log("response data",responseData)
   
-      if (!responseData || responseData.trim() === "") {
+      if (!responseData ) {
         throw new Error("Received empty response data.");
       }
   
@@ -597,48 +597,14 @@ const processQueue = async () => {
           }
           break;
           case "2":
-            try {
-              // Parse the response data as JSON
-              const responseDataJson = JSON.parse(responseData);
-          
-              // Initialize validOtp as an array to store all OTPs
-              let validOtp = [];
-          
-              // Check if the "sms" array exists and contains messages
-              if (responseDataJson.sms && Array.isArray(responseDataJson.sms)) {
-                if (responseDataJson.sms.length > 0) {
-                  // Sort SMS messages by the most recent date (descending order)
-                  const sortedSms = responseDataJson.sms.sort(
-                    (a, b) => new Date(b.date) - new Date(a.date)
-                  );
-          
-                  // Map each SMS text to an object with an 'otp' field and add to validOtp
-                  validOtp = sortedSms.map((sms) => ({
-                    otp: sms.text.replace(/Message ID:.*$/, "").trim(), // Remove "Message ID" part and trim
-                  }));
-          
-                  console.log("OTP received:", validOtp);
-                } else {
-                  // If the array is empty, log that no OTP is available yet
-                  console.log("OTP array is empty, waiting for new OTP messages.");
-                }
-              } else {
-                // If sms is not an array or doesn't exist, log an error
-                console.error("Invalid SMS data format, 'sms' is missing or not an array.");
-              }
-          
-              // Handle validOtp (optional, e.g., you could trigger further actions here)
-              if (validOtp.length === 0) {
-                // You can handle the case when no OTP has been received yet
-                console.log("No OTP messages received yet.");
-              }
-          
-            } catch (error) {
-              console.error("Error processing case 2 response:", error.message);
-              throw new Error("Failed to process the OTP response for case 2.");
+            responseDataJson = JSON.parse(responseData);
+            if (responseDataJson.sms && responseDataJson.sms.length > 0) {
+              const latestSms = responseDataJson.sms.sort(
+                (a, b) => new Date(b.date) - new Date(a.date)
+              )[0];
+              validOtp = latestSms.text;
             }
             break;
-          
           
        
         case "3":
@@ -805,7 +771,7 @@ const processQueue = async () => {
        
         const existingEntry = await NumberHistory.findOne({
           id,
-          "otps.message": validOtp,
+          otp: validOtp,
       });
         console.log("Existing Entry:", existingEntry);
       
@@ -821,11 +787,7 @@ const processQueue = async () => {
           // Format the current date and time
           const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
       
-          // Update the OTP entry format to include "message" as an object, not a string
-          const otpEntry = {
-            message: validOtp, // Store the OTP message as a string
-            date: new Date(), // Add the current date or the OTP's date
-          };
+         
       
           // Create and save the new entry
           const numberHistory = new NumberHistory({
@@ -833,9 +795,8 @@ const processQueue = async () => {
             serviceName: transaction.serviceName,
             price: transaction.price,
             server,
-            Discount:totalDiscount,
             id,
-            otps: [otpEntry],  // Ensure this is an array of objects, not just a string
+            otp: validOtp,  // Ensure this is an array of objects, not just a string
             status: "Success",
             reason:"SMS Received",
             number: transaction.number,
@@ -1078,10 +1039,8 @@ const processQueue = async () => {
   
       // Fetch data from the API URL
       const response = await fetch(apiUrl, { headers });
-  
-      if (!response.ok) {
-        return res.status(400).json({ error: "Error Occured" });
-      }
+       
+     
   
       const responseData = await response.text();
   
@@ -1096,14 +1055,12 @@ const processQueue = async () => {
       switch (server) {
         case "1":
           if (responseData.startsWith("STATUS_CANCEL")) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
-            },
-            { new: true }  // Return the updated document
+            
+              existingEntry = await NumberHistory.findOne({
+                id,
+              status: "CANCELLED",
+              
+              },
           );
           }
   
@@ -1113,33 +1070,35 @@ const processQueue = async () => {
   
           break;
   
-        case "2":
-          responseDataJson = JSON.parse(responseData);
-          if (responseDataJson.status === "CANCELED") {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
-            },
-            { new: true }  // Return the updated document);
-            );}
-          else if (responseDataJson.status === "order has sms") {
-            otpReceived = true;
-          }
-          break;
-  
+          case "2":
+            let responseDataJson;
+            try {
+              // Attempt to parse the response as JSON
+              responseDataJson = JSON.parse(responseData);
+          
+              if (responseDataJson.status === "CANCELED") {
+                existingEntry = await NumberHistory.findOne({
+                  id,
+                  status: "CANCELLED",
+                });
+              }
+            } catch (error) {
+              // Handle cases where the response is not valid JSON
+              if (responseData === "order has sms") {
+                otpReceived = true;
+              } else {
+                console.error("Unexpected response data:", responseData);
+                // Handle or log other unexpected responses
+              }
+            }
+            break;
         case "3":
           if (responseData.startsWith("ACCESS_CANCEL")) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
             );}
            else if (responseData.startsWith("ACCESS_ACTIVATION") ){
               otpReceived = true;
@@ -1153,14 +1112,11 @@ const processQueue = async () => {
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
             );}
             else if (responseData.startsWith("BAD_ACTION") ){
               otpReceived = true;
@@ -1171,14 +1127,11 @@ const processQueue = async () => {
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
             );}
            else if (responseData.startsWith("NO_ACTIVATION") ){
               otpReceived = true;
@@ -1189,14 +1142,11 @@ const processQueue = async () => {
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
-            existingEntry = await transactionHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
           )}
          else if (responseData.startsWith("BAD_STATUS") ){
             otpReceived = true;
@@ -1207,14 +1157,11 @@ const processQueue = async () => {
           if (
             responseData.startsWith("ACCESS_CANCEL")
           ) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-                otps: null,
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
           );}
          else if (responseData.startsWith("BAD_STATUS") ){
             otpReceived = true;
@@ -1223,14 +1170,11 @@ const processQueue = async () => {
   
         case "8":
           if (responseData.startsWith("success")) {
-            existingEntry = await NumberHistory.findOneAndUpdate(
-              {id},
-              {
-              otps: null,  
-              status: "Cancelled",
-              reason: "SMS not Received"
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
             },
-            { new: true }  // Return the updated document);
           );} else if (!responseData.startsWith("success") ){
             otpReceived = true;
           }
@@ -1262,7 +1206,7 @@ const processQueue = async () => {
           price: transaction.price,
           server,
           id,
-          otps: null,
+          otp: null,
           status: "Cancelled",
           reason:"SMS not Received",
           number: transaction.number,
@@ -1272,7 +1216,7 @@ const processQueue = async () => {
       
       }
       const transaction = await NumberHistory.findOne({ id });
-        if (!transaction.otps) {
+        if (!transaction.otp) {
           const incrementAmount = parseFloat(transaction.price.toFixed(2));
           
           // Increment balance in the database
