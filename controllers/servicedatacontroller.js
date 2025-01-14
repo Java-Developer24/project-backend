@@ -1207,7 +1207,7 @@ const processQueue = async () => {
           serviceName: transaction.serviceName,
           price: transaction.price,
           server,
-          rechargeId,
+          rechargeId:transaction.rechargeId,
           id,
           otp: null,
           status: "Cancelled",
