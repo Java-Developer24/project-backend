@@ -798,7 +798,7 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
     // Check if the cancellation was successful
     const cancelData = await response.json();
     console.log(cancelData)
-    if (!cancelData.access=="Number Cancelled") {
+    if (!cancelData.access==="Number Cancelled") {
       return res.status(400).json({ message: "Failed to cancel the number." });
     }
 
