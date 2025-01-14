@@ -364,73 +364,79 @@ const getUserServicesData = async (req, res) => {
       return res.status(400).json({ error: "Invalid API key" });
     }
 
-    // Fetch all services that are not under maintenance
-    const services = await Service.find({ maintenance: false }).lean();
-    console.timeEnd("Service.find");
+   // Fetch all services that are not under maintenance
+   const services = await Service.find({ maintenance: false }).lean();
+   console.timeEnd("Service.find");
 
-    if (!services || services.length === 0) {
-      return res.status(404).json({ message: 'No services found' });
-    }
+   if (!services || services.length === 0) {
+     return res.status(404).json({ message: 'No services found' });
+   }
 
-    console.time("mapping and sorting service");
+   console.time("mapping and sorting service");
 
-    // Fetch the user-specific discount data
-    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+   // Fetch the user-specific discount data
+   const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
 
-    // Create a map for quick lookup of user-specific discounts by service and server
-    const userDiscountMap = new Map();
-    userDiscountData.forEach((discount) => {
-      const key = `${discount.service}_${discount.server}`;
-      userDiscountMap.set(key, discount.discount);
-    });
+   // Create a map for quick lookup of user-specific discounts by service and server
+   const userDiscountMap = new Map();
+   userDiscountData.forEach((discount) => {
+     const key = `${discount.service}_${discount.server}`;
+     userDiscountMap.set(key, discount.discount);
+   });
 
-    const servicesWithUpdatedPrice = services.map((service) => {
-      const updatedServers = service.servers.map((server) => {
-        // Initialize the discount at the server level
-        let discount = 0;
+   const servicesWithUpdatedPrice = services.map((service) => {
+     const updatedServers = service.servers.map((server) => {
+       // Initialize the discount at the server level
+       let discount = 0;
 
-        // Get the service-level discount if exists
-        if (service.discount) {
-          discount += service.discount; // Assuming the service model has a discount field
-        }
+       // Get the service-level discount if exists
+       if (service.discount) {
+         discount += service.discount; // Assuming the service model has a discount field
+       }
 
-        // Get the server-level discount if exists
-        if (server.discount) {
-          discount += server.discount;
-        }
+       // Get the server-level discount if exists
+       if (server.discount) {
+         discount += server.discount;
+       }
 
-        // Get user-specific discount if exists
-        const serviceKey = `${service.name}_${server.serverNumber}`;
-        discount += userDiscountMap.get(serviceKey) || 0;
+       // Get user-specific discount if exists
+       const serviceKey = `${service.name}_${server.serverNumber}`;
+       discount += userDiscountMap.get(serviceKey) || 0;
 
-        // Apply the discount directly to the server price
-        const originalPrice = parseFloat(server.price);
-        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+       // Apply the discount directly to the server price
+       const originalPrice = parseFloat(server.price);
+       server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
 
-        return server;
-      });
+       return {
+         serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
+         price: server.price,
+         code: server.code,
+         otp: server.otp
+       };
+     });
 
-      // Filter out servers under maintenance and sort by the adjusted price
-      const sortedServers = updatedServers
-      .filter((server) => !server.maintenance)
-      .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
- 
+     // Filter out servers under maintenance and sort by the adjusted price
+    // Filter out servers under maintenance and sort by server number (ascending order)
+    const filteredServers = updatedServers
+    .filter((server) => !server.maintenance)
+    .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
 
-      return {
-        ...service,
-        servers: sortedServers,
-      };
-    });
+     return {
+       name: service.name,
+       servers: filteredServers,
+       // Assuming `lowestPrice` is already part of the service model
+     };
+   });
 
-    console.timeEnd("mapping and sorting service");
+   console.timeEnd("mapping and sorting service");
 
-    console.time("sortServicesByName");
-    // Sort services by name
-    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
-    console.timeEnd("sortServicesByName");
+   console.time("sortServicesByName");
+   // Sort services by name
+   const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+   console.timeEnd("sortServicesByName");
 
-    console.timeEnd("getServices");
-    res.status(200).json(sortedServices);
+   console.timeEnd("getServices");
+   res.status(200).json(sortedServices);
   } catch (error) {
     console.timeEnd("getServices");
     console.error("Error getting services:", error);

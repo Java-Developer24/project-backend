@@ -22,7 +22,7 @@ export const saveNumberHistory = async (req, res) => {
       price,
       status,
       reason,
-      otps: otp ? [{ message: otp, date: new Date() }] : [{ message: "No SMS", date: new Date() }],
+      otp: otp ? [{ message: otp, date: new Date() }] : [{ message: "No SMS", date: new Date() }],
     };
 
     // Save history
@@ -301,7 +301,7 @@ export const transactionCount = async (req, res) => {
       const hasCancelled = transactions.some(
         (txn) => txn.status === "Cancelled"
       );
-      const hasOtp = transactions.some((txn) => txn.otps !== null);
+      const hasOtp = transactions.some((txn) => txn.otp !== null);
 
       if (hasFinished && hasOtp) {
         successCount++;
