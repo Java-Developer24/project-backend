@@ -319,7 +319,7 @@ const processQueue = async () => {
   
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
       const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
-      price=parseFloat((Originalprice - totalDiscount).toFixed(2))
+      price=parseFloat((Originalprice + totalDiscount).toFixed(2))
       
       // Update balance in the database using MongoDB $inc operator
       await User.updateOne(
