@@ -798,24 +798,24 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
     // Check if the cancellation was successful
     const cancelData = await response.json();
     console.log(cancelData)
-    // // if (!cancelData.success) {
-    // //   return res.status(400).json({ message: "Failed to cancel the number." });
-    // }
+    if (!cancelData.access=="Number Cancelled") {
+      return res.status(400).json({ message: "Failed to cancel the number." });
+    }
 
     // Step 2: Verify and delete the order
-    const order = await Order.findOneAndDelete({ userId, numberId, number });
+    await Order.findOneAndDelete({ userId, numberId, number });
     
    
 
     // Step 3: Verify and delete the number entry in NumberHistory
-    const numberHistory = await NumberHistory.findOneAndDelete({ userId, id: numberId, number });
+     await NumberHistory.findOneAndDelete({ userId, id: numberId, number });
     
 
-
+const updatedBalance = await User.findById(userId);
     // Step 4: Send success message
     res.status(200).json({
       message: "Order and number history deleted successfully. User balance updated.",
-      updatedBalance: user.balance,
+      updatedBalance
     });
   } catch (error) {
     console.error(error);
