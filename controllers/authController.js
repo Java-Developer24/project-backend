@@ -71,6 +71,53 @@ export const signup = async (req, res) => {
   }
 };
 
+
+export const resendVerificationEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log(req.body)
+
+    // Validate email
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Check if the user is already verified
+    if (user.isVerified) {
+      return res
+        .status(400)
+        .json({ message: "This email is already verified." });
+    }
+
+    // Generate a new verification token
+    const verificationToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+    // Send verification email
+    await sendVerificationEmail(email, verificationLink);
+
+    res
+      .status(200)
+      .json({
+        message: "Verification email sent successfully. Please check your inbox.",
+      });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.query;
