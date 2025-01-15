@@ -11,7 +11,7 @@ router.get("/status",mfaStatuscheck)
 // Route to disable 2FA for an admin
 router.post('/disable', disable2FA);
 
-router.get('/get-admin-ip',getAdminIP)
-router.post("/update-admin-ip",updateAdminIP)
+router.get('/admin-api/admin-IP-data/get-admin-ip',getAdminIP)
+router.post("/admin-api/admin-IP-update/update-admin-ip",updateAdminIP)
 
 export default router;

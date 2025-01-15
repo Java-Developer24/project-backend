@@ -605,7 +605,7 @@ export const updateServerMaintenance = async (req, res) => {
 
         res.status(200).json({
             message: `Server ${serverNumber} in service '${name}' updated successfully`,
-            updatedService,
+            
         });
     } catch (error) {
         console.error("Error updating server maintenance:", error);

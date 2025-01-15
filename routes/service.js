@@ -8,7 +8,7 @@ import {
 } from "../controllers/servicedatacontroller.js";
 import { captureIpMiddleware } from "../middleware/getIPMiddleware.js";
 
-router.get("/get-service-data-admin", serviceController.getUserServicesDatas); //admin dashboard
+router.get("/admin-api/service-data/get-service-data-admin", serviceController.getUserServicesDatas); //admin dashboard
 
 router.get(
   "/fetch-update-compare-services",
@@ -19,19 +19,19 @@ router.get("/get-service-server-data", serviceController.getUserServicesDatas); 
 router.get("/get-service", serviceController.getUserServicesData); //Api page logged in user end points
 
 router.post("/addService", serviceController.addService);
-router.post("/updateService", serviceController.updateServerMaintenance);
-router.post("/deleteService", serviceController.deleteService);
-router.post("/maintainance-server", serviceController.updateServer); //keeping server in maintence
-router.post("/maintenance-all-servers", serviceController.updateServerDatas); //keeping the maintence of complete site
+router.post("/admin-api/service-update/updateService", serviceController.updateServerMaintenance);
+router.post("/admin-api/service-delete/deleteService", serviceController.deleteService);
+router.post("/admin-api/getting-server-maintaince/maintainance-server", serviceController.updateServer); //keeping server in maintence
+router.post("/admin-api/servers-maintence/maintenance-all-servers", serviceController.updateServerDatas); //keeping the maintence of complete site
 
-router.post("/add-service-discount", serviceController.updateServiceDiscount);
+router.post("/admin-api/updating-service-discount/add-service-discount", serviceController.updateServiceDiscount);
 
 router.get(
-  "/get-all-service-discount",
+  "/admin-api/server-discount-data/get-all-service-discount",
   serviceController.getAllServiceDiscounts
 );
 router.delete(
-  "/delete-service-discount",
+  "/admin-api/service-discount-removal/delete-service-discount",
   serviceController.deleteServiceDiscount
 );
 router.get(

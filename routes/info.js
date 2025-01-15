@@ -3,10 +3,10 @@ import { getBanner, getDisclaimer, updateBanner, updateDisclaimer } from "../con
 
 const router = Router();
 
-router.get("/banner",getBanner)
-router.get("/disclaimer",getDisclaimer)
+router.get("/admin-api/get-info-banner/banner",getBanner)
+router.get("/admin-api/get-disclaimer-data/disclaimer",getDisclaimer)
 
-router.post('/update-banner',updateBanner)
-router.post("/update-disclaimer",updateDisclaimer)
+router.post('/admin-api/banner-data-update/update-banner',updateBanner)
+router.post("/admin-api/disclaimer-data-update/update-disclaimer",updateDisclaimer)
 
 export default router

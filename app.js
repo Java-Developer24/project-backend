@@ -36,6 +36,7 @@ app.use(
       "https://www.admin.tech-developer.online",
       "http://localhost:5174",
       "http://localhost:5173",
+      "http://192.168.0.147:5173",
       "http://frontend-app-react.s3-website.ap-south-1.amazonaws.com",
       "http://frontend.tech-developer.online",
       "https://adminpanel.tech-developer.online",

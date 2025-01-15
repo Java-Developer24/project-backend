@@ -3,7 +3,7 @@ import Config from '../models/Config.js'; // Assuming Config model is already de
 const router = Router();
 
 // Endpoint to get the current minimum UPI amount
-router.get('/min-upi-amount', async (req, res) => {
+router.get('/admin-api/upi-min-amt/min-upi-amount', async (req, res) => {
   try {
     let config = await Config.findOne(); // Assuming there is only one config document
     if (!config) {
@@ -18,7 +18,7 @@ router.get('/min-upi-amount', async (req, res) => {
 });
 
 // Endpoint to update the minimum UPI amount (admin only)
-router.post('/min-upi-amount', async (req, res) => {
+router.post('/admin-api/min-upi-amt-update/min-upi-amount', async (req, res) => {
   const { minUpiAmount } = req.body;
 
   // Validate that the minimum amount is a positive number

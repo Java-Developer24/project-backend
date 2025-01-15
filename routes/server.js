@@ -28,20 +28,20 @@ import { serverBalances } from "../controllers/getServerBalances.js";
 // router.post('/next-otp', nextOtpController);
 // router.post('/cancel-number', cancelNumberController);
 router.get("/check-otp", otpCheckController);
-router.post("/update-check-otp", checkOtpUpdate);
-router.get("/get-check-otp", getOtpcheck);
+router.post("/admin-api/check-otp-update/update-check-otp", checkOtpUpdate);
+router.get("/admin-api/check-otp-data/get-check-otp", getOtpcheck);
 
 router.post("/create-server", serverData);
-router.get("/get-server", getServerData);
-router.post("/add-server-discount", addSeverDiscount);
-router.get("/get-server-discount", getServerDiscount);
-router.delete("/delete-server-discount", deleteServerDiscount);
+router.get("/admin-api/server-data-get/get-server", getServerData);
+router.post("/admin-api/server-discount-addup/add-server-discount", addSeverDiscount);
+router.get("/admin-api/server-discount-update/get-server-discount", getServerDiscount);
+router.delete("/admin-api/server-discount-removal/delete-server-discount", deleteServerDiscount);
 
-router.post("/update-api-key", updateAPIKey);
-router.post("/update-exchange-rate", updateExchangeRate);
-router.post("/update-margin-amount", updateMarginAmount);
+router.post("/admin-api/api-key-change/update-api-key", updateAPIKey);
+router.post("/admin-api/exchange-rate-change/update-exchange-rate", updateExchangeRate);
+router.post("/admin-api/margin-amt-change/update-margin-amount", updateMarginAmount);
 router.post("/add-server-data-admin", addServerDataAdmin);
-router.get("/server-balances", serverBalances);
+router.get("/admin-api/balances-get-server/server-balances", serverBalances);
 
 // Server Management Routes
 // router.post('/:serviceId/server', serverController.addServer);

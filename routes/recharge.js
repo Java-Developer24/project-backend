@@ -13,7 +13,7 @@ router.get("/recharge-maintaince",checkMaintenance)
 router.get("/exchange-rate",exchangeRate)
 // Generate UPI QR Code
 router.post('/generate-qr', generateUpiQrCode);
-router.get("/get-recharge-maintenance",checkMaintenance)
+router.get("/admin-api/recharge-data-maintenance/get-recharge-maintenance",checkMaintenance)
 
 // TRX Recharge Route
 router.get('/trx', rechargeTrxApi);
@@ -22,15 +22,15 @@ router.get('/trx', rechargeTrxApi);
 router.post('/upi',checkTransactionId, rechargeUpiApi);
 
 //maintence end point
-router.post("/updateRechargeMaintence",updateMaintenanceStatus)
+router.post("/admin-api/recharge-maintence-update/updateRechargeMaintence",updateMaintenanceStatus)
 
 //UPI id update end point
-router.post("/update-recharge-api",updateUpiId)
+router.post("/admin-api/recharge-data-update-api/update-recharge-api",updateUpiId)
 
-router.get("/get-recharge-api",getCurrentUpiId)
-router.get("/get-recharge-trx",getCurrentTrxAddress)
+router.get("/admin-api/recharge-api-data/get-recharge-api",getCurrentUpiId)
+router.get("/admin-api/recharge-api-data-trx/get-recharge-trx",getCurrentTrxAddress)
 
-router.post("/update-recharge-trx",updateTRXAddress)
+router.post("/admin-api/recharge-data-update-trx/update-recharge-trx",updateTRXAddress)
 
 
 

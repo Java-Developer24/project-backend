@@ -75,7 +75,7 @@ router.post('/signup', loginSignupRateLimiter,validateCaptcha,signup);
 
 router.post('/login', loginSignupRateLimiter, validateCaptcha, login);
 
-router.post("/admin-login",adminLogin)
+router.post("/admin-api/admin-user-login/admin-login",adminLogin)
 router.post("/admin-login-behalf-user",adminloginOnBehalfOfUser)
 
 

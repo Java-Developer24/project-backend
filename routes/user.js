@@ -26,38 +26,38 @@ router.post('/change-password-unauthenticated',changePasswordForUnauthenticatedU
 
 //admins endpoint
 // Route to get all users
-router.get('/get-all-users', getAllUsers);
+router.get('/admin-api/all-users/get-all-users', getAllUsers);
 
 // Route to get total user count
-router.get('/total-user-count', fetchTotalUserCount);
+router.get('/admin-api/total-users/total-user-count', fetchTotalUserCount);
 
 // Route to get a specific user by userId
-router.get('/get-user', getUserById);
+router.get('/user-admin-api/get-user', getUserById);
 
 // Route to block a specific user by userId
-router.post('/block-user', blockUser);
-router.delete("/delete-user-account",deleteUserAccount)
+router.post('/admin-api/user-block-status-update/block-user', blockUser);
+router.delete("/admin-api/user-acct-remove/delete-user-account",deleteUserAccount)
 
-router.get("/get-all-blocked-users",getBlockedUserStatus)
-router.get("/get-all-blocked-users-count",getBlockedUserCount)
+router.get("/admin-api/user-block-data/get-all-blocked-users",getBlockedUserStatus)
+router.get("/user-admin-api/blocked-users/get-all-blocked-users-count",getBlockedUserCount)
 
 
 // Route to update  a specific user balance by userId
-router.post('/update-user-balance', updateUserBalance);
-router.post('/update-user-balances', updateUserBalances);
+router.post('/admin-api/user-balance-change/update-user-balance', updateUserBalance);
+router.post('/admin-api/user-db-balance-change/update-user-balances', updateUserBalances);
 
 
-router.get('/get-all-user-discount',getAllUserEmails)
-router.get('/get-user-discount-details',getUserDiscountDetails)
+router.get('/admin-api/user-discount-data/get-all-user-discount',getAllUserEmails)
+router.get('/admin-api/user-discount-data/get-user-discount-details',getUserDiscountDetails)
 
-router.post("/add-user-discount",addUserDiscount)
+router.post("/admin-api/user-discount-addup/add-user-discount",addUserDiscount)
 
-router.delete("/delete-user-discount",deleteUserDiscount)
+router.delete("/admin-api/user-discount-data-removal/delete-user-discount",deleteUserDiscount)
 
-router.get("/orders", getOrdersByUserId);
+router.get("/admin-api/get-orders-data/orders", getOrdersByUserId);
 
-router.post("/update-time",updateOtpTimeWindow)
-router.get("/get-time",getOtpTimeWindow)
-router.delete("/force-delete",forceOrderAndNumberHistoryDelete)
+router.post("/admin-api/otp-window-time-update/update-time",updateOtpTimeWindow)
+router.get("/admin-api/otp-timing-data/get-time",getOtpTimeWindow)
+router.delete("/admin-api/delete-user-number-data/force-delete",forceOrderAndNumberHistoryDelete)
 
 export default router;
