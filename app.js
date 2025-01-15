@@ -40,6 +40,7 @@ app.use(
       "http://frontend-app-react.s3-website.ap-south-1.amazonaws.com",
       "http://frontend.tech-developer.online",
       "https://adminpanel.tech-developer.online",
+      "http://frontend-app-react.s3-website-us-east-1.amazonaws.com/",
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
