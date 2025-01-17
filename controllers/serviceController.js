@@ -497,7 +497,8 @@ const getUserServicesDatas = async (req, res) => {
           serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
           price: server.price,
           code: server.code,
-          otp: server.otp
+          otp: server.otp,
+          maintenance:server.maintenance
         };
       });
 
@@ -530,7 +531,92 @@ const getUserServicesDatas = async (req, res) => {
   }
 };
 
-  
+const getUserServicesDataAdmin = async (req, res) => {
+  try {
+    console.time("getServices");
+    const { userId } = req.query;
+    
+
+    // Fetch all services that are not under maintenance
+    const services = await Service.find({ maintenance: false }).lean();
+    console.timeEnd("Service.find");
+
+    if (!services || services.length === 0) {
+     
+      return res.status(404).json({ message: 'No services found' });
+    }
+
+    console.time("mapping and sorting service");
+
+    // Fetch the user-specific discount data
+    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+
+    // Create a map for quick lookup of user-specific discounts by service and server
+    const userDiscountMap = new Map();
+    userDiscountData.forEach((discount) => {
+      const key = `${discount.service}_${discount.server}`;
+      userDiscountMap.set(key, discount.discount);
+    });
+
+    const servicesWithUpdatedPrice = services.map((service) => {
+      const updatedServers = service.servers.map((server) => {
+        // Initialize the discount at the server level
+        let discount = 0;
+
+        // Get the service-level discount if exists
+        if (service.discount) {
+          discount += service.discount; // Assuming the service model has a discount field
+        }
+
+        // Get the server-level discount if exists
+        if (server.discount) {
+          discount += server.discount;
+        }
+
+        // Get user-specific discount if exists
+        const serviceKey = `${service.name}_${server.serverNumber}`;
+        discount += userDiscountMap.get(serviceKey) || 0;
+
+        // Apply the discount directly to the server price
+        const originalPrice = parseFloat(server.price);
+        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+
+        return {
+          serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
+          price: server.price,
+          code: server.code,
+          otp: server.otp,
+          maintenance:server.maintenance
+        };
+      });
+
+      // Filter out servers under maintenance and sort by the adjusted price
+      const sortedServers = updatedServers
+
+        .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber));// Sort by updated price directly
+
+      return {
+        ...service,
+        servers: sortedServers,
+      };
+    });
+
+    console.timeEnd("mapping and sorting service");
+
+    console.time("sortServicesByName");
+    // Sort services by name
+    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+    console.timeEnd("sortServicesByName");
+
+    console.timeEnd("getServices");
+    res.status(200).json(sortedServices);
+  } catch (error) {
+    console.timeEnd("getServices");
+    console.error("Error getting services:", error);
+    res.status(500).json({ message: 'Error getting services', error: error.message });
+  }
+};
+
 
 
 // Adds a new service with the provided details
@@ -585,17 +671,17 @@ const addService = async (req, res) => {
 
 export const updateServerMaintenance = async (req, res) => {
     try {
-        const { name, serverNumber, block } = req.body; // Input data from the frontend
+        const { name, serverNumber, maintenance } = req.body; // Input data from the frontend
 
         // Validate inputs
-        if (!name || typeof serverNumber === 'undefined' || typeof block !== 'boolean') {
+        if (!name || typeof serverNumber === 'undefined' || typeof maintenance !== 'boolean') {
             return res.status(400).json({ message: 'Service name, server number, and block status are required' });
         }
 
         // Find the service by name and update the specific server
         const updatedService = await Service.findOneAndUpdate(
             { name: name, "servers.serverNumber": serverNumber }, // Match service and server number
-            { $set: { "servers.$.maintenance": block } },                // Update the server's maintenance status
+            { $set: { "servers.$.maintenance": maintenance } },                // Update the server's maintenance status
             { new: true }                                               // Return the updated document
         );
 
@@ -686,19 +772,22 @@ const updateServer = async (req, res) => {
         // Validate the input
         if (serverNumber === undefined || maintenance === undefined) {
             return res.status(400).json({ message: 'Server number and maintenance status are required' });
-        }
+        }const matchingServices = await Service.find({ "servers.serverNumber": serverNumber });
+        console.log('Matching Services:', matchingServices);
+        
 
         // Prepare the bulk update operation
         const bulkOps = [];
 
-        // Create a bulk update operation for all services that contain the serverNumber
+
         bulkOps.push({
-            updateMany: {
-                filter: { "servers.serverNumber": serverNumber },  // Only update services that contain the specified serverNumber
-                update: { $set: { "servers.$[elem].maintenance": maintenance } },
-                arrayFilters: [{ "elem.serverNumber": serverNumber }]  // Only target the specific serverNumber
-            }
-        });
+          updateMany: {
+              filter: { 'servers.serverNumber': serverNumber },
+              update: { $set: { 'servers.$.maintenance': maintenance } }
+          }
+      });
+        // Create a bulk update operation for all services that contain the serverNumber
+       
 
         if (bulkOps.length > 0) {
             // Execute the bulk write operation to update all services with the specified serverNumber
@@ -755,7 +844,7 @@ const deleteServer = async (req, res) => {
 const updateCentralizedServers = async (req, res) => {
     try {
         const { server, maintenance } = req.body;
-        updateServerData(server,maintenance)
+        updateServerDatas(server,maintenance)
         // Validate the input
         if (server === undefined || maintenance === undefined) {
             return res.status(400).json({ message: 'Server and maintenance status are required' });
@@ -767,7 +856,7 @@ const updateCentralizedServers = async (req, res) => {
         // If a specific server is provided (e.g., server 2), update only that server
         if (server === 0) {
             // Update all servers 1-11 in maintenance
-            for (let serverNumber = 1; serverNumber <= 11; serverNumber++) {
+            for (let serverNumber = 1; serverNumber <= 8; serverNumber++) {
                 bulkOps.push({
                     updateMany: {
                         filter: { 'servers.serverNumber': serverNumber },
@@ -789,7 +878,7 @@ const updateCentralizedServers = async (req, res) => {
         if (bulkOps.length > 0) {
             const start = Date.now();
             const result = await Service.bulkWrite(bulkOps);
-            await updateServerData(server, maintenance); // Ensure this function updates your ServerData model appropriately
+            await updateServerDatas(server, maintenance); // Ensure this function updates your ServerData model appropriately
             const end = Date.now();
            // Check the time for bulkWrite
 
@@ -804,21 +893,32 @@ const updateCentralizedServers = async (req, res) => {
 };
 
 
-const updateServerDatas = async (req,res) => {
-  const { server, maintenance } = req.body;
+const updateServerDatas = async (server, maintenance) => {
+
   try {
-    // Update ServerData for the given serverNumber
-    await ServerData.updateOne(
-      { server: server },  // Find the document by serverNumber
-      { $set: { maintenance:maintenance } },  // Update maintenance status
-      { upsert: true }  // If the document doesn't exist, it will be created
-    );
-    res.json({message:"Site set under master Maintenence"})
+    if (server === 0) {
+      // Update maintenance for all servers from 0 to 8
+      await ServerData.updateMany(
+        { server: { $in: [0, 1, 2, 3, 4, 5, 6, 7, 8] } }, // Match servers from 0 to 8
+        { $set: { maintenance: maintenance } }, // Update maintenance status
+        { upsert: true } // Create documents if they don't exist
+      );
+      console.log({ message: "All servers from 0 to 8 set under maintenance" });
+    } else {
+      // Update maintenance for the specified server
+      await ServerData.updateOne(
+        { server: server }, // Find the document by server number
+        { $set: { maintenance: maintenance } }, // Update maintenance status
+        { upsert: true } // Create document if it doesn't exist
+      );
+      console.log({ message: "Server set under maintenance" });
+    }
   } catch (error) {
-    console.error('Error updating ServerData:', error);
-    throw new Error('Error updating ServerData');
+    console.error("Error updating ServerData:", error);
+    res.status(500).json({ error: "Error updating ServerData" });
   }
 };
+
 // Function to update ServerData model for a given server number and maintenance status
 const updateServerData = async (server, maintenance) => {
   try {
@@ -994,6 +1094,7 @@ export const getMaintenanceStatusForServer = async (req, res) => {
 export default {
     fetchAndStoreServices,
     getUserServicesDatas,
+    getUserServicesDataAdmin,
     getUserServicesData,
     addService,
     updateServerMaintenance,
