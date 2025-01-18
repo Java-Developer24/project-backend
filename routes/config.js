@@ -1,6 +1,7 @@
 import { Router } from "express";
 import Config from '../models/Config.js'; // Assuming Config model is already defined
 const router = Router();
+import {authenticateToken} from "../middleware/adminMiddleware.js"
 
 // Endpoint to get the current minimum UPI amount
 router.get('/admin-api/upi-min-amt/min-upi-amount', async (req, res) => {
@@ -18,7 +19,7 @@ router.get('/admin-api/upi-min-amt/min-upi-amount', async (req, res) => {
 });
 
 // Endpoint to update the minimum UPI amount (admin only)
-router.post('/admin-api/min-upi-amt-update/min-upi-amount', async (req, res) => {
+router.post('/admin-api/min-upi-amt-update/min-upi-amount',authenticateToken, async (req, res) => {
   const { minUpiAmount } = req.body;
 
   // Validate that the minimum amount is a positive number

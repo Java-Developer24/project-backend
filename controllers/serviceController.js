@@ -82,7 +82,7 @@ const sortServicesByName = (services) => {
 };
 
 // Fetch and store services with proper margin and exchange rate application
-const fetchAndStoreServices = async () => {
+const fetchAndStoreServices = async (req,res) => {
   console.time("fetchAndStoreServices");
   try {
     const response = await fetchDataWithRetry('https://own5k.in/p/final.php'); // Fetch data from external API
@@ -155,6 +155,7 @@ const fetchAndStoreServices = async () => {
     }
 
     console.log('Services fetched and stored successfully');
+    res.status(200).json({msg:"Services fetched and stored successfully"})
   } catch (error) {
     console.error("Error fetching and storing services:", error);
   }

@@ -249,44 +249,66 @@ export const adminloginOnBehalfOfUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-export const adminLogin= async (req, res) => {
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET
+export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-      // Find admin by email
-      let admin = await Admin.findOne({ email });
+    // Find admin by email
+    let admin = await Admin.findOne({ email });
+    console.log("admindata",admin)
 
-      if (!admin) {
-          // If no admin found, create a new admin record
-          const hashedPassword = await bcrypt.hash(password, 10); // Hash the password before saving
+    if (!admin) {
+      // If no admin found, create a new admin record
+      const hashedPassword = await bcrypt.hash(password, 10); // Hash the password before saving
 
-          // Create the new admin entry
-          admin = new Admin({
-              email,
-              password: hashedPassword,
-              is2FAEnabled: false, // Assuming MFA is disabled by default
-          });
+      // Create the new admin entry
+      admin = new Admin({
+        email,
+        password: hashedPassword,
+        is2FAEnabled: false, // Assuming MFA is disabled by default
+      });
 
-          // Save the new admin to the database
-          await admin.save();
-          return res.status(201).json({ success: true, message: 'Admin created and logged in', is2FAEnabled: false });
-      }
+      // Save the new admin to the database
+      await admin.save();
 
-      // Verify password (assumes password is hashed)
-      const isPasswordValid = await bcrypt.compare(password, admin.password);
+      return res.status(201).json({
+        success: true,
+        message: 'Admin created and logged in',
+        is2FAEnabled: false,
+      });
+    }
 
-      if (!isPasswordValid) {
-          return res.status(400).json({ success: false, message: 'Invalid password' });
-      }
+    // Verify password (assumes password is hashed)
+    const isPasswordValid = await bcrypt.compare(password, admin.password);
 
-      // Check if MFA is enabled
-      const is2FAEnabled = admin.is2FAEnabled;
+    if (!isPasswordValid) {
+      return res.status(400).json({ success: false, message: 'Invalid password' });
+    }
 
-      return res.json({ success: true, is2FAEnabled });
+    // Generate a new JWT token
+    const token = jwt.sign(
+      { email: admin.email, id: admin._id }, // Payload
+      JWT_SECRET, // Secret key
+      { expiresIn: '1h' } // Token expiration time
+    );
+    console.log(token)
+    // Save the token in the database by replacing the existing token
+    admin.token = token; // Replace with the new token
+    await admin.save();
+
+    // Check if MFA is enabled
+    const is2FAEnabled = admin.is2FAEnabled;
+
+    // Return the response with the token
+    return res.json({
+      success: true,
+      token, // Send the token to the frontend
+      is2FAEnabled,
+    });
   } catch (err) {
-      console.error(err);
-      return res.status(500).json({ success: false, message: 'Server error' });
+    console.error(err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

@@ -3,7 +3,7 @@ import {getCurrentTrxAddress,updateTRXAddress, rechargeTrxApi, rechargeUpiApi,ge
 import { checkTransactionId } from '../middleware/transactionMiddleware.js';
 import { checkMaintenance } from '../middleware/checkRechargeMaintenance .js';
 import { exchangeRate } from '../controllers/rechargeController.js';
-
+import {authenticateToken} from "../middleware/adminMiddleware.js"
 
 const router = express.Router();
 //recharge Maintence check 
@@ -22,15 +22,15 @@ router.get('/trx', rechargeTrxApi);
 router.post('/upi',checkTransactionId, rechargeUpiApi);
 
 //maintence end point
-router.post("/admin-api/recharge-maintence-update/updateRechargeMaintence",updateMaintenanceStatus)
+router.post("/admin-api/recharge-maintence-update/updateRechargeMaintence",authenticateToken,updateMaintenanceStatus)
 
 //UPI id update end point
-router.post("/admin-api/recharge-data-update-api/update-recharge-api",updateUpiId)
+router.post("/admin-api/recharge-data-update-api/update-recharge-api",authenticateToken,updateUpiId)
 
-router.get("/admin-api/recharge-api-data/get-recharge-api",getCurrentUpiId)
-router.get("/admin-api/recharge-api-data-trx/get-recharge-trx",getCurrentTrxAddress)
+router.get("/admin-api/recharge-api-data/get-recharge-api",authenticateToken,getCurrentUpiId)
+router.get("/admin-api/recharge-api-data-trx/get-recharge-trx",authenticateToken,getCurrentTrxAddress)
 
-router.post("/admin-api/recharge-data-update-trx/update-recharge-trx",updateTRXAddress)
+router.post("/admin-api/recharge-data-update-trx/update-recharge-trx",authenticateToken,updateTRXAddress)
 
 
 
