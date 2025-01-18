@@ -1055,6 +1055,7 @@ export const deleteServiceDiscount = async (req, res) => {
 };
 
 
+
 export const getMaintenanceStatusForServer = async (req, res) => {
   try {
     // Fetch maintenance status for server 0
@@ -1070,26 +1071,13 @@ export const getMaintenanceStatusForServer = async (req, res) => {
       return res.status(404).json({ message: "Admin not found in the database" });
     }
 
-    // Get the user's IP address from the middleware (either IPv4 or IPv6)
-    const userIpV4 = req.clientIpV4;
-    const userIpV6 = req.clientIpV6;
+    // Get the user's IP address from the middleware
+    const userIp = req.clientIp;
 
     // Check if maintenance is on
     if (serverData.maintenance) {
-      // Check the type of IP (IPv4 or IPv6) for the admin
-      const isAdminIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(admin.adminIp); // Basic check for IPv4
-      const isAdminIPv6 = /[a-fA-F0-9:]+/.test(admin.adminIp); // Basic check for IPv6
-
-      // Compare the admin IP and user's IP based on type (IPv4 or IPv6)
-      if (isAdminIPv4 && userIpV4 && userIpV4 === admin.adminIp) {
-        return res.status(200).json({
-          maintainance: true, // Maintenance is on
-          adminAccess: true, // Admin is allowed to access
-          message: "Admin access granted during maintenance.",
-        });
-      }
-
-      if (isAdminIPv6 && userIpV6 && userIpV6 === admin.adminIp) {
+      // If IP matches the admin's IP, allow access
+      if (userIp === admin.adminIp) {
         return res.status(200).json({
           maintainance: true, // Maintenance is on
           adminAccess: true, // Admin is allowed to access
