@@ -65,82 +65,116 @@ export const getServerData=async (req, res) => {
 
 
 
-
-
 export const addSeverDiscount = async (req, res) => {
-    try {
-        const { server, discount } = req.body;
+  try {
+      const { server, discount } = req.body;
 
-        // Validate input
-        if (typeof server === "undefined" || typeof discount === "undefined") {
-            return res.status(400).json({ message: "Server number and discount are required." });
-        }
+      // Validate input
+      if (typeof server === "undefined" || typeof discount === "undefined") {
+          return res.status(400).json({ message: "Server number and discount are required." });
+      }
 
-        const serverNum = parseInt(server, 10);
-        if (isNaN(serverNum)) {
-            return res.status(400).json({ message: "Server number must be a valid number." });
-        }
+      const serverNum = parseInt(server, 10);
+      if (isNaN(serverNum)) {
+          return res.status(400).json({ message: "Server number must be a valid number." });
+      }
 
-        const discountValue = parseFloat(discount);
-        if (isNaN(discountValue)) {
-            return res.status(400).json({ message: "Discount value must be a valid number." });
-        }
+      const discountValue = parseFloat(discount);
+      if (isNaN(discountValue)) {
+          return res.status(400).json({ message: "Discount value must be a valid number." });
+      }
 
-        // Step 1: Update discount in ServerData
-        const serverData = await ServerData.findOneAndUpdate(
-            { server: serverNum },
-            { $inc: { discount: discountValue } },
-            { new: true }
-        );
+      // Step 1: Fetch the server data
+      const serverData = await ServerData.findOne({ server: serverNum });
 
-        if (!serverData) {
-            return res.status(404).json({ message: `ServerData with server number ${serverNum} not found.` });
-        }
+      if (!serverData) {
+          return res.status(404).json({ message: `ServerData with server number ${serverNum} not found.` });
+      }
 
-        // Step 2: Bulk update discounts in related Services
-        const updateResult = await Service.updateMany(
-            { "servers.serverNumber": serverNum },
-            { $inc: { "servers.$[elem].discount": discountValue } },
-            {
-                arrayFilters: [{ "elem.serverNumber": serverNum }],
-                multi: true,
-            }
-        );
+      // Step 2: Ensure the 'discount' field is initialized to a valid numeric value (0 if null or non-numeric)
+      const updatedServerData = await ServerData.findOneAndUpdate(
+          { server: serverNum },
+          [
+              {
+                  $set: {
+                      discount: {
+                          $cond: {
+                              if: { $or: [{ $eq: ["$discount", null] }, { $not: { $isNumber: "$discount" } }] },
+                              then: 0,
+                              else: "$discount"
+                          }
+                      }
+                  }
+              }
+          ],
+          { new: true }
+      );
 
-        if (updateResult.matchedCount === 0) {
-            console.warn(`No services found containing server number ${serverNum}.`);
-        }
+      if (!updatedServerData) {
+          return res.status(404).json({ message: `ServerData with server number ${serverNum} not found after update.` });
+      }
 
-        // Response format
-        const response = {
-            id: serverData._id,
-            server: serverData.server,
-            discount: serverData.discount,
-            createdAt: serverData.createdAt,
-            updatedAt: serverData.updatedAt,
-        };
+      // Step 3: Set the discount value directly
+      const finalUpdatedServerData = await ServerData.findOneAndUpdate(
+          { server: serverNum },
+          { $set: { discount: updatedServerData.discount + discountValue } }, // Set the new discount value
+          { new: true }
+      );
 
-        return res.status(200).json([response]);
-    } catch (error) {
-        console.error("Error updating server discount:", error);
-        return res.status(500).json({ message: "Internal server error.", error: error.message });
-    }
+      if (!finalUpdatedServerData) {
+          return res.status(404).json({ message: `ServerData with server number ${serverNum} not found after final update.` });
+      }
+
+      // Step 4: Bulk update discounts in related Services
+      const updateResult = await Service.updateMany(
+          { "servers.serverNumber": serverNum },
+          { $set: { "servers.$[elem].discount": finalUpdatedServerData.discount } },
+          {
+              arrayFilters: [{ "elem.serverNumber": serverNum }],
+              multi: true,
+          }
+      );
+
+      if (updateResult.matchedCount === 0) {
+          console.warn(`No services found containing server number ${serverNum}.`);
+      }
+
+      // Response format
+      const response = {
+          id: finalUpdatedServerData._id,
+          server: finalUpdatedServerData.server,
+          discount: finalUpdatedServerData.discount,
+          createdAt: finalUpdatedServerData.createdAt,
+          updatedAt: finalUpdatedServerData.updatedAt,
+      };
+
+      return res.status(200).json([response]);
+  } catch (error) {
+      console.error("Error updating server discount:", error);
+      return res.status(500).json({ message: "Internal server error.", error: error.message });
+  }
 };
+
+
+
 
 
 
 export const getServerDiscount = async (req, res) => {
     try {
-        // Retrieve all server discount data where the discount is greater than 0
-        const discounts = await ServerData.find({ discount: { $gt: 0 } }, 'server discount createdAt updatedAt');
+      // Retrieve all server discount data
+const discounts = await ServerData.find({}, 'server discount createdAt updatedAt');
 
-        // If no server discounts found or all discounts are 0, return an empty array
-        if (discounts.length === 0) {
-            return res.status(200).json([]);  // Return empty array
-        }
+// Filter out records where the discount value is missing or undefined
+const validDiscounts = discounts.filter(discount => discount.discount != null);
+
+// If there are no valid discounts, return an empty array
+if (validDiscounts.length === 0) {
+    return res.status(200).json([]);  // Return empty array
+}
 
         // Format data to match the specified response
-        const formattedDiscounts = discounts.map((server) => ({
+        const formattedDiscounts = validDiscounts.map((server) => ({
             id: server._id,
             server: server.server,
             discount: server.discount,
@@ -173,7 +207,7 @@ export const deleteServerDiscount = async (req, res) => {
         // Step 1: Remove the discount field in ServerData
         const updatedServer = await ServerData.findOneAndUpdate(
             { server: serverNumber },
-            { $unset: { discount: "" } }, // Remove the `discount` field
+            { $set: { discount: null } }, // Set the `discount` field to null
             { new: true } // Return the updated document
         );
 
@@ -184,7 +218,7 @@ export const deleteServerDiscount = async (req, res) => {
         // Step 2: Remove the discount from related Services
         const updateResult = await Service.updateMany(
             { "servers.serverNumber": serverNumber },
-            { $set: { "servers.$[elem].discount": 0 } }, // Set discount to 0 in servers array
+            { $set: { "servers.$[elem].discount": null } }, // Set discount to null in servers array
             {
                 arrayFilters: [{ "elem.serverNumber": serverNumber }],
                 multi: true,

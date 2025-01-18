@@ -612,6 +612,7 @@ export const addUserDiscount = async (req, res) => {
 
         // Check if user already has a discount for the given service and server
         let userDiscount = await userDiscountModel.findOne({ userId: user._id, service, server });
+        console.log(userDiscount)
 
         if (userDiscount) {
             // Increment the existing discount

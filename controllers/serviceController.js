@@ -619,6 +619,7 @@ const getUserServicesDataAdmin = async (req, res) => {
 
 
 
+
 // Adds a new service with the provided details
 
 const addService = async (req, res) => {
@@ -936,108 +937,122 @@ const updateServerData = async (server, maintenance) => {
 
 
 export const updateServiceDiscount = async (req, res) => {
-    try {
-        const { service, discount } = req.body;  // Extract service name and discount amount from payload
+  try {
+      const { service, server, discount } = req.body;  // Extract service name, server number, and discount from payload
 
-        // Validate the input
-        if (!service || discount === undefined) {
-            return res.status(400).json({ message: 'Service name and discount are required' });
-        }
+      // Validate the input
+      if (!service || !server || discount === undefined) {
+          return res.status(400).json({ message: 'Service name, server number, and discount are required' });
+      }
 
-        // Perform the update operation to increment the discount value at the service level
-        const result = await Service.updateOne(
-            { name: service }, // Filter by service name
-            { $inc: { discount: discount } } // Increment the discount value by the provided amount
-        );
+      // Perform the update operation to set the discount for the specific server in the service
+      const result = await Service.updateOne(
+          { name: service, "servers.serverNumber": server }, // Filter by service name and server number
+          {
+              $set: { "servers.$[elem].discount": discount } // Set discount for the specific server
+          },
+          {
+              arrayFilters: [{ "elem.serverNumber": server }], // Target the specific server in the servers array
+              new: true
+          }
+      );
 
-        // Check if the update operation was successful
-        if (result.modifiedCount === 0) {
-            return res.status(404).json({ message: 'Service not found or no discount updated' });
-        }
+      // Check if the update operation was successful
+      if (result.modifiedCount === 0) {
+          return res.status(404).json({ message: 'Service or server not found or no discount updated' });
+      }
 
-        res.status(200).json({
-            message: `Discount of ${discount} applied successfully to the service ${service}`
-        });
-    } catch (error) {
-        console.error('Error updating service discount:', error);
-        res.status(500).json({ message: 'Error updating service discount', error: error.message });
-    }
+      res.status(200).json({
+          message: `Discount of ${discount} applied successfully to server ${server} in the service ${service}`
+      });
+  } catch (error) {
+      console.error('Error updating service server discount:', error);
+      res.status(500).json({ message: 'Error updating service server discount', error: error.message });
+  }
 };
 
 
 export const getAllServiceDiscounts = async (req, res) => {
-    try {
-        // Fetch all services where there is a discount applied at the service level
-        const services = await Service.find({
-            discount: { $gt: 0 }  // Ensure that there is a discount greater than 0
-        });
+  try {
+      // Aggregation pipeline to efficiently filter and format the data
+      const discounts = await Service.aggregate([
+          // Unwind the servers array so we can work with individual server data
+          { $unwind: "$servers" },
+          // Match servers where discount is not null
+          { $match: { "servers.discount": { $ne: null } } },
+          // Project the necessary fields for the response
+          {
+              $project: {
+                  _id: 1,
+                  name: 1,
+                  "servers.serverNumber": 1,
+                  "servers.discount": 1,
+                  createdAt: 1,
+                  updatedAt: 1
+              }
+          },
+          // Format the data to the desired structure
+          {
+              $project: {
+                  id: "$_id",
+                  service: "$name",
+                  server: "$servers.serverNumber",
+                  discount: "$servers.discount",
+                  createdAt: 1,
+                  updatedAt: 1
+              }
+          }
+      ]);
 
-        // If no services with discounts are found
-        if (services.length === 0) {
-            return res.status(200).json([]);  // Return empty array
-        }
+      // If there are no valid discounts, return an empty array
+      if (discounts.length === 0) {
+          return res.status(200).json([]);  // Return empty array if no valid discounts
+      }
 
-        // Prepare the discount data to send in the response
-        const discountData = services.map(service => {
-            // For each service, include all its servers
-            return service.servers
-                .map(server => ({
-                    id: service._id.toString(),  // Service document's ID
-                    service: service.name,        // Service name
-                    server: server.serverNumber,  // Server number
-                    discount: service.discount,   // Discount at the service level
-                    createdAt: service.createdAt,
-                    updatedAt: service.updatedAt
-                }));
-        }).flat();  // Flatten the array of arrays into a single array
+      // Send the valid discount data as the response
+      return res.status(200).json(discounts);
 
-        // Filter out duplicates based on service name
-        const uniqueDiscountData = [];
-        const seenServices = new Set();  // Set to track unique service names
-
-        discountData.forEach(data => {
-            if (!seenServices.has(data.service)) {
-                uniqueDiscountData.push(data);
-                seenServices.add(data.service);  // Add service name to the set
-            }
-        });
-
-        // Send the unique discount data as the response
-        res.status(200).json(uniqueDiscountData);
-    } catch (error) {
-        console.error('Error getting discounts:', error);
-        res.status(500).json({ message: 'Error getting discounts', error: error.message });
-    }
+  } catch (error) {
+      console.error('Error getting discounts:', error);
+      return res.status(500).json({ message: 'Internal server error.', error: error.message });
+  }
 };
+
 
 
 export const deleteServiceDiscount = async (req, res) => {
-    try {
-        const { service } = req.query;  // Get service name from query
+  try {
+      const { service, server } = req.query;  // Get service name and server number from query
 
-        // Validate payload
-        if (typeof service === 'undefined') {
-            return res.status(400).json({ message: 'Service field is required.' });
-        }
+      // Validate payload
+      if (typeof service === 'undefined' || typeof server === 'undefined') {
+          return res.status(400).json({ message: 'Service and server fields are required.' });
+      }
 
-        // Set the discount field to zero for the specified service using MongoDB's $set operator
-        const updatedService = await Service.findOneAndUpdate(
-            { name: service },  // Find the service by name
-            { $set: { discount: 0 } },  // Set the discount field to 0
-            { new: true }  // Return the updated document
-        );
+      // Find the service by name and update the server discount to null
+      const updatedService = await Service.findOneAndUpdate(
+          { 
+              name: service,  // Find the service by name
+              'servers.serverNumber': server  // Ensure the specific server exists in the servers array
+          },
+          { 
+              $set: { 
+                  'servers.$.discount': null  // Set the discount to null for the specific server
+              }
+          },
+          { new: true }  // Return the updated document
+      );
 
-        if (!updatedService) {
-            return res.status(404).json({ message: `Service ${service} not found.` });
-        }
+      if (!updatedService) {
+          return res.status(404).json({ message: `Service ${service} or Server ${server} not found.` });
+      }
 
-        return res.status(200).json({ message: `Discount set to zero for service ${service}.` });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Internal server error.', error: error.message });
-    }
+      return res.status(200).json({ message: `Discount set to null for server ${server} in service ${service}.` });
+  } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Internal server error.', error: error.message });
+  }
 };
-
 
 
 export const getMaintenanceStatusForServer = async (req, res) => {
@@ -1055,13 +1070,26 @@ export const getMaintenanceStatusForServer = async (req, res) => {
       return res.status(404).json({ message: "Admin not found in the database" });
     }
 
-    // Get the user's IP address from the middleware
-    const userIp = req.clientIp;
+    // Get the user's IP address from the middleware (either IPv4 or IPv6)
+    const userIpV4 = req.clientIpV4;
+    const userIpV6 = req.clientIpV6;
 
     // Check if maintenance is on
     if (serverData.maintenance) {
-      // If IP matches the admin's IP, allow access
-      if (userIp === admin.adminIp) {
+      // Check the type of IP (IPv4 or IPv6) for the admin
+      const isAdminIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(admin.adminIp); // Basic check for IPv4
+      const isAdminIPv6 = /[a-fA-F0-9:]+/.test(admin.adminIp); // Basic check for IPv6
+
+      // Compare the admin IP and user's IP based on type (IPv4 or IPv6)
+      if (isAdminIPv4 && userIpV4 && userIpV4 === admin.adminIp) {
+        return res.status(200).json({
+          maintainance: true, // Maintenance is on
+          adminAccess: true, // Admin is allowed to access
+          message: "Admin access granted during maintenance.",
+        });
+      }
+
+      if (isAdminIPv6 && userIpV6 && userIpV6 === admin.adminIp) {
         return res.status(200).json({
           maintainance: true, // Maintenance is on
           adminAccess: true, // Admin is allowed to access
