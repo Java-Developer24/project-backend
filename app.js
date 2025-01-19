@@ -4,7 +4,7 @@ import cors from "cors";
 import connectDB from "./config/database.js";
 import { checkAndCancelExpiredOrders } from "./controllers/servicedatacontroller.js";
 import session from "express-session";
-import "./config/cron.js";
+
 import {
   configureGoogleSignup,
   configureGoogleLogin,
@@ -74,7 +74,9 @@ import blockRoutes from "./routes/block-users.js";
 import configRoutes from "./routes/config.js";
 import mfaRoutes from "./routes/mfa.js";
 import infoRoutes from "./routes/info.js";
+import  fetchAndStoreServices  from "./controllers/serviceController.js"
 import { captureIpMiddleware } from "./middleware/getIPMiddleware.js";
+import Admin from "./models/mfa.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -98,7 +100,51 @@ app.use((err, req, res, next) => {
 // Schedule the checkAndCancelExpiredOrders function to run every 5 minutes
 setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
 
-// scheduleJob()
+
+
+let intervalId = null; // Variable to store the setInterval ID
+
+const startIntervalJob = async () => {
+  try {
+    // Fetch the cron interval (in minutes) from the database
+    const cronSetting = await Admin.findOne();  // Fetch from your DB
+    if (!cronSetting || cronSetting.minute === undefined) {
+      console.error('Minute value not found in the database.');
+      return;
+    }
+ 
+    const minute = cronSetting.minute;  // Get the minute value
+    console.log(minute)
+    const intervalInMilliseconds = minute * 60 * 1000;  // Convert minutes to milliseconds
+
+    // Clear the previous interval if it exists
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+
+    // Set the new interval to call fetchAndStoreServices at the specified interval
+    intervalId = setInterval(async () => {
+      console.log(`Running scheduled task: fetchAndStoreServices every ${minute} minute(s)`);
+      await fetchAndStoreServices(); // Your function that fetches and stores data
+    }, intervalInMilliseconds);  // This will run every `minute` interval
+
+    console.log(`Cron job started and will run every ${minute} minutes.`);
+  } catch (error) {
+    console.error('Error starting interval job:', error);
+  }
+};
+
+// Start the interval job when the app starts
+startIntervalJob();
+
+// Check for new cron settings every 10 minutes (600000 ms)
+setInterval(startIntervalJob, 10 * 60 * 1000); // This checks for new settings every 10 minutes
+
+
+
+
+
+
 
 // Start the server
 const PORT = process.env.PORT || 3000;

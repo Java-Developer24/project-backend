@@ -37,22 +37,55 @@ export const enable2FA = async (req, res) => {
     }
 };
 
-export const mfaStatuscheck=async (req, res) => {
-    try {
-      // Fetch the admin data from the database (no payload needed)
-      const admin = await Admin.findOne({ email: 'paidsms2024@gmail.com' }); // Use the admin email or any unique identifier
-  
-      if (!admin) {
-        return res.status(404).json({ success: false, message: 'Admin not found' });
-      }
-  
-      // Return the MFA status
-      return res.json({ success: true, is2FAEnabled: admin.is2FAEnabled });
-    } catch (error) {
-      console.error('Error checking MFA status:', error);
-      return res.status(500).json({ success: false, message: 'An error occurred' });
+export const mfaStatuscheck = async (req, res) => {
+  try {
+    const { tempEmail } = req.body;
+
+    // Fetch admin data from the database
+    const admin = await Admin.findOne({ email: tempEmail });
+
+    if (!admin) {
+      return res.status(404).json({ success: false, message: "Admin not found" });
     }
+
+    // Determine if MFA setup is complete
+    const is2FASetupComplete = !!admin.twoFASecret; // True if secret exists, false otherwise
+
+    return res.json({
+      success: true,
+      is2FAEnabled: admin.is2FAEnabled,
+      is2FASetupComplete,
+    });
+  } catch (error) {
+    console.error("Error checking MFA status:", error);
+    return res.status(500).json({ success: false, message: "An error occurred" });
   }
+};
+
+
+
+export const getMFAStatus = async (req, res) => {
+  try {
+    const { tempEmail } = req.body; // Get the user's email from the request body
+
+    // Find the user in the database based on their email
+    const user = await Admin.findOne({ email: tempEmail });
+
+    // If the user doesn't exist, return an error
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Send back the MFA status details
+    res.json({
+      is2FAEnabled: user.is2FAEnabled, // Whether 2FA is enabled
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error fetching MFA status." });
+  }
+};
+
 // controllers/2faController.js (continued)
 
 export const verify2FAToken = async (req, res) => {
@@ -92,20 +125,23 @@ export const verify2FAToken = async (req, res) => {
 // controllers/2faController.js (continued)
 
 export const disable2FA = async (req, res) => {
-    try {
-        const { adminId } = req.body;
+  try {
+    const { tempEmail,mfaCheck } = req.body;
 
-        // Remove the 2FA secret from the database
-        await Admin.findByIdAndUpdate(adminId, {
-            twoFASecret: null,
-            is2FAEnabled: false
-        });
+    // Remove the 2FA secret and set is2FAEnabled to false
+    await Admin.findOneAndUpdate(
+      { email: tempEmail },
+      { 
+        twoFASecret: null, 
+        is2FAEnabled: mfaCheck 
+      }
+    );
 
-        res.json({ message: '2FA has been disabled.' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error disabling 2FA.' });
-    }
+    res.json({ message: '2FA has been disabled.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error disabling 2FA.' });
+  }
 };
 
 
@@ -157,3 +193,92 @@ export const getAdminIP= async (req, res) => {
     }
   };
   
+
+  export const getAPIAdminIP= async (req, res) => {
+    try {
+      const admin = await Admin.findOne();
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+      }
+      res.status(200).json({ apiadminIP: admin.apiAdminIp });
+    } catch (error) {
+      console.error('Error fetching admin IP:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+
+  
+  export const updateAPIAdminIP = async (req, res) => {
+    const { ip } = req.body;
+  
+    // Default IP to use if none is provided
+    const defaultIp = '::1'; // Change this to the desired default IP
+  
+    if (!ip) {
+      return res.status(400).json({ message: 'IP address is required' });
+    }
+  
+    try {
+      const admin = await Admin.findOne();
+  
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+      }
+  
+      // If adminIp is not set, use the default IP
+      if (!admin.apiAdminIp) {
+        admin.apiAdminIp = defaultIp;
+      } else {
+        // If adminIp exists, update it with the new IP
+        admin.apiAdminIp = ip;
+      }
+  
+      await admin.save();
+  
+      res.status(200).json({ message: 'Admin API IP updated successfully', apiadminIP: admin.apiAdminIp });
+    } catch (error) {
+      console.error('Error updating admin IP:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+  
+
+  export const getJobRunMinutes= async (req, res) => {
+    try {
+      const admin = await Admin.findOne();  // Fetch the first admin document (you can adjust if needed)
+  
+      if (!admin || admin.minute === undefined) {
+        return res.status(404).json({ message: 'Minute value not found in the database.' });
+      }
+  
+      return res.status(200).json({ minute: admin.minute });
+    } catch (error) {
+      console.error('Error fetching cron interval:', error);
+      return res.status(500).json({ message: 'Failed to fetch cron interval.' });
+    }
+  };
+
+  export const updateJobRunMinutes=async (req, res) => {
+    const { minute } = req.body;  // Get the new minute value from the request body
+  console.log(minute)
+    if (!minute || minute <= 0) {
+      return res.status(400).json({ message: 'Invalid minute value. It should be a positive number.' });
+    }
+  
+    try {
+      const admin = await Admin.findOne();
+  
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found.' });
+      }
+  
+      // Update the minute value
+      admin.minute = minute;
+      await admin.save();  // Save the updated value
+  
+      return res.status(200).json({ message: 'Minute value updated successfully.', minute: admin.minute });
+    } catch (error) {
+      console.error('Error updating cron interval:', error);
+      return res.status(500).json({ message: 'Failed to update cron interval.' });
+    }
+  };

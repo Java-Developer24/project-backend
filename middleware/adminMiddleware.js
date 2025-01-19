@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
-import Admin from '../models/mfa.js'
-
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET
+import Admin from '../models/mfa.js';  // Assuming the `Admin` model contains `apiAdminIp`
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 export const authenticateToken = async (req, res, next) => {
   const token = req.header('Authorization')?.split(' ')[1]; // Extract token from "Authorization: Bearer <token>"
@@ -11,18 +10,37 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    // Verify the token
+    // Step 1: Capture the Request IP
+    const requestIp = req.ip || req.connection.remoteAddress;  // Can also use req.headers['x-forwarded-for'] if using proxies
+
+    // Step 2: Fetch the `apiAdminIp` from the Admin collection
+    const admin = await Admin.findOne({ /* Your query to identify the admin */ });
+
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+
+    const apiAdminIp = admin.apiAdminIp; // Assuming `apiAdminIp` is stored in the Admin model
+
+    // Step 3: Compare the Request IP with the `apiAdminIp`
+    if (requestIp !== apiAdminIp) {
+      return res.status(403).json({ success: false, message: 'Access Denied: IP not authorized' });
+    }
+
+    // Step 4: Verify the token
     const verified = jwt.verify(token, JWT_SECRET);
 
     // Check if the token exists in the database
-    const admin = await Admin.findOne({ _id: verified.id, token });
-    if (!admin) {
+    const validAdmin = await Admin.findOne({ _id: verified.id, token });
+    if (!validAdmin) {
       return res.status(401).json({ success: false, message: 'Invalid or expired token' });
     }
 
     // Attach the admin data to the request object
-    req.admin = admin;
-    next(); // Proceed to the next middleware or route handler
+    req.admin = validAdmin;
+
+    // Step 5: Proceed to the next middleware or route handler
+    next();
   } catch (err) {
     console.error(err);
     return res.status(403).json({ success: false, message: 'Invalid or expired token' });

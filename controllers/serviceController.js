@@ -81,12 +81,80 @@ const sortServicesByName = (services) => {
   return services.sort((a, b) => a.name.localeCompare(b.name));
 };
 
-// Fetch and store services with proper margin and exchange rate application
-const fetchAndStoreServices = async (req,res) => {
-  console.time("fetchAndStoreServices");
+
+const endpoints = [
+  "https://own5k.in/p/fastsms.php",
+  "https://own5k.in/p/5sim.php",
+  "https://own5k.in/p/smshub.php",
+  "https://own5k.in/p/grizzlysms.php",
+  "https://own5k.in/p/tempnumber.php",
+  "https://own5k.in/p/smsactivate.php",
+  "https://own5k.in/p/smsbower.php",
+  "https://own5k.in/p/cpay.php"
+];
+
+const callEndpoint = async (url) => {
   try {
-    const response = await fetchDataWithRetry('https://own5k.in/p/final.php'); // Fetch data from external API
+    const response = await axios.get(url);
+    return response.data.trim();  // Assuming the response is a plain text like "ok" or "fail"
+  } catch (error) {
+    console.error(`Error calling endpoint ${url}:`, error);
+    return 'fail';  // Return 'fail' on error
+  }
+};
+
+
+
+
+
+
+
+// Fetch and store services with proper margin and exchange rate application
+const fetchAndStoreServices = async (req, res) => {
+  console.time("fetchAndStoreServices");
+
+  // Store the results of each endpoint call
+  let endpointResults = {};
+
+  // Retry logic for endpoints
+  const retryInterval = 2 * 60 * 1000; // 2 minutes in milliseconds
+  let retryAttempts = 3;  // Retry up to 3 times for each endpoint
+  let failedEndpoints = [...endpoints]; // Initially all endpoints are considered for retry
+
+  const callAllEndpoints = async () => {
+    let retryEndTime = Date.now() + retryInterval;
+
+    // Retry failed endpoints until the retry interval is over
+    while (failedEndpoints.length > 0 && Date.now() < retryEndTime) {
+      const promises = failedEndpoints.map(async (endpoint) => {
+        const result = await callEndpoint(endpoint);
+        endpointResults[endpoint] = result;
+        if (result === 'ok') {
+          failedEndpoints = failedEndpoints.filter((e) => e !== endpoint);  // Remove successful endpoint
+        }
+      });
+      await Promise.all(promises);
+      if (failedEndpoints.length > 0) {
+        console.log(`Waiting for retry... Remaining endpoints: ${failedEndpoints.join(', ')}`);
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before retrying
+      }
+    }
+
+    if (failedEndpoints.length > 0) {
+      console.error(`Some endpoints failed after retries: ${failedEndpoints.join(', ')}`);
+    } else {
+      console.log('All endpoints were successfully called');
+    }
+
+    // Proceed with fetching the services data
+    const response = await fetchDataWithRetry('https://own5k.in/p/final.php');
     const servicesData = response;
+    return servicesData;
+  };
+
+  try {
+    // Call all the endpoints first
+    const servicesData = await callAllEndpoints();
 
     if (!Array.isArray(servicesData)) {
       console.error("Fetched data is not an array");
@@ -101,7 +169,7 @@ const fetchAndStoreServices = async (req,res) => {
         continue;
       }
 
-      const normalizedServiceName = normalizeName(name);  // Normalize service name
+      const normalizedServiceName = normalizeName(name);
 
       const parsedServers = await Promise.all(servers.map(async (server) => {
         const { server: serverValue, price: priceValue, ...rest } = server;
@@ -113,20 +181,17 @@ const fetchAndStoreServices = async (req,res) => {
           return null;
         }
 
-        // Calculate the updated price using margin and exchange rate
-        const updatedPrice = await calculateUpdatedPrice(price, serverNumber);  // Pass serverNumber to calculateUpdatedPrice
+        const updatedPrice = await calculateUpdatedPrice(price, serverNumber);
 
         return {
           ...rest,
           serverNumber,
-          price: updatedPrice,  // Set the updated price
+          price: updatedPrice,
         };
       }));
 
-      // Filter out null values (if any invalid server data was encountered)
       const validServers = parsedServers.filter(server => server !== null);
-
-      const sortedServers = sortServersByPrice(validServers);  // Sort servers by updated price
+      const sortedServers = sortServersByPrice(validServers);
 
       let service = await Service.findOne({ name: normalizedServiceName });
 
@@ -151,16 +216,17 @@ const fetchAndStoreServices = async (req,res) => {
         }
       }
 
-      await calculateLowestPrices(service._id);  // Update lowestPrice field for the service
+      await calculateLowestPrices(service._id);
     }
 
     console.log('Services fetched and stored successfully');
-    res.status(200).json({msg:"Services fetched and stored successfully"})
+    res.status(200).json({ message: "Services fetched and stored successfully" });
+
   } catch (error) {
     console.error("Error fetching and storing services:", error);
+    res.status(500).json({ msg: "Error fetching services" });
   }
 };
-
 
 // Function to find duplicates in the database
 const findDuplicates = async (Model) => {

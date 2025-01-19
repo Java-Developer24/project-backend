@@ -250,6 +250,7 @@ export const adminloginOnBehalfOfUser = async (req, res) => {
   }
 };
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET
+
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
 
