@@ -40,7 +40,7 @@ export const authenticateToken = async (req, res, next) => {
     // Check if the token exists in the database
     const validAdmin = await Admin.findOne({ _id: verified.id, token });
     if (!validAdmin) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+      return res.status(401).json({ success: false, message: '  token expired : Please login ' });
     }
 
     // Attach the admin data to the request object
