@@ -21,7 +21,7 @@ router.get('/admin-api/admin-IP-data/get-job-run-minute',authenticateToken,getJo
 router.post("/admin-api/admin-IP-update/update-job-run-minute",authenticateToken,updateJobRunMinutes)
 
 
-router.get('/admin-api/admin-IP-data/get-admin-api-ip',authenticateToken,getAPIAdminIP)
-router.post("/admin-api/admin-IP-update/update-admin-api-ip",authenticateToken,updateAPIAdminIP)
+router.get('/admin-api/admin-IP-data/get-admin-api-ip',getAPIAdminIP)
+router.post("/admin-api/admin-IP-update/update-admin-api-ip",updateAPIAdminIP)
 
 export default router;

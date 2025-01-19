@@ -10,8 +10,14 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
+
+    const ip = req.headers["x-forwarded-for"]
+    ? req.headers["x-forwarded-for"].split(",")[0].trim()
+    : req.connection.remoteAddress;
+
+  
     // Step 1: Capture the Request IP
-    const requestIp = req.ip || req.connection.remoteAddress;  // Can also use req.headers['x-forwarded-for'] if using proxies
+    const requestIp = ip 
 
     // Step 2: Fetch the `apiAdminIp` from the Admin collection
     const admin = await Admin.findOne({ /* Your query to identify the admin */ });
