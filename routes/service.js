@@ -4,6 +4,7 @@ import serviceController from "../controllers/serviceController.js";
 import {
   getNumber,
   getOtp,
+  handleNumberCancel,
   numberCancel,
 } from "../controllers/servicedatacontroller.js";
 import { captureIpMiddleware } from "../middleware/getIPMiddleware.js";
@@ -44,6 +45,8 @@ router.get(
 
 router.get("/get-number", getNumber);
 router.get("/get-otp", getOtp);
-router.get("/number-cancel",authenticateToken, numberCancel);
+router.get("/number-cancel", numberCancel);
+
+router.get("/cancel-number", handleNumberCancel);
 
 export default router;

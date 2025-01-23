@@ -42,7 +42,7 @@ export const sendOtpEmail = (email, otp) => {
     from: process.env.EMAIL_USER,
     to: email,
     subject: 'Your OTP for Password Reset',
-    text: `Your OTP is: ${otp}`,
+    text: `Your OTP for Password Reset: ${otp}`,
   };
   return transporter.sendMail(mailOptions);
 };

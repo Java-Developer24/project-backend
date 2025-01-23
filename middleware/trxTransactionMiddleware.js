@@ -1,8 +1,8 @@
 import {RechargeHistory} from '../models/history.js';
 
-export const checkTransactionId = async (req, res, next) => {
-  const { transactionId } = req.body;
-
+export const checktrxTransactionId = async (req, res, next) => {
+  const { transactionHash } = req.query;
+  const transactionId=transactionHash
   // Check if the transaction ID already exists
   const existingTransaction = await RechargeHistory.findOne({ transactionId });
   if (existingTransaction) {

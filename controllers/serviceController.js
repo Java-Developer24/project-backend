@@ -477,8 +477,8 @@ const getUserServicesData = async (req, res) => {
        return {
          serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
          price: server.price,
-         code: server.code,
-         otp: server.otp
+         code: service.name,
+        
        };
      });
 
@@ -563,7 +563,7 @@ const getUserServicesDatas = async (req, res) => {
         return {
           serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
           price: server.price,
-          code: server.code,
+          code: service.name,
           otp: server.otp,
           maintenance:server.maintenance
         };

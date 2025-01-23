@@ -24,7 +24,7 @@ const NumberHistorySchema = new mongoose.Schema({
       type: String,
       required: true,
     },
-    requestId:Number,
+    Id:Number,
     otp: String,
     date: {
       type: Date,

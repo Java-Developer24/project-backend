@@ -10,7 +10,7 @@ const serviceSchema = new mongoose.Schema({
     },
     service_code: String,
     maintenance: { type: Boolean, default: false },
-    discount: { type: Number, default: 0 },
+    discount: { type: Number, default: null },
 }, { timestamps: true });
 
 serviceSchema.pre('save', function (next) {

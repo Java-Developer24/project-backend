@@ -85,11 +85,12 @@ const configureGoogleLogin = () => {
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails[0].value;
-
+        console.log(email)
         // Check if the user exists either by googleId or email
-        let user = await User.findOne({ $or: [{ googleId: profile.id }, { email }] });
+        let user = await User.findOne({ email });
+        console.log(user)
 
-        if (!user) {
+        if (!user|| !user.googleId) {
           // If the user doesn't exist, redirect to sign up page
           return done(null, false, { message: 'Please sign up first.' });
         }

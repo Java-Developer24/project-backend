@@ -6,7 +6,7 @@ const serverSchema = new mongoose.Schema({
     code: { type: String, required: true },
     otp: { type: String, enum: ["Single Otp", "Multiple Otp", "Single Otp & Fresh Number"], required: false },
     maintenance: { type: Boolean, default: false },
-    discount: { type: Number, default: 0 },
+    discount: { type: Number, default: null },
 }, { timestamps: true });
 
 // In server schema

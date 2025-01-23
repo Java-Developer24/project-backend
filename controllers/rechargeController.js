@@ -82,9 +82,9 @@ const handleUpiRequest = async (req, res) => {
       });
     }
 
-    const formattedDate = moment
-      .tz(data.date, "YYYY-MM-DD h:mm:ss A", "Asia/Kolkata")
-      .format("DD/MM/YYYY HH:mm A");
+    const formattedDate = moment()
+    .tz("Asia/Kolkata")
+    .format("DD/MM/YYYY HH:mm:ss A");
 
     const rechargeHistoryResponse = await fetch(
       "http://localhost:3000/api/history/saveRechargeHistory",
@@ -129,7 +129,7 @@ const handleUpiRequest = async (req, res) => {
     });
 
     return res.status(200).json({
-      message: `Recharge was successful. Thank you! ${data.amount}\u20B9 Added to your Wallet Successfully!`,
+      message: ` ${data.amount}\u20B9 Added Successfully!`,
     });
   } catch (error) {
     console.error("Error:", error);
@@ -215,11 +215,13 @@ export const handleTrxRequest = async (req, res) => {
       }
 
       const amountInInr = trxAmount * trxToInr;
-
-      const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
+      const formattedDate = moment()
+      .tz("Asia/Kolkata")
+      .format("DD/MM/YYYY HH:mm:ss A");
+     
 
       const rechargeHistoryResponse = await fetch(
-        "https://project-backend-xo17.onrender.com/api/history/saveRechargeHistory",
+        "https://project-backend-1-93ag.onrender.com/api/history/saveRechargeHistory",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -258,7 +260,7 @@ export const handleTrxRequest = async (req, res) => {
           .json({ error: error.error });
       }
 
-      if (!transferResponse.data || transferResponse.data.status !== "success") {
+      if (!transferResponse.data || transferResponse.data.status == "Fail") {
         const newEntry = new UnsendTrx({
           email,
           trxAddress: user.trxWalletAddress,
@@ -270,14 +272,14 @@ export const handleTrxRequest = async (req, res) => {
 
         return res
           .status(200)
-          .json({ message: `Recharge successful. ${amountInInr}\u20B9 Added to Wallet Successfully!` });
+          .json({ message: `${amountInInr}\u20B9 Added Successfully!` });
       }
 
       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
 
       return res
         .status(200)
-        .json({ message: `Recharge successful. ${amountInInr}\u20B9 Added to Wallet Successfully!`, balance: user.balance });
+        .json({ message: ` ${amountInInr}\u20B9 Added  Successfully!`, balance: user.balance });
     } else {
       res.status(400).json({ error: "Transaction Not Found. Please try again." });
     }

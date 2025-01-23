@@ -122,35 +122,33 @@ export const getRechargeHistory = async (req, res) => {
     }
   };
 
-export const getTransactionHistory = async (req, res) => {
-  try {
-    // Extract email from URL parameters
-    const { userId } = req.query;
+  export const getTransactionHistory = async (req, res) => {
+    try {
+      // Extract userId from URL parameters
+      const { userId } = req.query;
   
-    const maintainanceServerData = await ServerData.findOne({ server: 0 });
-    if (maintainanceServerData.maintainance) {
-      return res.status(403).json({ error: "Site is under maintenance." });
+      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      if (maintainanceServerData.maintenance) {
+        return res.status(403).json({ error: "Site is under maintenance." });
+      }
+  
+      // Query recharge history data based on the userId
+      const transactionHistoryData = await NumberHistory.find({ userId })
+        .select('-id -reason -discount -__v'); // Exclude specific fields
+  
+      if (!transactionHistoryData || transactionHistoryData.length === 0) {
+        return res.json({
+          message: "No transaction history found for the provided userId",
+        });
+      }
+  
+      res.status(200).json({ data: transactionHistoryData });
+    } catch (error) {
+      console.error("Error fetching transaction history:", error);
+      res.status(500).json({ error: "Failed to fetch transaction history" });
     }
-
-    // Query recharge history data based on the email ID
-    const transactionHistoryData = await NumberHistory.find(
-      { userId },
-     
-    );
-
-    if (!transactionHistoryData || transactionHistoryData.length === 0) {
-      return res.json({
-        message: "No transaction history found for the provided userId",
-      });
-    }
-   
-
-    res.status(200).json({data:transactionHistoryData});
-  } catch (error) {
-    console.error("Error fetching transaction history:", error);
-    res.status(500).json({ error: "Failed to fetch transaction history" });
-  }
   };
+  
 
 export const getTransactionHistoryUser = async (req, res) => {
     try {
@@ -158,13 +156,13 @@ export const getTransactionHistoryUser = async (req, res) => {
       const { userId } = req.query;
  
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
-      if (maintainanceServerData.maintainance) {
+      if (maintainanceServerData.maintenance) {
         return res.status(403).json({ error: "Site is under maintenance." });
       }
   
       // Query recharge history data based on the email ID
       const transactionHistoryData = await NumberHistory.find(
-        { userId },
+        { userId:userId },
         "-_id -__v"
       );
   

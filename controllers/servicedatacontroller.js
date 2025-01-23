@@ -9,6 +9,7 @@ import { userDiscountModel } from '../models/userDiscount.js'
 import { Order } from "./../models/order.js";
 import fetch from "node-fetch";
 import ServerData from "../models/serverData.js";
+import axios from "axios"
 
 import {
 
@@ -239,17 +240,45 @@ const processQueue = async () => {
   
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { servicecode, api_key, server} = req.query;
+      const { code, api_key, server,otpType} = req.query;
   
-      if (!servicecode || !api_key || !server) {
+      if (!code || !api_key || !server) {
         return res
           .status(400)
-          .json({ error: "Service code, API key, and Server are required." });
+          .json({ error: "bad key or code missing or server number missing" });
       }
-  
+      if (server === '8') {
+        // Step 1: Retrieve the API details for server 8 from the database
+        const serverData = await ServerData.findOne({ server: 8 });
+      
+       
+      
+      // Step 2: Use the retrieved `api_key` to hit the endpoint
+        const apiKey = serverData.api_key;
+        const response = await axios.get(
+          `http://www.phantomunion.com:10023/pickCode-api/push/ticket?key=${apiKey}`
+        );
+      
+        if (response.data && response.data.code === '200') {
+          const { token } = response.data.data;
+      
+          // Step 3: Retrieve the server again to ensure it's the most recent instance
+          const updatedServerData = await ServerData.findOne({ server: 8 });
+      
+          
+    
+          // Step 4: Save the new token in the `api` field
+          updatedServerData.api_key = token;
+          console.log("Updated token for server 8:", updatedServerData.api_key);
+          await updatedServerData.save();
+      
+          console.log("Token successfully saved for server 8.");
+        }
+      }
+      
       const ipDetails = await getIpDetails(req);
   
-      const serverCode = await Service.findOne({name: servicecode });
+      const serverCode = await Service.findOne({name: code });
       if (!serverCode) {
         throw new Error("Service not found.");
       }
@@ -269,7 +298,8 @@ const processQueue = async () => {
           .status(400)
           .json({ error: "Your account is blocked, contact the Admin." });
       }
-  
+      
+
       const serverData = await getServerMaintenanceData(server);
       const api_key_server = serverData.api_key;
   
@@ -277,7 +307,7 @@ const processQueue = async () => {
       let price = parseFloat(serviceData.price);
   
       if (user.balance < price) {
-        return res.status(400).json({ error: "Insufficient balance." });
+        return res.status(400).json({ error: "low balance." });
       }
   
       const apiUrl = constructApiUrl(server, api_key_server, serviceData);
@@ -311,7 +341,8 @@ const processQueue = async () => {
           console.error(error);
           if (attempt === 1) {
             return res.status(400).json({
-              error: "No numbers available. Please try different server.",
+              // error: "No numbers available. Please try different server.",
+              error: "No stock.",
             });
           }
         }
@@ -332,7 +363,7 @@ const processQueue = async () => {
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
       const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmm");
-      const requestId=uniqueID
+      const Id=uniqueID
 
 
 
@@ -343,8 +374,7 @@ const processQueue = async () => {
         price,
         server,
         id,
-        requestId, 
-        Discount:totalDiscount,
+        Id, 
         otp: null,
         status: "Success",
         reason:"Waiting for SMS",
@@ -359,7 +389,7 @@ const processQueue = async () => {
       await numberGetDetails({
         email: user.email,
         serviceName: sname,
-        serviceCode: serviceData.code,
+        code: serviceData.code,
         price,
         server,
         number,
@@ -376,7 +406,8 @@ const processQueue = async () => {
         service: sname,
         price,
         server,
-        requestId,
+        Id,
+        otpType,
         numberId: id,
         number,
         orderTime: new Date(),
@@ -384,7 +415,7 @@ const processQueue = async () => {
       });
       await newOrder.save();
   
-      res.status(200).json({ number, requestId });
+      res.status(200).json({ number, Id });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message });
@@ -444,7 +475,7 @@ const processQueue = async () => {
         console.log("Order Number ID:", order.numberId);
         console.log("Order Server:", order.server);
   
-        await callNumberCancelAPI(user.apiKey, order.numberId, order.server);
+        await callNumberCancelAPI(user.apiKey, order.Id);
       } else {
         console.error(`No API key found for user ${order.userId}`);
       }
@@ -457,11 +488,11 @@ const processQueue = async () => {
     try {
       console.log("Calling Cancel API...");
       console.log("API Key:", apiKey);
-      console.log("Number ID:", numberId);
-      console.log("Server:", server);
+      console.log("Number ID:", Id);
+      
   
       const response = await fetch(
-        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
+        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${Id}`
       );
   
       console.log("API Response Status:", response.status);
@@ -488,19 +519,26 @@ const processQueue = async () => {
 
   const getOtp = async (req, res) => {
     try {
-      const { requestId, api_key, server } = req.query;
+      const { Id, api_key } = req.query;
       
-      console.log(server)
+      
   
-      if (!requestId) {
-        return res.status(400).json({ error: "ID is required." });
+      if (!Id || !api_key ) {
+        return res
+          .status(400)
+          .json({ error: "bad key or id missing " });
       }
-      if (!server) {
-        return res.status(400).json({ error: "Server is required." });
-      }
-      if (!api_key) {
-        return res.status(400).json({ error: "Api key is required." });
-      }
+
+      // Check if the transaction with the given Id exists and its status
+    const transactions = await NumberHistory.findOne({ Id });
+    console.log(transactions)
+    if (!transactions) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+
+    if (transactions.status === "Cancelled") {
+      return res.status(400).json({ otp: "number cancelled" });
+    }
   
       let apiUrl;
       let headers;
@@ -512,11 +550,12 @@ const processQueue = async () => {
   
       const userData = await User.findById({ _id: user._id });
       // Fetch the actual ID based on the provided request ID
-    const transaction = await NumberHistory.findOne({ requestId: requestId }); // Fetch the actual ID from the database
+    const transaction = await NumberHistory.findOne({ Id: Id }); // Fetch the actual ID from the database
     if (!transaction) {
       return res.status(404).json({ error: "Transaction not found." });
     }
     const id = transaction.id; // Get the actual ID from the transaction data
+    const server=transaction.server
   
       // Check server maintenance and get API key
       const serverData = await getServerMaintenanceData(server);
@@ -790,22 +829,18 @@ const processQueue = async () => {
          
       
           // Create and save the new entry
-          const numberHistory = new NumberHistory({
-            userId: user._id,
-            serviceName: transaction.serviceName,
-            price: transaction.price,
-            server,
-            requestId,
-            id,
-            otp: validOtp,  // Ensure this is an array of objects, not just a string
-            status: "Success",
-            reason:"SMS Received",
-            number: transaction.number,
-            date_time: formattedDateTime,
-          });
-      
-          await numberHistory.save();
-          console.log("Saved OTP Entry:", numberHistory);
+          // Update the existing entry with the new OTP and reason
+  const updatedEntry = await NumberHistory.updateOne(
+    { id }, // Find the existing entry based on id
+    {
+      $set: {
+        otp: validOtp, // Update the OTP field
+        reason: "SMS Received", // Update the reason field
+      },
+    }
+  );
+         
+          
           // Fetch IP details using the getIpDetails function
         const ipDetails = await getIpDetails(req);
         // Destructure IP details
@@ -908,7 +943,7 @@ const processQueue = async () => {
       }
       
       console.log("otp",validOtp)
-      res.status(200).json({ otp: validOtp || "" });
+      res.status(200).json({ otp: validOtp || "waiting" });
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
       console.log(error);
@@ -956,18 +991,23 @@ const processQueue = async () => {
   
   const handleNumberCancelRequest = async (req, res) => {
     try {
-      const { id, api_key, server } = req.query;
-  
-      if (!id) {
-        return res.status(400).json({ error: "ID is required." });
-      }
-      if (!server) {
-        return res.status(400).json({ error: "Server is required." });
-      }
-      if (!api_key) {
-        return res.status(400).json({ error: "Api key is required." });
+      const { Id, api_key  } = req.query;
+
+      if (!Id || !api_key ) {
+        return res
+          .status(400)
+          .json({ error: "bad key or id missing " });
       }
   
+      const transactions = await NumberHistory.findOne({ Id });
+    console.log(transactions)
+    if (!transactions) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+
+    if (transactions.status === "Cancelled") {
+      return res.status(400).json({ status: "Number already cancelled" });
+    }
       let apiUrl;
       let headers;
   
@@ -982,7 +1022,20 @@ const processQueue = async () => {
       if (maintainanceServerData.maintenance) {
         return res.status(403).json({ error: "Site is under maintenance." });
       }
-  
+      const transaction = await NumberHistory.findOne({ Id: Id });
+      const id=transaction.id
+      console.log("id",id)
+      
+      const transactionTime = moment(transaction.date_time, "DD/MM/YYYY HH:mm");
+      const currentTime = moment();
+      const timeDifference = currentTime.diff(transactionTime, 'minutes');
+      
+      if (timeDifference < 2) {
+        return res.status(400).json({ status: "Cannot cancel within 2 minutes of placing the order." });
+      }
+      
+      const server=transaction.server
+      console.log(server)
       const serverData = await ServerData.findOne({ server });
   
       if (serverData.maintenance) {
@@ -1187,7 +1240,7 @@ const processQueue = async () => {
   
       if (otpReceived) {
         await Order.deleteOne({ numberId: id });
-        return res.status(200).json({ access: "Otp Received" });
+        return res.status(200).json({ status: "Order Finished" });
       }
   
       // Fetch IP details using the getIpDetails function
@@ -1201,20 +1254,18 @@ const processQueue = async () => {
   
         const transaction = await NumberHistory.findOne({ id });
   
-        const numberHistory = new NumberHistory({
-          userId: user._id,
-          serviceName: transaction.serviceName,
-          price: transaction.price,
-          server,
-          rechargeId:transaction.rechargeId,
-          id,
-          otp: null,
-          status: "Cancelled",
-          reason:"SMS not Received",
-          number: transaction.number,
-          date_time: formattedDateTime,
-        });
-        await numberHistory.save();
+         // Update the existing entry instead of creating a new one
+  const updatedEntry = await NumberHistory.updateOne(
+    { id }, // Find the existing entry by id
+    {
+      $set: {
+        otp: null, // Set OTP to null
+        status: "Cancelled", // Update status to "Cancelled"
+        reason: "SMS not Received", // Update reason
+        date_time: formattedDateTime, // Update the date and time
+      },
+    }
+  );
         
         if (!transaction.otp) {
           const incrementAmount = parseFloat(transaction.price.toFixed(2));
@@ -1239,7 +1290,7 @@ const processQueue = async () => {
         await Order.deleteOne({ numberId: id });
       }
       
-        res.status(200).json({ access: "Number Cancelled", });
+        res.status(200).json({ status: "Number Cancelled", });
   
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
@@ -1248,12 +1299,317 @@ const processQueue = async () => {
   };
   
 
+  const handleNumberCancel = async (req, res) => {
+    try {
+      const { Id, api_key  } = req.query;
 
+      if (!Id || !api_key ) {
+        return res
+          .status(400)
+          .json({ error: "bad key or id missing " });
+      }
+  
+      const transactions = await NumberHistory.findOne({ Id });
+    console.log(transactions)
+    if (!transactions) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+
+    if (transactions.status === "Cancelled") {
+      return res.status(400).json({ status: "Number already cancelled" });
+    }
+      let apiUrl;
+      let headers;
+  
+      const user = await User.findOne({ apiKey: api_key });
+      if (!user) {
+        return res.status(400).json({ error: "Invalid api key." });
+      }
+      
+      const userData = await User.findById(user._id);
+  
+      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      if (maintainanceServerData.maintenance) {
+        return res.status(403).json({ error: "Site is under maintenance." });
+      }
+      const transaction = await NumberHistory.findOne({ Id: Id });
+      const id=transaction.id
+      console.log("id",id)
+      
+      
+      
+      
+      
+      const server=transaction.server
+      console.log(server)
+      const serverData = await ServerData.findOne({ server });
+  
+      if (serverData.maintenance) {
+        return res
+          .status(403)
+          .json({ message: `Server ${server} is under maintenance.` });
+      }
+  
+      // Fetch user's transaction history to check for consecutive cancellations
+      
+  
+    
+      switch (server) {
+        case "1":
+          apiUrl = `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&id=${id}&status=8`;
+          break;
+  
+        case "2":
+          apiUrl = `https://5sim.net/v1/user/cancel/${id}`;
+          headers = {
+            Authorization: `Bearer ${serverData.api_key}`,
+            Accept: "application/json",
+          };
+          break;
+  
+        case "3":
+          apiUrl = `https://smshub.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
+          break;
+  
+       
+  
+        case "4":
+          apiUrl = `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
+          break;
+  
+        case "5":
+          apiUrl = `https://tempnum.org/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
+          break;
+  
+        case "7":
+          apiUrl = `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
+          break;
+  
+        case "6":
+          apiUrl = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=setStatus&status=8&id=${id}`;
+          break;
+  
+        case "8":
+          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
+          break;
+        
+        default:
+          return res.status(400).json({ error: "Invalid server value." });
+      }
+  
+      // Fetch data from the API URL
+      const response = await fetch(apiUrl, { headers });
+       
+     
+  
+      const responseData = await response.text();
+  
+      if (!responseData || responseData.trim() === "") {
+        throw new Error("Received empty response data.");
+      }
+  
+      let existingEntry;
+      let responseDataJson;
+      let otpReceived = false;
+  
+      switch (server) {
+        case "1":
+          if (responseData.startsWith("STATUS_CANCEL")) {
+            
+              existingEntry = await NumberHistory.findOne({
+                id,
+              status: "CANCELLED",
+              
+              },
+          );
+          }
+  
+          else if (responseData.startsWith("ACCESS_APPROVED")) {
+            otpReceived = true;
+          }
+  
+          break;
+  
+          case "2":
+            let responseDataJson;
+            try {
+              // Attempt to parse the response as JSON
+              responseDataJson = JSON.parse(responseData);
+          
+              if (responseDataJson.status === "CANCELED") {
+                existingEntry = await NumberHistory.findOne({
+                  id,
+                  status: "CANCELLED",
+                });
+              }
+            } catch (error) {
+              // Handle cases where the response is not valid JSON
+              if (responseData === "order has sms") {
+                otpReceived = true;
+              } else {
+                console.error("Unexpected response data:", responseData);
+                // Handle or log other unexpected responses
+              }
+            }
+            break;
+        case "3":
+          if (responseData.startsWith("ACCESS_CANCEL")) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+            );}
+           else if (responseData.startsWith("ACCESS_ACTIVATION") ){
+              otpReceived = true;
+            }
+            break;
+          
+  
+        
+  
+        case "4":
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+            );}
+            else if (responseData.startsWith("BAD_ACTION") ){
+              otpReceived = true;
+            }
+          break;
+  
+        case "5":
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+            );}
+           else if (responseData.startsWith("NO_ACTIVATION") ){
+              otpReceived = true;
+            }
+          break;
+  
+        case "7":
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+          )}
+         else if (responseData.startsWith("BAD_STATUS") ){
+            otpReceived = true;
+          }
+          break;
+  
+        case "6":
+          if (
+            responseData.startsWith("ACCESS_CANCEL")
+          ) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+          );}
+         else if (responseData.startsWith("BAD_STATUS") ){
+            otpReceived = true;
+          }
+          break;
+  
+        case "8":
+          if (responseData.startsWith("success")) {
+            existingEntry = await NumberHistory.findOne({
+              id,
+            status: "CANCELLED",
+            
+            },
+          );} else if (!responseData.startsWith("success") ){
+            otpReceived = true;
+          }
+          break;
+       
+        default:
+          return res.status(400).json({ error: "Invalid server value." });
+      }
+  
+      if (otpReceived) {
+        await Order.deleteOne({ numberId: id });
+        return res.status(200).json({ status: "Order Finished" });
+      }
+  
+      // Fetch IP details using the getIpDetails function
+      const ipDetails = await getIpDetails(req);
+      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+  
+      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+  
+      if (!existingEntry) {
+        const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
+  
+        const transaction = await NumberHistory.findOne({ id });
+  
+         // Update the existing entry instead of creating a new one
+  const updatedEntry = await NumberHistory.updateOne(
+    { id }, // Find the existing entry by id
+    {
+      $set: {
+        otp: null, // Set OTP to null
+        status: "Cancelled", // Update status to "Cancelled"
+        reason: "SMS not Received", // Update reason
+        date_time: formattedDateTime, // Update the date and time
+      },
+    }
+  );
+        
+        if (!transaction.otp) {
+          const incrementAmount = parseFloat(transaction.price.toFixed(2));
+          
+          // Increment balance in the database
+          await User.updateOne(
+            { _id: user._id },
+            { $inc: { balance: incrementAmount } }
+          );
+        
+        }
+        await numberCancelDetails({
+          email: userData.email,
+          serviceName: transaction.serviceName,
+          price: transaction.price,
+          server,
+          number: transaction.number,
+          balance: user.balance,
+          ip: ipDetailsString,
+        });
+  
+        await Order.deleteOne({ numberId: id });
+      }
+      
+        res.status(200).json({ status: "Number Cancelled", });
+  
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+      console.log(error);
+    }
+  };
+  
   export {
     getNumber,
     getOtp,
   numberCancel,
   checkAndCancelExpiredOrders,
+  handleNumberCancel
    
   };
   

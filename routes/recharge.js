@@ -4,6 +4,7 @@ import { checkTransactionId } from '../middleware/transactionMiddleware.js';
 import { checkMaintenance } from '../middleware/checkRechargeMaintenance .js';
 import { exchangeRate } from '../controllers/rechargeController.js';
 import {authenticateToken} from "../middleware/adminMiddleware.js"
+import { checktrxTransactionId } from '../middleware/trxTransactionMiddleware.js';
 
 const router = express.Router();
 //recharge Maintence check 
@@ -16,7 +17,7 @@ router.post('/generate-qr', generateUpiQrCode);
 router.get("/admin-api/recharge-data-maintenance/get-recharge-maintenance",checkMaintenance)
 
 // TRX Recharge Route
-router.get('/trx', rechargeTrxApi);
+router.get('/trx',checktrxTransactionId, rechargeTrxApi);
 
 // UPI Recharge Route
 router.post('/upi',checkTransactionId, rechargeUpiApi);

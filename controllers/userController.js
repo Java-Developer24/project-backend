@@ -139,7 +139,7 @@ export const forgotPassword = async (req, res) => {
     // Check if the user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Email not found. Please Signup' });
     }
 
     // Generate numeric OTP using the custom method
