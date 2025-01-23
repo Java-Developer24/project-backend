@@ -793,7 +793,7 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
     console.log(apiKey) 
      // Step 1: Call the cancel API
      const response = await fetch(
-      `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${numberId}&server=${server}`
+      `${process.env.BACKEND_URL}/api/service/cancel-number?api_key=${apiKey}&id=${numberId}&server=${server}`
     );
 
     // Check if the cancellation was successful

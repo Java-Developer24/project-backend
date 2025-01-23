@@ -21,7 +21,7 @@ router.post("/saveNumberHistory", saveNumberHistory);
 router.get("/admin-api/recharge-user-history/get-user-recharge-history",authenticateToken,getRechargeHistoryAdmin)
 router.get("/history-admin-api/recharge-balance/get-total-recharge-balance",authenticateToken,getTotalRechargeBalance)
 
-router.get("/admin-api/transaction-history-data/get-transaction-history-admin",authenticateToken,getTransactionHistoryAdmin)
+router.get("/admin-api/transaction-history-data/get-transaction-history-admin",getTransactionHistoryAdmin)
 router.get("/history-admin-api/transaction-count/transaction-history-count",authenticateToken, transactionCount);
 router.delete("/delete-numberhistory",authenticateToken,deleteNumberHistory)
 router.delete("/admin-api/recharge-history-delete/delete-recharge-history",authenticateToken,deleteRechargeHistory)
