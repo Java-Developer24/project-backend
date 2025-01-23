@@ -247,32 +247,32 @@ export const getTransactionHistoryAdmin=async (req, res) => {
       return res.status(400).json({ message: 'userId is required' });
     }
 
-   // Query recharge history data based on the userId
-   // Fetch number history for the given userId
-   const numberHistories = await NumberHistory.find({ userId }).lean();
-   console.log(numberHistories)
+    // Fetch number history for the given userId
+    const numberHistories = await NumberHistory.find({ userId }).lean();
+    console.log(numberHistories)
 
-   // Format the response
-   const formattedHistory = numberHistories.map((history) => ({
-     ID: history._id,
-     userId: history.userId,
-     number: history.number,
-     Id:history.Id.toString(),
-     otp: history.otp  ?? [], // If otps is null or not an array, return an empty array
-     date_time: history.date || null,
-     service: history.serviceName,
-     server: history.server,
-     price: history.price.toFixed(2),
-     status: history.status.toUpperCase(),
-     createdAt: history.createdAt ? history.createdAt.toISOString() : null,
-     updatedAt: history.updatedAt ? history.updatedAt.toISOString() : "0001-01-01T00:00:00Z",
-   }));
+    // Format the response
+    const formattedHistory = numberHistories.map((history) => ({
+      ID: history._id,
+      userId: history.userId,
+      id: history.Id,
+      number: history.number,
+      
+      otp: history.otp  ?? [], // If otps is null or not an array, return an empty array
+      date_time: history.date || null,
+      service: history.serviceName,
+      server: history.server,
+      price: history.price.toFixed(2),
+      status: history.status.toUpperCase(),
+      createdAt: history.createdAt ? history.createdAt.toISOString() : null,
+      updatedAt: history.updatedAt ? history.updatedAt.toISOString() : "0001-01-01T00:00:00Z",
+    }));
 
-   res.status(200).json(formattedHistory);
- } catch (error) {
-   console.error('Error fetching number history:', error);
-   res.status(500).json({ message: 'Error fetching number history', error });
- }
+    res.status(200).json(formattedHistory);
+  } catch (error) {
+    console.error('Error fetching number history:', error);
+    res.status(500).json({ message: 'Error fetching number history', error });
+  }
 };
 
 
