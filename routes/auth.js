@@ -68,12 +68,12 @@ router.post('/validateToken', validateAuthRoutes);
 
 
 
-router.post('/signup', loginSignupRateLimiter,signup);
+router.post('/signup',signup);
 
 
 // Login Route
 
-router.post('/login', loginSignupRateLimiter, login);
+router.post('/login', login);
 
 router.post("/admin-api/admin-user-login/admin-login",adminLogin)
 

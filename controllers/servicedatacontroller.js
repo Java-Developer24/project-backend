@@ -300,17 +300,20 @@ const processQueue = async () => {
       }
       
 
-      const serverData = await getServerMaintenanceData(server);
-      const api_key_server = serverData.api_key;
+      const serverDatas = await getServerMaintenanceData(server);
+      
+      const api_key_server = serverDatas.api_key;
   
       const serviceData = await getServerData(sname, server);
+      
       let price = parseFloat(serviceData.price);
   
       if (user.balance < price) {
         return res.status(400).json({ error: "low balance." });
       }
-  
+      
       const apiUrl = constructApiUrl(server, api_key_server, serviceData);
+      console.log("serverdata",serviceData)
   
       let response, responseData;
       let retry = true;
@@ -407,7 +410,7 @@ const processQueue = async () => {
         price,
         server,
         Id,
-        otpType,
+        otpType:serviceData.otp,
         numberId: id,
         number,
         orderTime: new Date(),
@@ -472,7 +475,7 @@ const processQueue = async () => {
   
       if (user && user.apiKey) {
         console.log("User's API Key:", user.apiKey);
-        console.log("Order Number ID:", order.numberId);
+        console.log("Order Number ID:", order.Id);
         console.log("Order Server:", order.server);
   
         await callNumberCancelAPI(user.apiKey, order.Id);
@@ -484,7 +487,7 @@ const processQueue = async () => {
     }
   };
   
-  const callNumberCancelAPI = async (apiKey, numberId, server) => {
+  const callNumberCancelAPI = async (apiKey, Id) => {
     try {
       console.log("Calling Cancel API...");
       console.log("API Key:", apiKey);
@@ -492,7 +495,7 @@ const processQueue = async () => {
       
   
       const response = await fetch(
-        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&id=${Id}`
+        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&Id=${Id}`
       );
   
       console.log("API Response Status:", response.status);
@@ -852,7 +855,7 @@ const processQueue = async () => {
 
         await otpGetDetails({
           email: userData.email,
-          serviceName: transaction.service,
+          serviceName: transaction.serviceName,
           price: transaction.price,
           server,
           number: transaction.number,
@@ -1031,7 +1034,7 @@ const processQueue = async () => {
       const timeDifference = currentTime.diff(transactionTime, 'minutes');
       
       if (timeDifference < 2) {
-        return res.status(400).json({ status: "Cannot cancel within 2 minutes of placing the order." });
+        return res.status(400).json({ message: "wait 2 minutes" });
       }
       
       const server=transaction.server
@@ -1583,13 +1586,14 @@ const processQueue = async () => {
           );
         
         }
+        const balance=await User.findOne( { _id: user._id });
         await numberCancelDetails({
           email: userData.email,
           serviceName: transaction.serviceName,
           price: transaction.price,
           server,
           number: transaction.number,
-          balance: user.balance,
+          balance: balance.balance,
           ip: ipDetailsString,
         });
   

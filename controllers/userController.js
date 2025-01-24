@@ -700,12 +700,16 @@ export const getOrdersByUserId = async (req, res) => {
   const { userId } = req.query;
 
   try {
-    const orders = await Order.find({ userId }).sort({ orderTime: -1 });
+    const orders = await Order.find({ userId })
+      .sort({ orderTime: -1 })
+      .select('-_id -__v -numberId'); // Exclude _id, __v, and numberId fields
+
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: "Error fetching orders", error });
   }
 };
+
 
 export const deleteUserAccount=async (req, res) => {
   const { userId } = req.query;
@@ -783,7 +787,7 @@ export const getOtpTimeWindow = async (req, res) => {
 
 
 export const forceOrderAndNumberHistoryDelete = async (req, res) => {
-  const { userId, numberId, number,server } = req.query;
+  const { userId, numberId, number } = req.query;
   console.log(req.query)
 
   try {
@@ -793,7 +797,7 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
     console.log(apiKey) 
      // Step 1: Call the cancel API
      const response = await fetch(
-      `${process.env.BACKEND_URL}/api/service/cancel-number?api_key=${apiKey}&id=${numberId}&server=${server}`
+      `${process.env.BACKEND_URL}/api/service/cancel-number?api_key=${apiKey}&Id=${numberId}`
     );
 
     // Check if the cancellation was successful
@@ -804,13 +808,13 @@ export const forceOrderAndNumberHistoryDelete = async (req, res) => {
     }
 
     // Step 2: Verify and delete the order
-    await Order.findOneAndDelete({ userId, numberId, number });
+    await Order.findOneAndDelete({ userId, Id:numberId, number });
     
    
 
     // Step 3: Verify and delete the number entry in NumberHistory
-     await NumberHistory.findOneAndDelete({ userId, id: numberId, number });
-    
+     await NumberHistory.findOneAndDelete({ userId, Id: numberId, number });
+    console.log("number deleted successfully")
 
 const updatedBalance = await User.findById(userId);
     // Step 4: Send success message

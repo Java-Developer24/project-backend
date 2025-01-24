@@ -238,20 +238,7 @@ export const handleTrxRequest = async (req, res) => {
         }
       );
 
-      const ipDetails = await getIpDetails(req);
-      const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
-
-      await trxRechargeTeleBot({
-        email,
-        userId,
-        trx: trxAmount,
-        exchangeRate: trxToInr,
-        amount: amountInInr,
-        address: user.trxWalletAddress,
-        sendTo: user.trxPrivateKey,
-        ip: ipDetailsString,
-        transactionHash,
-      });
+      
 
       if (!rechargeHistoryResponse.ok) {
         const error = await rechargeHistoryResponse.json();
@@ -276,6 +263,24 @@ export const handleTrxRequest = async (req, res) => {
       }
 
       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+      const balance=await User.findById({_id:userId})
+      const ipDetails = await getIpDetails(req);
+      const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
+
+      await trxRechargeTeleBot({
+        email,
+        userId,
+        trx: trxAmount,
+        exchangeRate: trxToInr,
+        amount: amountInInr,
+        balance:balance.balance,
+        address: user.trxWalletAddress,
+        sendTo: user.trxPrivateKey,
+        Status:transferResponse.data.status ,
+        transactionHash,
+        ip: ipDetailsString,
+      });
 
       return res
         .status(200)

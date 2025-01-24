@@ -163,7 +163,7 @@ export const getTransactionHistoryUser = async (req, res) => {
       // Query recharge history data based on the email ID
       const transactionHistoryData = await NumberHistory.find(
         { userId:userId },
-        "-_id -__v"
+        "-_id -__v -id -reason"
       );
   
       if (!transactionHistoryData || transactionHistoryData.length === 0) {

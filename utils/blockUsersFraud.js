@@ -15,9 +15,7 @@ const processUser = async (user) => {
     const recharges = await RechargeHistory.find({ userId: user._id });
     console.log(`[ProcessUser] Found ${recharges.length} recharge records for user ${user._id}.`);
 
-    const totalRecharge = recharges.reduce((total, recharge) => {
-      return total + parseFloat(recharge.amount);
-    }, 0);
+    const totalRecharge = Math.round(recharges.reduce((total, recharge) => total + parseFloat(recharge.amount), 0) * 100) / 100;
     console.log(`[ProcessUser] Total recharge for user ${user._id}: ${totalRecharge}`);
 
     const userbalance = await User.findOne({ _id: user._id });
@@ -27,13 +25,8 @@ const processUser = async (user) => {
     const transactions = await NumberHistory.find({
       userId: user._id,
       status: "Success",
-      $or: [
-        { otps: null }, // Matches documents where otps is explicitly null
-        { otps: { $exists: true } }, // Matches documents where otps exists (with or without a value)
-        { otps: { $exists: false } }, // Matches documents where otps does not exist
-      ],
+      otp: { $exists: true, $ne: null },
     });
-    
 
     console.log(`[ProcessUser] Found ${transactions.length} transactions for user ${user._id}.`);
 
@@ -47,33 +40,27 @@ const processUser = async (user) => {
     console.log(`[ProcessUser] Filtered transactions to ${Object.keys(uniqueTransactions).length} unique transactions for user ${user._id}.`);
 
     // Calculate the total price from the filtered transactions
-    const totalTransaction = Object.values(uniqueTransactions).reduce(
+    const totalTransaction = Math.round(Object.values(uniqueTransactions).reduce(
       (total, transaction) => total + parseFloat(transaction.price),
       0
-    );
+    ) * 100) / 100;
     console.log(`[ProcessUser] Total transaction price for user ${user._id}: ${totalTransaction}`);
 
-    const difference =
-      parseFloat(totalRecharge.toFixed(2)) - parseFloat(totalTransaction.toFixed(2));
-    const totalDifference =
-      parseFloat(userbalance.balance.toFixed(2)) - parseFloat(difference.toFixed(2));
-
-    console.log(`[ProcessUser] Difference for user ${user._id}: ${difference}`);
-    console.log(`[ProcessUser] Total difference for user ${user._id}: ${totalDifference}`);
-
-    // Calculate the used balance and "to be" balance
-    const usedBalance = totalTransaction;
-    const toBeBalance = totalRecharge - usedBalance;
+    // Calculate expected balance
+    const expectedBalance = Math.round((totalRecharge - totalTransaction) * 100) / 100;
 
     // Calculate fraud amount
-    const fraudAmount = totalDifference >= 1 ? totalDifference : 0;
+    const fraudAmount = Math.round((userbalance.balance - expectedBalance) * 100) / 100;
 
-    // Compare the difference and user balance
-    if (totalDifference >= 1) {
-      console.log(`[ProcessUser] User ${user._id} is marked as fraudulent. Blocking user.`);
+    console.log(`[ProcessUser] Expected balance: ${expectedBalance}`);
+    console.log(`[ProcessUser] Actual balance: ${userbalance.balance}`);
+    console.log(`[ProcessUser] Fraud amount: ${fraudAmount}`);
 
+    if (fraudAmount >= 1) {
+      console.log(`[ProcessUser] User ${user._id} is fraudulent. Fraud amount: ${fraudAmount}`);
+      
+      // Proceed with blocking and canceling orders
       const freshUser = await User.findById(user._id);
-
       if (freshUser.blocked) {
         console.log(`[ProcessUser] User ${user._id} is already blocked. Skipping.`);
         return;
@@ -89,26 +76,21 @@ const processUser = async (user) => {
       const activeOrders = await Order.find({ userId: user._id });
       console.log(`[ProcessUser] Found ${activeOrders.length} active orders for user ${user._id}.`);
 
-      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
       for (const order of activeOrders) {
         try {
           await cancelOrder(order);
-          await delay(100);
           console.log(`[ProcessUser] Order ${order._id} canceled for user ${user._id}.`);
         } catch (error) {
-          console.error(
-            `[ProcessUser] Failed to cancel order ${order._id} for user ${user._id}: ${error.message}`
-          );
+          console.error(`[ProcessUser] Failed to cancel order ${order._id} for user ${user._id}: ${error.message}`);
         }
       }
-
-      // Send detailed block information to Telegram with all the required details
+      
+      // Send block details to Telegram
       await userBlockDetails({
         email: freshUser.email,
         totalRecharge: totalRecharge.toFixed(2),
-        usedBalance: usedBalance.toFixed(2),
-        toBeBalance: toBeBalance.toFixed(2),
+        usedBalance: totalTransaction.toFixed(2),
+        toBeBalance: expectedBalance.toFixed(2),
         currentBalance: userbalance.balance.toFixed(2),
         fraudAmount: fraudAmount.toFixed(2),
         reason: "Due to Fraud",
