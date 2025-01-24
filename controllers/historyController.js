@@ -296,18 +296,24 @@ export const transactionCount = async (req, res) => {
     let pendingCount = 0;
 
     Object.entries(transactionsById).forEach(([id, transactions]) => {
-      const hasFinished = transactions.some((txn) => txn.status === "Success");
-      const hasCancelled = transactions.some(
-        (txn) => txn.status === "Cancelled"
+      const hasFinishedWithOtp = transactions.some(
+        (txn) => txn.status === "Success" && txn.otp !== null
       );
-      const hasOtp = transactions.some((txn) => txn.otp !== null);
+      const hasFinishedWithoutOtp = transactions.some(
+        (txn) => txn.status === "Success" && txn.otp === null
+      );
+      const hasCancelled = transactions.some((txn) => txn.status === "Cancelled");
 
-      if (hasFinished && hasOtp) {
+      if (hasFinishedWithOtp) {
         successCount++;
-      } else if (hasFinished && hasCancelled) {
-        cancelledCount++;
-      } else if (hasFinished && !hasCancelled && !hasOtp) {
+      } 
+      
+      if (hasFinishedWithoutOtp) {
         pendingCount++;
+      }
+      
+      if (hasCancelled) {
+        cancelledCount++;
       }
     });
 
@@ -317,6 +323,7 @@ export const transactionCount = async (req, res) => {
     res.status(500).json({ error: "Failed to count transaction" });
   }
 };
+
 
 
 // Endpoint: delete-recharge-history
