@@ -42,7 +42,8 @@ app.use(
       "https://adminpanel.tech-developer.online",
       "https://testing-frontend-app-git-main-java-developer24s-projects.vercel.app",
       "https://testing-frontend-app.vercel.app",
-      "https://frontendapp.tech-developer.online"
+      "https://frontendapp.tech-developer.online",
+      "https://admin-dashboard.tech-developer.online"
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
