@@ -17,7 +17,7 @@ export const authenticateToken = async (req, res, next) => {
 
   
     // Step 1: Capture the Request IP
-    console.log(ip)
+    console.log("ip",ip)
     const requestIp = ip 
 
     // Step 2: Fetch the `apiAdminIp` from the Admin collection
