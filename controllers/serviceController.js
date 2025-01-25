@@ -113,64 +113,28 @@ const callEndpoint = async (url) => {
 const fetchAndStoreServices = async (req, res) => {
   console.time("fetchAndStoreServices");
 
-  // Store the results of each endpoint call
-  let endpointResults = {};
-
-  // Retry logic for endpoints
-  const retryInterval = 2 * 60 * 1000; // 2 minutes in milliseconds
-  let retryAttempts = 3;  // Retry up to 3 times for each endpoint
-  let failedEndpoints = [...endpoints]; // Initially all endpoints are considered for retry
-
-  const callAllEndpoints = async () => {
-    let retryEndTime = Date.now() + retryInterval;
-
-    // Retry failed endpoints until the retry interval is over
-    while (failedEndpoints.length > 0 && Date.now() < retryEndTime) {
-      const promises = failedEndpoints.map(async (endpoint) => {
-        const result = await callEndpoint(endpoint);
-        endpointResults[endpoint] = result;
-        if (result === 'ok') {
-          failedEndpoints = failedEndpoints.filter((e) => e !== endpoint);  // Remove successful endpoint
-        }
-      });
-      await Promise.all(promises);
-      if (failedEndpoints.length > 0) {
-        console.log(`Waiting for retry... Remaining endpoints: ${failedEndpoints.join(', ')}`);
-        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before retrying
-      }
-    }
-
-    if (failedEndpoints.length > 0) {
-      console.error(`Some endpoints failed after retries: ${failedEndpoints.join(', ')}`);
-    } else {
-      console.log('All endpoints were successfully called');
-    }
-
-    // Proceed with fetching the services data
+  try {
+    // Fetch the latest services data directly
     const response = await fetchDataWithRetry('https://own5k.in/p/final.php');
     const servicesData = response;
-    return servicesData;
-  };
-
-  try {
-    // Call all the endpoints first
-    const servicesData = await callAllEndpoints();
 
     if (!Array.isArray(servicesData)) {
       console.error("Fetched data is not an array");
-      return;
+      return res.status(400).json({ message: "Invalid data format" });
     }
 
+    // Loop through and update each service in the database
     for (const serviceData of servicesData) {
       const { name, servers } = serviceData;
 
       if (!name || !servers) {
-        console.error(`Missing name or servers for service: ${serviceData}`);
+        console.error(`Missing name or servers for service: ${JSON.stringify(serviceData)}`);
         continue;
       }
 
       const normalizedServiceName = normalizeName(name);
 
+      // Process servers
       const parsedServers = await Promise.all(servers.map(async (server) => {
         const { server: serverValue, price: priceValue, ...rest } = server;
         const serverNumber = parseInt(serverValue);
@@ -193,30 +157,12 @@ const fetchAndStoreServices = async (req, res) => {
       const validServers = parsedServers.filter(server => server !== null);
       const sortedServers = sortServersByPrice(validServers);
 
-      let service = await Service.findOne({ name: normalizedServiceName });
-
-      if (!service) {
-        console.log(`Service not found. Creating new service: ${normalizedServiceName}`);
-        service = new Service({ name: normalizedServiceName, servers: sortedServers });
-        await service.save();
-      } else {
-        let isUpdated = false;
-        if (JSON.stringify(service.servers) !== JSON.stringify(sortedServers)) {
-          isUpdated = true;
-          service.servers = sortedServers;
-        }
-
-        if (service.name !== normalizedServiceName) {
-          isUpdated = true;
-          service.name = normalizedServiceName;
-        }
-
-        if (isUpdated) {
-          await service.save();
-        }
-      }
-
-      await calculateLowestPrices(service._id);
+      // Replace existing service or insert new one
+      await Service.findOneAndUpdate(
+        { name: normalizedServiceName }, // Find by normalized name
+        { name: normalizedServiceName, servers: sortedServers }, // Replace with new data
+        { upsert: true, new: true } // Create new if not found, return the updated document
+      );
     }
 
     console.log('Services fetched and stored successfully');
@@ -224,8 +170,10 @@ const fetchAndStoreServices = async (req, res) => {
 
   } catch (error) {
     console.error("Error fetching and storing services:", error);
-    res.status(500).json({ msg: "Error fetching services" });
+    res.status(500).json({ message: "Error fetching services" });
   }
+
+  console.timeEnd("fetchAndStoreServices");
 };
 
 // Function to find duplicates in the database

@@ -1029,13 +1029,17 @@ const processQueue = async () => {
       const id=transaction.id
       console.log("id",id)
       
-      const transactionTime = moment(transaction.date_time, "DD/MM/YYYY HH:mm");
-      const currentTime = moment();
-      const timeDifference = currentTime.diff(transactionTime, 'minutes');
+      const transactionTime = moment.tz(transaction.date_time, "DD/MM/YYYY HH:mm", "Asia/Kolkata");
+      const currentTime = moment.tz("Asia/Kolkata");
       
+      const timeDifference = currentTime.diff(transactionTime, 'minutes');
       if (timeDifference < 2) {
-        return res.status(400).json({ message: "wait 2 minutes" });
+          return res.status(400).json({ message: "wait 2 minutes" });
       }
+      console.log("Transaction Time:", transactionTime.format());
+console.log("Current Time:", currentTime.format());
+console.log("Time Difference:", timeDifference);
+
       
       const server=transaction.server
       console.log(server)
