@@ -953,18 +953,21 @@ const updateServerData = async (server, maintenance) => {
 
 export const updateServiceDiscount = async (req, res) => {
   try {
-      const { service, server, discount } = req.body;  // Extract service name, server number, and discount from payload
+      const { service, server, discount,  } = req.body;  // Extract service name, server number, discount, and service-level discount from payload
 
       // Validate the input
-      if (!service || !server || discount === undefined) {
-          return res.status(400).json({ message: 'Service name, server number, and discount are required' });
+      if (!service || !server || discount === undefined ) {
+          return res.status(400).json({ message: 'Service name, server number, discount, and service-level discount are required' });
       }
 
       // Perform the update operation to set the discount for the specific server in the service
       const result = await Service.updateOne(
           { name: service, "servers.serverNumber": server }, // Filter by service name and server number
           {
-              $set: { "servers.$[elem].discount": discount } // Set discount for the specific server
+              $set: {
+                  "servers.$[elem].discount": discount,  // Set discount for the specific server
+                  discount: discount // Set service-level discount
+              }
           },
           {
               arrayFilters: [{ "elem.serverNumber": server }], // Target the specific server in the servers array
@@ -978,7 +981,7 @@ export const updateServiceDiscount = async (req, res) => {
       }
 
       res.status(200).json({
-          message: `Discount of ${discount} applied successfully to server ${server} in the service ${service}`
+          message: `Discount of ${discount} applied to server ${server} in the service ${service}. Service-level discount of ${discount} also applied.`
       });
   } catch (error) {
       console.error('Error updating service server discount:', error);
@@ -987,21 +990,66 @@ export const updateServiceDiscount = async (req, res) => {
 };
 
 
+// export const getAllServiceDiscounts = async (req, res) => {
+//   try {
+//       // Aggregation pipeline to efficiently filter and format the data
+//       const discounts = await Service.aggregate([
+//           // Unwind the servers array so we can work with individual server data
+//           { $unwind: "$servers" },
+//           // Match servers where discount is not null
+//           { $match: { "servers.discount": { $ne: null } } },
+//           // Project the necessary fields for the response
+//           {
+//               $project: {
+//                   _id: 1,
+//                   name: 1,
+//                   "servers.serverNumber": 1,
+//                   "servers.discount": 1,
+//                   createdAt: 1,
+//                   updatedAt: 1
+//               }
+//           },
+//           // Format the data to the desired structure
+//           {
+//               $project: {
+//                   id: "$_id",
+//                   service: "$name",
+//                   server: "$servers.serverNumber",
+//                   discount: "$servers.discount",
+//                   createdAt: 1,
+//                   updatedAt: 1
+//               }
+//           }
+//       ]);
+
+//       // If there are no valid discounts, return an empty array
+//       if (discounts.length === 0) {
+//           return res.status(200).json([]);  // Return empty array if no valid discounts
+//       }
+
+//       // Send the valid discount data as the response
+//       return res.status(200).json(discounts);
+
+//   } catch (error) {
+//       console.error('Error getting discounts:', error);
+//       return res.status(500).json({ message: 'Internal server error.', error: error.message });
+//   }
+// };
+
 export const getAllServiceDiscounts = async (req, res) => {
   try {
-      // Aggregation pipeline to efficiently filter and format the data
+      // Aggregation pipeline to fetch all relevant data
       const discounts = await Service.aggregate([
-          // Unwind the servers array so we can work with individual server data
+          // Unwind the servers array to handle individual servers
           { $unwind: "$servers" },
-          // Match servers where discount is not null
-          { $match: { "servers.discount": { $ne: null } } },
-          // Project the necessary fields for the response
+          // Project the necessary fields for response
           {
               $project: {
                   _id: 1,
                   name: 1,
                   "servers.serverNumber": 1,
                   "servers.discount": 1,
+                  discount: 1, // Service-level discount
                   createdAt: 1,
                   updatedAt: 1
               }
@@ -1011,21 +1059,28 @@ export const getAllServiceDiscounts = async (req, res) => {
               $project: {
                   id: "$_id",
                   service: "$name",
+                  serviceLevelDiscount: "$discount",  // Service-level discount
                   server: "$servers.serverNumber",
-                  discount: "$servers.discount",
+                  discount: "$servers.discount",  // Server-level discount
                   createdAt: 1,
                   updatedAt: 1
               }
           }
       ]);
 
-      // If there are no valid discounts, return an empty array
-      if (discounts.length === 0) {
-          return res.status(200).json([]);  // Return empty array if no valid discounts
+      // Filter out records where serviceLevelDiscount or serverLevelDiscount is null or 0
+      const validDiscounts = discounts.filter(discount => 
+          discount.serviceLevelDiscount !== null && discount.serviceLevelDiscount !== 0 &&
+          discount.discount !== null && discount.discount !== 0
+      );
+
+      // If no valid discounts are found, return an empty array
+      if (validDiscounts.length === 0) {
+          return res.status(200).json([]);
       }
 
       // Send the valid discount data as the response
-      return res.status(200).json(discounts);
+      return res.status(200).json(validDiscounts);
 
   } catch (error) {
       console.error('Error getting discounts:', error);
@@ -1044,7 +1099,7 @@ export const deleteServiceDiscount = async (req, res) => {
           return res.status(400).json({ message: 'Service and server fields are required.' });
       }
 
-      // Find the service by name and update the server discount to null
+      // Find the service by name and update both the service discount and the server discount to null
       const updatedService = await Service.findOneAndUpdate(
           { 
               name: service,  // Find the service by name
@@ -1052,7 +1107,8 @@ export const deleteServiceDiscount = async (req, res) => {
           },
           { 
               $set: { 
-                  'servers.$.discount': null  // Set the discount to null for the specific server
+                  'discount': null,  // Set the service-level discount to null
+                  'servers.$.discount': null  // Set the server-level discount to null
               }
           },
           { new: true }  // Return the updated document
@@ -1062,12 +1118,13 @@ export const deleteServiceDiscount = async (req, res) => {
           return res.status(404).json({ message: `Service ${service} or Server ${server} not found.` });
       }
 
-      return res.status(200).json({ message: `Discount set to null for server ${server} in service ${service}.` });
+      return res.status(200).json({ message: `Discounts set to null for service ${service} and server ${server}.` });
   } catch (error) {
       console.error(error);
       return res.status(500).json({ message: 'Internal server error.', error: error.message });
   }
 };
+
 
 
 

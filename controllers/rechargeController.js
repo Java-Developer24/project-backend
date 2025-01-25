@@ -87,7 +87,7 @@ const handleUpiRequest = async (req, res) => {
     .format("DD/MM/YYYY HH:mm:ss A");
 
     const rechargeHistoryResponse = await fetch(
-      "http://localhost:3000/api/history/saveRechargeHistory",
+      "https://backendapi.tech-developer.online/api/history/saveRechargeHistory",
       {
         method: "POST",
         headers: {
