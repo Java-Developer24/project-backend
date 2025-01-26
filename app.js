@@ -5,6 +5,7 @@ import connectDB from "./config/database.js";
 import { checkAndCancelExpiredOrders } from "./controllers/servicedatacontroller.js";
 import session from "express-session";
 
+import {scheduleJob} from "./utils/telegram-recharge-transaction.js";
 import {
   configureGoogleSignup,
   configureGoogleLogin,
@@ -102,7 +103,7 @@ app.use((err, req, res, next) => {
 });
 // Schedule the checkAndCancelExpiredOrders function to run every 5 minutes
 setInterval(checkAndCancelExpiredOrders, 5000); // 5 minutes in milliseconds
-
+scheduleJob()
 
 
 let intervalId = null; // Variable to store the setInterval ID

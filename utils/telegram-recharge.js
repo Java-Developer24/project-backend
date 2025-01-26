@@ -9,6 +9,7 @@ export const trxRechargeTeleBot = async ({
   amount,
   address,
   sendTo,
+  Status,
   ip,
   transactionHash,
 }) => {
@@ -27,6 +28,7 @@ export const trxRechargeTeleBot = async ({
     result += `Updated Balance  => ${balance.balance}\u20B9\n\n`;
     result += `User Trx address  => ${address}\n\n`;
     result += `Send To => ${sendTo}\n\n`;
+    result += `Send Status => ${Status}\n\n`;
     result += `IP Details => ${ip}\n\n`;
     result += `Txn/Hash Id => ${transactionHash}\n\n`;
 
@@ -36,7 +38,7 @@ export const trxRechargeTeleBot = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot6740130325:AAFwI438ZedvOIv2OL42X3w3u362e8qiQEk/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {

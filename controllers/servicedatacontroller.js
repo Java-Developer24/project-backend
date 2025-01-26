@@ -364,9 +364,10 @@ const processQueue = async () => {
       
       
   
-      const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A");
-      const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmm");
-      const Id=uniqueID
+      const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmss");
+const Id = uniqueID;
+
 
 
 
@@ -1290,7 +1291,7 @@ console.log("Time Difference:", timeDifference);
           price: transaction.price,
           server,
           number: transaction.number,
-          balance: user.balance,
+          balance: user.balance.toFixed(2),
           ip: ipDetailsString,
         });
   

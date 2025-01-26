@@ -27,10 +27,10 @@ router.post("/admin-api/service-delete/deleteService",authenticateToken, service
 router.post("/admin-api/getting-server-maintaince/maintainance-server",authenticateToken, serviceController.updateServer); //keeping server in maintence
 router.post("/admin-api/servers-maintence/maintenance-all-servers",authenticateToken, serviceController.updateCentralizedServers); //keeping the maintence of complete site
 
-router.post("/admin-api/updating-service-discount/add-service-discount",authenticateToken, serviceController.updateServiceDiscount);
+router.post("/admin-api/updating-service-discount/add-service-discount", serviceController.updateServiceDiscount);
 
 router.get(
-  "/admin-api/server-discount-data/get-all-service-discount",authenticateToken,
+  "/admin-api/server-discount-data/get-all-service-discount",
   serviceController.getAllServiceDiscounts
 );
 router.delete(

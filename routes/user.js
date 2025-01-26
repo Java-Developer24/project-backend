@@ -27,10 +27,10 @@ router.post('/change-password-unauthenticated',changePasswordForUnauthenticatedU
 
 //admins endpoint
 // Route to get all users
-router.get('/admin-api/all-users/get-all-users',authenticateToken, getAllUsers);
+router.get('/admin-api/all-users/get-all-users', getAllUsers);
 
 // Route to get total user count
-router.get('/admin-api/total-users/total-user-count',authenticateToken, fetchTotalUserCount);
+router.get('/admin-api/total-users/total-user-count', fetchTotalUserCount);
 
 // Route to get a specific user by userId
 router.get('/user-admin-api/get-user',authenticateToken, getUserById);

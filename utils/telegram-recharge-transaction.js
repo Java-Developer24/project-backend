@@ -5,13 +5,15 @@ import { RechargeHistory, NumberHistory } from "../models/history.js";
 
 import ServerData from "../models/serverData.js";
 
-// Get the start and end time for the last 24 hours in the specified format
+
+
 const get24HoursAgo = () => {
-  const end = moment().format("DD/MM/YYYYTHH:mm A"); // Current time in the required format
-  const start = moment().subtract(24, "hours").format("DD/MM/YYYYTHH:mm A"); // 24 hours ago in the required format
-  console.log("Time range for 24 hours ago:", { start, end });
+  const end = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A"); // Current time
+  const start = moment().tz("Asia/Kolkata").subtract(24, "hours").format("DD/MM/YYYY HH:mm A"); // 24 hours ago
+  console.log("Time range for query:", { start, end });
   return { start, end };
 };
+
 
 
 
@@ -20,14 +22,12 @@ const serverNames = {
   1: "Fastsms",
   2: "5Sim",
   3: "Smshub",
-  4: "TigerSMS",
-  5: "GrizzlySMS",
-  6: "Tempnum",
+  4: "GrizzlySMS",
+  5: "Tempnum",
+  6: "Sms-activate",
   7: "Smsbower",
-  8: "Sms-activate",
-  9:"CCPAY",
-  10: "Sms-activation-service",
-  11:"SMS-Man"
+  8: "CCPAY",
+ 
 };
 
 const getServerBalance = async (server, apiKey) => {
@@ -55,38 +55,29 @@ const getServerBalance = async (server, apiKey) => {
         url = `https://smshub.org/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
         currency = "$"; // currency symbol for server 3
         break;
+     
       case 4:
-        url = `https://api.tiger-sms.com/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
-        currency = "p"; // currency symbol for server 4
-        break;
-      case 5:
         url = `https://api.grizzlysms.com/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
         currency = "p"; // currency symbol for server 5
         break;
-      case 6:
+      case 5:
         url = `https://tempnum.org/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
         currency = "p"; // currency symbol for server 6
         break;
+      case 6:
+      url = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
+      currency = "p"; // currency symbol for server 7 and 8
+      break;
       case 7:
       url=`https://smsbower.online/stubs/handler_api.php?api_key=${apiKey}&action=getBalance `;
       currency='p';
       break;
+      
       case 8:
-      url = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
-      currency = "p"; // currency symbol for server 7 and 8
-      break;
-      case 9:
         url = `https://own5k.in/p/ccpay.php?type=balance`;
         currency = "$"; // currency symbol for server 9
         break;
-        case 10:
-        url=`https://sms-activation-service.pro/stubs/handler_api?api_key=${apiKey}&action=getBalance `;
-        currency="$";
-        break;
-        case 11:
-        url=`https://api.sms-man.com/control/get-balance?token=${apiKey}`;
-        currency='p';
-        break;
+        
       default:
         return null;
     }
@@ -98,9 +89,9 @@ const getServerBalance = async (server, apiKey) => {
       if (server === 2) {
         const data = await response.json();
         balance = data.balance.toString();
-      }  else if (server === 9) {
+      }  else if (server === 8) {
         const data = await response.text();
-        balance = data.trim(); // ensure no extra quotes
+        balance = data
       } else if (server === 10 ) {
         const data = await response.json();
         balance = data
@@ -128,6 +119,8 @@ const getServerBalance = async (server, apiKey) => {
 export const getServerDetails = async () => {
   try {
     const { start, end } = get24HoursAgo();
+    // const { start, end } = get3MinutesAgo();
+
 
     // Fetch recent recharge history within the last 24 hours
 
@@ -158,7 +151,7 @@ export const getServerDetails = async () => {
     const recentTransactionHistory = await NumberHistory.find({
       date_time: { $gte: start, $lt: end },
     });
-          console.log(recentTransactionHistory)
+          console.log("recent number history",recentTransactionHistory)
     // Group transactions by their ID
     const transactionsById = recentTransactionHistory.reduce(
       (acc, transaction) => {
@@ -179,7 +172,7 @@ export const getServerDetails = async () => {
     for (const [id, transactions] of Object.entries(transactionsById)) {
       const hasFinished = transactions.some((txn) => txn.status === "Success");
       const hasCancelled = transactions.some((txn) => txn.status === "Cancelled");
-      const hasOtp = transactions.some((txn) => txn.otps !== null);
+      const hasOtp = transactions.some((txn) => txn.otp !== null);
     
       if (hasCancelled) {
         cancelledCount++;
@@ -212,7 +205,7 @@ export const getServerDetails = async () => {
     // Consolidate Server 7 and Server 8 balances
     const consolidatedServerBalances = servers.reduce((acc, server, index) => {
       const serverId = server.server;
-      if (serverId === 7 || serverId === 8) {
+      if (serverId === 7) {
         // Combine balances for server 7 and 8
         if (!acc[7]) {
           acc[7] = {
@@ -237,9 +230,10 @@ export const getServerDetails = async () => {
 
     // Fetch total recharge balance
     const gettotalreacharge = await fetch(
-      `${process.env.BACKEND_URL}/api/user/get-all-users`
+      `${process.env.BACKEND_URL}/api/user/admin-api/all-users/get-all-users`
     );
     const usersData = await gettotalreacharge.json();
+    console.log(usersData);
 
     const totalBalance = usersData.reduce(
       (accumulator, user) => accumulator + user.balance,
@@ -248,7 +242,7 @@ export const getServerDetails = async () => {
 
     // Fetch total user count
     const gettotalUserCount = await fetch(
-      `${process.env.BACKEND_URL}/api/user/total-user-count`
+      `${process.env.BACKEND_URL}/api/user/admin-api/total-users/total-user-count`
     );
     const totalUserCountData = await gettotalUserCount.json();
 
@@ -287,7 +281,7 @@ export const getServerDetails = async () => {
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot7311200292:AAGRdIotGRgeNNHdTlT7VtJCbK-wPef1hIg/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {
@@ -303,7 +297,7 @@ export const getServerDetails = async () => {
 
 export const scheduleJob = () => {
   console.log("Scheduling job...");
-  
+
   // Run the job immediately for testing
   runJob();
 
@@ -312,17 +306,24 @@ export const scheduleJob = () => {
   const seconds = now.getSeconds();
   const milliseconds = now.getMilliseconds();
 
+  // Calculate the time until the next 30-minute interval
   const timeToNextInterval =
     (30 - (minutes % 30)) * 60 * 1000 - seconds * 1000 - milliseconds;
 
   setTimeout(() => {
     console.log("Starting scheduled job...");
-    setInterval(runJob, 30 * 60 * 1000); // Run every 30 minutes
+    setInterval(runJob, 30 * 60 * 1000); // Run every 3 minutes
   }, timeToNextInterval);
+
+  console.log(`Job will run every 30 minutes, starting in ${timeToNextInterval / 1000} seconds`);
 };
+
+
+
 
 const runJob = async () => {
   try {
+    console.log("job running")
     const result = await getServerDetails();
     console.log(result);
   } catch (error) {
