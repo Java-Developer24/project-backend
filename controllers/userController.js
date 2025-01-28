@@ -436,7 +436,7 @@ export const updateUserBalance = async (req, res) => {
     const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
 
     await adminRechargeTeleBot({
-      userId,
+      email:user.email,
       transactionId,
       new_balance,
       oldBalance,

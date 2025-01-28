@@ -92,7 +92,7 @@ export const upiRechargeTeleBot = async ({
 };
 
 export const adminRechargeTeleBot = async ({
-  userId,
+  email,
   transactionId,
   new_balance,
   oldBalance,
@@ -109,7 +109,7 @@ export const adminRechargeTeleBot = async ({
 
     let result = "Recharge By Admin\n\n";
     result += `Date => ${formattedDate}\n\n`;
-    result += `User ID => ${userId}\n\n`;
+    result += `User Email => ${email}\n\n`;
     result += `Transaction ID => ${transactionId}\n\n`;
     result += `Old Balance => ${oldBalance}\u20B9\n\n`;
     result += `New Balance => ${new_balance}\u20B9\n\n`;
