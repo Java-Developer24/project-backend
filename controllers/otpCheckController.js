@@ -128,9 +128,10 @@ const otpCheck = async (req, res) => {
 
       // Search for codes in the database
       const results = await searchCodes(codes);
+      console.log("results",results[0])
 
       if (results.length > 0) {
-        return res.status(200).json({ results });
+        return res.status(200).json({ results:[{ serviceName: results[0] }] });
       } else {
         return res.status(404).json({ error: "No valid data found for the provided codes" });
       }
