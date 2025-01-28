@@ -402,7 +402,7 @@ const Id = uniqueID;
       await numberGetDetails({
         email: user.email,
         serviceName: sname,
-        code: serverdata.code,
+        code: serviceData.code,
         price,
         server,
         number,
@@ -555,6 +555,7 @@ const Id = uniqueID;
     if (transactions.status === "Cancelled") {
       return res.status(400).json({ otp: "number cancelled" });
     }
+    
   
       let apiUrl;
       let headers;
@@ -572,6 +573,9 @@ const Id = uniqueID;
     }
     const id = transaction.id; // Get the actual ID from the transaction data
     const server=transaction.server
+    const sname=transactions.serviceName
+    
+    const serviceData = await getServerData(sname, server);
   
       // Check server maintenance and get API key
       const serverData = await getServerMaintenanceData(server);
@@ -869,6 +873,7 @@ const Id = uniqueID;
         await otpGetDetails({
           email: userData.email,
           serviceName: transaction.serviceName,
+          code: serviceData.code,
           price: transaction.price,
           server,
           number: transaction.number,
@@ -1371,9 +1376,12 @@ const Id = uniqueID;
       
       
       
-      
+      const sname=transactions.serviceName
+    
+   
       
       const server=transaction.server
+      const serviceData = await getServerData(sname, server);
       console.log(server)
       const serverData = await ServerData.findOne({ server });
   
@@ -1620,6 +1628,7 @@ const Id = uniqueID;
         await numberCancelDetails({
           email: userData.email,
           serviceName: transaction.serviceName,
+          code: serviceData.code,
           price: transaction.price,
           server,
           number: transaction.number,

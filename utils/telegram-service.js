@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 export const numberGetDetails = async ({
   email,
   serviceName,
-  serviceCode,
+  code,
   price,
   server,
   number, // numeric type
@@ -16,7 +16,7 @@ export const numberGetDetails = async ({
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Service Name => ${serviceName}\n\n`;
-    result += `Service Code => ${serviceCode}\n\n`;
+    result += `Service Code => ${code}\n\n`;
     result += `Price => ${price}\u20B9\n\n`;
     result += `Server => ${server}\n\n`;
     result += `Number => ${number.toString()}\n\n`; // Convert number to string
@@ -47,6 +47,7 @@ export const otpGetDetails = async ({
   serviceName,
   price,
   server,
+  code,
   number, // numeric type
   otp,
   ip,
@@ -56,6 +57,7 @@ export const otpGetDetails = async ({
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Service Name => ${serviceName}\n\n`;
+    result += `Service Code => ${code}\n\n`;
     result += `Price => ${price}\u20B9\n\n`;
     result += `Server => ${server}\n\n`;
     result += `Number => ${number.toString()}\n\n`; // Convert number to string
@@ -84,6 +86,7 @@ export const otpGetDetails = async ({
 export const numberCancelDetails = async ({
   email,
   serviceName,
+  code,
   price,
   server,
   number, // numeric type
@@ -95,6 +98,7 @@ export const numberCancelDetails = async ({
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Service Name => ${serviceName}\n\n`;
+    result += `Service Code => ${code}\n\n`;
     result += `Price => ${price}\u20B9\n\n`;
     result += `Server => ${server}\n\n`;
     result += `Number => ${number.toString()}\n\n`; // Convert number to string
