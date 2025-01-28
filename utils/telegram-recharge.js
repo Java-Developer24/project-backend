@@ -38,7 +38,7 @@ export const trxRechargeTeleBot = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot6740130325:AAFwI438ZedvOIv2OL42X3w3u362e8qiQEk/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {
@@ -77,7 +77,7 @@ export const upiRechargeTeleBot = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot6740130325:AAFwI438ZedvOIv2OL42X3w3u362e8qiQEk/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {
@@ -107,13 +107,13 @@ export const adminRechargeTeleBot = async ({
 
     const formattedDate = moment().format("DD-MM-YYYY hh:mm:ssa");
 
-    let result = "Admin Balance Update\n\n";
+    let result = "Recharge By Admin\n\n";
     result += `Date => ${formattedDate}\n\n`;
     result += `User ID => ${userId}\n\n`;
     result += `Transaction ID => ${transactionId}\n\n`;
     result += `Old Balance => ${oldBalance}\u20B9\n\n`;
     result += `New Balance => ${new_balance}\u20B9\n\n`;
-    result += `Amount Added/Deducted => ${new_balance - oldBalance}\u20B9\n\n`;
+    result += `Amount Added => ${new_balance - oldBalance}\u20B9\n\n`;
     result += `Method => Admin\n\n`;
     result += `Status => Completed\n\n`;
     result += `IP Details => ${ip}\n\n`;
@@ -124,7 +124,7 @@ export const adminRechargeTeleBot = async ({
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:AAFrhbHjjgGc36j7VaZlCR5QWqykcxDZ5v4/sendMessage?chat_id=5887031482&text=${encodedResult}`
+      `https://api.telegram.org/bot6740130325:AAFwI438ZedvOIv2OL42X3w3u362e8qiQEk/sendMessage?chat_id=6769991787&text=${encodedResult}`
     );
 
     if (!response.ok) {

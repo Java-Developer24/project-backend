@@ -53,7 +53,7 @@ passport.use(
           const jwtToken = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '5h' }
           );
 
           // Save the JWT in the database
@@ -99,7 +99,7 @@ const configureGoogleLogin = () => {
         const jwtToken = jwt.sign(
           { id: user._id, email: user.email, role: user.role },
           process.env.JWT_SECRET,
-          { expiresIn: '1h' }
+          { expiresIn: '5h' }
         );
 
         // Return the JWT token along with user details to the frontend

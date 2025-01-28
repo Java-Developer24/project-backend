@@ -56,7 +56,7 @@ export const signup = async (req, res) => {
     await newUser.save();
 
     // Generate email verification token
-    const verificationToken = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const verificationToken = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '5h' });
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
     // Send verification email
@@ -138,7 +138,7 @@ export const verifyEmail = async (req, res) => {
     // Mark as verified
     user.isVerified = true;
    // Generate JWT token for verified user
-     const jwtToken = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+     const jwtToken = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '5h' });
 // Save the token in the database
     user.jwtToken = jwtToken;
 await user.save();
@@ -181,7 +181,7 @@ export const login = async (req, res) => {
      const jwtToken = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '6h' }
     );
 
     // Save the token in the database
@@ -248,7 +248,7 @@ export const adminLogin = async (req, res) => {
     const token = jwt.sign(
       { email: admin.email, id: admin._id }, // Payload
       JWT_SECRET, // Secret key
-      { expiresIn: '1h' } // Token expiration time
+      { expiresIn: '5h' } // Token expiration time
     );
     console.log(token)
     // Save the token in the database by replacing the existing token

@@ -151,6 +151,14 @@ const processQueue = async () => {
   
   
         case "4":
+          const response4parts = responseData.split(":");
+  
+          return {
+            id: response4parts[1],
+            number: response4parts[2].substring(2),
+          };
+  
+        case "5":
           const response5parts = responseData.split(":");
   
           return {
@@ -158,7 +166,15 @@ const processQueue = async () => {
             number: response5parts[2].substring(2),
           };
   
-        case "5":
+        case "7":
+          const response7parts = responseData.split(":");
+  
+          return {
+            id: response7parts[1],
+            number: response7parts[2].substring(2),
+          };
+  
+        case "6":
           const response6parts = responseData.split(":");
   
           return {
@@ -166,29 +182,16 @@ const processQueue = async () => {
             number: response6parts[2].substring(2),
           };
   
-        case "7":
-          const response7Data = JSON.parse(responseData);
-          return {
-            id: response7Data.request_id,
-            number: response7Data.number.replace(/^91/, ""),
-          };
-  
-        case "6":
-          const response8Data = JSON.parse(responseData);
-          return {
-            id: response8Data.request_id,
-            number: response8Data.number.replace(/^91/, ""),
-          };
-  
-        case "8":
-          const responseDataJson = JSON.parse(responseData);
-  
-          const phoneData = responseDataJson.data.phoneNumber[0];
-          return {
-            id: phoneData.serialNumber,
-            number: phoneData.number.replace("+91", ""),
-          };
-         
+          case "8":
+            const responseDataJson = JSON.parse(responseData);
+            
+            const phoneData = responseDataJson.data.phoneNumber[0];
+            
+            return {
+              id: phoneData.serialNumber,
+              number: phoneData.number.replace("+91", ""),  // Remove country code (+91)
+            };
+          
         
   
   
@@ -245,8 +248,13 @@ const processQueue = async () => {
       if (!code || !api_key || !server) {
         return res
           .status(400)
-          .json({ error: "bad key or code missing or server number missing" });
+          .json({ error: "api key or code missing or server number missing" });
       }
+      const userapikey = await User.findOne({ apiKey:api_key });
+      if (!userapikey) {
+        return res.status(400).json({ error: "bad key or id missing" });
+      }
+  
       if (server === '8') {
         // Step 1: Retrieve the API details for server 8 from the database
         const serverData = await ServerData.findOne({ server: 8 });
@@ -305,6 +313,7 @@ const processQueue = async () => {
       const api_key_server = serverDatas.api_key;
   
       const serviceData = await getServerData(sname, server);
+      console.log("serverdata",serviceData)
       
       let price = parseFloat(serviceData.price);
   
@@ -393,7 +402,7 @@ const Id = uniqueID;
       await numberGetDetails({
         email: user.email,
         serviceName: sname,
-        code: serviceData.code,
+        code: serverdata.code,
         price,
         server,
         number,
@@ -532,7 +541,10 @@ const Id = uniqueID;
           .status(400)
           .json({ error: "bad key or id missing " });
       }
-
+      const userapikey = await User.findOne({ apiKey:api_key });
+      if (!userapikey) {
+        return res.status(400).json({ error: "bad key or id missing" });
+      }
       // Check if the transaction with the given Id exists and its status
     const transactions = await NumberHistory.findOne({ Id });
     console.log(transactions)
@@ -1002,7 +1014,10 @@ const Id = uniqueID;
           .status(400)
           .json({ error: "bad key or id missing " });
       }
-  
+      const userapikey = await User.findOne({ apiKey:api_key });
+      if (!userapikey) {
+        return res.status(400).json({ error: "bad key or id missing" });
+      }
       const transactions = await NumberHistory.findOne({ Id });
     console.log(transactions)
     if (!transactions) {
@@ -1042,6 +1057,9 @@ const Id = uniqueID;
         if (timeDifference < 2) {
           return res.status(400).json({ message: "wait 2 minutes" });
         }
+      }else if (otpReceivedforId) {
+        await Order.deleteOne({ numberId: id });
+        return res.status(200).json({ status: "Order Finished" });
       }
       
       const server=transaction.server
@@ -1094,7 +1112,7 @@ const Id = uniqueID;
           break;
   
         case "8":
-          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
+          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${transaction.number}`;
           break;
         
         default:
@@ -1240,6 +1258,7 @@ const Id = uniqueID;
             
             },
           );} else if (!responseData.startsWith("success") ){
+            console.log("otp received in response")
             otpReceived = true;
           }
           break;
@@ -1317,6 +1336,10 @@ const Id = uniqueID;
         return res
           .status(400)
           .json({ error: "bad key or id missing " });
+      }
+      const userapikey = await User.findOne({ apiKey:api_key });
+      if (!userapikey) {
+        return res.status(400).json({ error: "bad key or id missing" });
       }
   
       const transactions = await NumberHistory.findOne({ Id });

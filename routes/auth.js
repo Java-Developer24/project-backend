@@ -22,7 +22,7 @@ router.get(
     const jwtToken = jwt.sign(
       { id: req.user._id, email: req.user.email, role: req.user.role }, // Add ID and other user details
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '5h' }
     );
     
     req.user.jwtToken = jwtToken;
@@ -50,7 +50,7 @@ router.get(
     const jwtToken = jwt.sign(
       { id: req.user._id, email: req.user.email, role: req.user.role }, // Add ID and other user details
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '5h' }
     );
 
     req.user.jwtToken = jwtToken;

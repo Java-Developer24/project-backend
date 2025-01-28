@@ -345,6 +345,8 @@ export const blockUser = async (req, res) => {
     const updatePayload = {
       status: blocked ? 'blocked' : 'active',
       blocked: blocked, // Set blocked status as per the frontend request (true or false)
+      blocked_reason: blocked_reason || null, // Store the reason if blocked, otherwise null
+
     };
 
     // Set blocked_reason if the user is being blocked

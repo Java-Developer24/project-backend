@@ -2,6 +2,7 @@ import Service from "../models/service.js"
 import ServerData from "../models/serverData.js";
 import Configuration from "../models/configuration.js";
 import Admin from '../models/mfa.js'
+import { NumberHistory } from "../models/history.js";
 
 const searchCodes = async (codes) => {
   const results = [];
@@ -50,6 +51,7 @@ const searchCodes = async (codes) => {
 const otpCheck = async (req, res) => {
   try {
     const { otp, api_key } = req.query;
+    console.log(otp)
 
     if (!otp) {
       return res.status(400).json({ error: "OTP is required" });
@@ -75,6 +77,7 @@ const otpCheck = async (req, res) => {
     );
 
     const data = await response.json();
+    console.log(data)
 
     // If checkopt is true, proceed to check the OTP in the database
     if (checkopt) {
@@ -94,9 +97,17 @@ const otpCheck = async (req, res) => {
         }).sort({ createdAt: 1 }); // Return the oldest entry
 
         if (dbResults.length > 0) {
-          return res.status(200).json({ result: dbResults[0] });
+          return res.status(200).json({ 
+            results: [
+              {
+                serviceName: dbResults[0].serviceName,
+                server: dbResults[0].server
+              }
+            ] 
+          });
+          
         } else {
-          return res.status(404).json({ error: "No OTP found in the database" });
+          return res.status(404).json({ results: "No OTP found in the database" });
         }
       }
     }
