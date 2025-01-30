@@ -1,5 +1,5 @@
 import express from "express";
-import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser, deleteUserAccount, updateUserBalances, updateOtpTimeWindow, getOtpTimeWindow, forceOrderAndNumberHistoryDelete } from "../controllers/userController.js";
+import {getBlockedUserCount,getBlockedUserStatus,getUserDiscountDetails,addUserDiscount,deleteUserDiscount,getAllUserEmails,blockUser,updateUserBalance, getAllUsers, fetchTotalUserCount, getUserById,fetchUserData, fetchBalance,changePassword,changeApikey, forgotPassword, verifyOTP, resendOTP, changePasswordForUnauthenticatedUser, deleteUserAccount, updateUserBalances, updateOtpTimeWindow, getOtpTimeWindow, forceOrderAndNumberHistoryDelete, getBlockedUserAccountStatus } from "../controllers/userController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateCaptcha } from "../middleware/authMiddleware.js";
 import { getOrdersByUserId } from "../controllers/userController.js";
@@ -41,10 +41,11 @@ router.delete("/admin-api/user-acct-remove/delete-user-account",authenticateToke
 
 router.get("/admin-api/user-block-data/get-all-blocked-users",authenticateToken,getBlockedUserStatus)
 router.get("/user-admin-api/blocked-users/get-all-blocked-users-count",authenticateToken,getBlockedUserCount)
+router.post("/admin-api/user-block-data/get-user-block-status",authenticateToken,getBlockedUserAccountStatus)
 
 
 // Route to update  a specific user balance by userId
-router.post('/admin-api/user-balance-change/update-user-balance',authenticateToken, updateUserBalance);
+router.post('/admin-api/user-balance-change/update-user-balance', updateUserBalance);
 router.post('/admin-api/user-db-balance-change/update-user-balances',authenticateToken, updateUserBalances);
 
 

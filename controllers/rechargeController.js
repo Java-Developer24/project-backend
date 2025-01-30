@@ -106,17 +106,7 @@ const handleUpiRequest = async (req, res) => {
       }
     );
 
-    const ipDetails = await getIpDetails(req);
-    const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
-    const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-
-    await upiRechargeTeleBot({
-      email,
-      amount: data.amount,
-      trnId: data.txnid,
-      userId,
-      ip: ipDetailsString,
-    });
+    
 
     if (!rechargeHistoryResponse.ok) {
       const errorDetails = await rechargeHistoryResponse.json();
@@ -128,6 +118,23 @@ const handleUpiRequest = async (req, res) => {
       $inc: { balance: data.amount },
     });
 
+
+    const ipDetails = await getIpDetails(req);
+    const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+    const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+    const balance=await User.findOne( { _id: userId });
+
+   
+
+    await upiRechargeTeleBot({
+      email,
+      amount: data.amount,
+      updatedBalance:balance.balance,
+      trnId: data.txnid,
+      userId,
+      ip: ipDetailsString,
+    });
     return res.status(200).json({
       message: ` ${data.amount}\u20B9 Added Successfully!`,
     });
@@ -267,7 +274,7 @@ export const handleTrxRequest = async (req, res) => {
       const balance=await User.findById({_id:userId})
       const ipDetails = await getIpDetails(req);
       const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
-
+      
       await trxRechargeTeleBot({
         email,
         userId,

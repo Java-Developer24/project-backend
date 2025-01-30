@@ -131,7 +131,7 @@ const startIntervalJob = async () => {
       console.log(`Running scheduled task: fetchAndStoreServices every ${minute} minute(s)`);
       await fetchAndStoreServices(); // Your function that fetches and stores data
     }, intervalInMilliseconds);  // This will run every `minute` interval
-
+ 
     console.log(`Cron job started and will run every ${minute} minutes.`);
   } catch (error) {
     console.error('Error starting interval job:', error);

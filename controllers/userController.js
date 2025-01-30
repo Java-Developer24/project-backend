@@ -686,6 +686,38 @@ export const getBlockedUserStatus = async (req, res) => {
   }
 };
 
+export const getBlockedUserAccountStatus = async (req, res) => {
+  try {
+    const { userId } = req.body; // Get userId from request payload
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    // Find the blocked user with the given ID
+    const blockedUser = await User.findOne({ _id: userId, status: "blocked" });
+
+    if (!blockedUser) {
+      return res.status(404).json([]);
+    }
+
+    // Format response as an array with required details
+    const response = [
+      {
+        email: blockedUser.email,
+        blocked_reason: blockedUser.blocked_reason || "No reason provided",
+      },
+    ];
+
+    return res.status(200).json(response);
+
+  } catch (error) {
+    console.error("Error fetching blocked user status:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 export  const getBlockedUserCount=async (req, res) => {
   try {
     // Fetch the count of users with the 'blocked' status
@@ -704,7 +736,7 @@ export const getOrdersByUserId = async (req, res) => {
   try {
     const orders = await Order.find({ userId })
       .sort({ orderTime: -1 })
-      .select('-_id -__v -numberId'); // Exclude _id, __v, and numberId fields
+      .select('-__v -numberId'); // Exclude _id, __v, and numberId fields
 
     res.status(200).json(orders);
   } catch (error) {

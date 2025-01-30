@@ -243,7 +243,7 @@ const processQueue = async () => {
   
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { code, api_key, server,otpType} = req.query;
+      const { code, api_key, server} = req.query;
   
       if (!code || !api_key || !server) {
         return res
@@ -395,10 +395,12 @@ const Id = uniqueID;
         date_time: formattedDateTime,
       });
       await numberHistory.save();
-  
+  console.log("serviceData code",serviceData.code)
+  const balance=await User.findOne( { _id: user._id });
+  console.log("remaining balance",balance.balance)
       const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-  
+      const userBalance= await User.findOne({ apiKey:api_key });
       await numberGetDetails({
         email: user.email,
         serviceName: sname,
@@ -406,13 +408,18 @@ const Id = uniqueID;
         price,
         server,
         number,
-        balance: user.balance,
+        balance: balance.balance,
         ip: ipDetailsString,
       });
   
       const expirationTime = new Date();
-      expirationTime.setMinutes(expirationTime.getMinutes() + 20);
-      console.log(expirationTime)
+      // Check if it's server 7, set 10 minutes; otherwise, set 20 minutes
+      console.log("server",server)
+      const expirationMinutes = server === "7" ? 10 : 20;
+      console.log("expirationMinutes",expirationMinutes)
+      const expirationTimeUTC =expirationTime.setMinutes(expirationTime.getMinutes() + expirationMinutes);
+      const expirationTimeIST = moment(expirationTimeUTC).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+      console.log("expirationTimeUTC converted ",expirationTimeIST)
   
       const newOrder = new Order({
         userId: user._id,
@@ -869,7 +876,7 @@ const Id = uniqueID;
 
         // Pass the destructured IP details to the numberGetDetails function as a multiline string
         const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-
+console.log("service code form otp",serviceData.code)
         await otpGetDetails({
           email: userData.email,
           serviceName: transaction.serviceName,
@@ -1066,8 +1073,9 @@ const Id = uniqueID;
         await Order.deleteOne({ numberId: id });
         return res.status(200).json({ status: "Order Finished" });
       }
-      
+      const sname=transactions.serviceName
       const server=transaction.server
+      const serviceData = await getServerData(sname, server);
       console.log(server)
       const serverData = await ServerData.findOne({ server });
   
@@ -1311,13 +1319,17 @@ const Id = uniqueID;
           );
         
         }
+        const balance=await User.findOne( { _id: user._id });
+        console.log("service data code from cancel",serviceData.code)
+        console.log("balance after cancel", balance.balance)
         await numberCancelDetails({
           email: userData.email,
           serviceName: transaction.serviceName,
+          code: serviceData.code,
           price: transaction.price,
           server,
           number: transaction.number,
-          balance: user.balance.toFixed(2),
+          balance: balance.balance.toFixed(2),
           ip: ipDetailsString,
         });
   
@@ -1632,7 +1644,7 @@ const Id = uniqueID;
           price: transaction.price,
           server,
           number: transaction.number,
-          balance: balance.balance,
+          balance: balance.balance.toFixed(2),
           ip: ipDetailsString,
         });
   

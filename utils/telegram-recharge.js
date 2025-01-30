@@ -57,6 +57,7 @@ export const upiRechargeTeleBot = async ({
   userId,
   trnId,
   amount,
+  updatedBalance,
   ip,
 }) => {
   try {
@@ -68,7 +69,7 @@ export const upiRechargeTeleBot = async ({
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Amount  => ${amount}\u20B9\n\n`;
-    result += `Updated Balance  => ${balance.balance}\u20B9\n\n`;
+    result += `Updated Balance  => ${updatedBalance}\u20B9\n\n`;
     result += `IP Details => ${ip}\n\n`;
     result += `Txn Id => ${trnId}\n\n`;
 
@@ -99,11 +100,11 @@ export const adminRechargeTeleBot = async ({
   ip,
 }) => {
   try {
-    const balance = await User.findOne({ _id: userId });
-    if (!balance) {
-      console.error(`User with ID ${userId} not found.`);
-      throw new Error("User not found");
-    }
+    // const balance = await User.findOne({ _id: userId });
+    // if (!balance) {
+    //   console.error(`User with ID ${userId} not found.`);
+    //   throw new Error("User not found");
+    // }
 
     const formattedDate = moment().format("DD-MM-YYYY hh:mm:ssa");
 
