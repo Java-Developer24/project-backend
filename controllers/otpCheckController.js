@@ -195,5 +195,68 @@ export const getOtpcheck= async (req, res) => {
   }
 };
 
+const otpCheckv1 = async (req, res) => {
+  try {
+    const { otp, api_key } = req.query;
+    if (!otp) return res.status(400).json({ error: "OTP is required" });
+    if (!api_key) return res.status(400).json({ error: "Api Key is required" });
+
+    // Fetch admin settings
+    const adminSettings = await Admin.findOne({});
+    if (!adminSettings) return res.status(500).json({ error: "Admin settings not found" });
+
+    const checkopt = adminSettings.checkOtp;
+
+    // Fetch server data for external API
+    const serverData = await ServerData.findOne({ server: 1 });
+    if (!serverData) return res.status(500).json({ error: "Server settings not found" });
+
+    // Extract OTP format (Example: "123456" → "XXXXXX")
+    const otpFormat = otp.replace(/\d/g, "X");
+
+    // **Step 1: Fetch from external service**
+    let externalResults = [];
+    try {
+      const encodedOtp = encodeURIComponent(otp);
+      const response = await fetch(
+        `https://fastsms.su/stubs/handler_api.php?api_key=${serverData.api_key}&action=getOtp&sms=${encodedOtp}`
+      );
+
+      const data = await response.text(); // Fetch as text to handle all cases
+      console.log("External API response:", data);
+
+      if (Array.isArray(data)) {
+        externalResults = data.map((part) => part.replace(/\d/g, "X").trim());
+      }
+    } catch (error) {
+      console.warn("External API failed, proceeding with DB results only.");
+    }
+
+    // **Step 2: Fetch from database (excluding exact OTP)**
+    const dbResults = await NumberHistory.find({
+      otp: { $ne: otp }, // Exclude the exact OTP
+      otpFormat: otpFormat, // Search based on format
+    }).sort({ createdAt: 1 });
+
+    const dbResponse = dbResults.map((entry) => ({
+      serviceName: entry.serviceName,
+      server: entry.server,
+    }));
+
+    // **Step 3: Merge both results**
+    let finalResults = [...new Set([...externalResults, ...dbResponse])];
+
+    if (finalResults.length > 0) {
+      return res.status(200).json({ results: finalResults });
+    } else {
+      return res.status(404).json({ error: "No OTPs found" });
+    }
+  } catch (error) {
+    console.error("[OtpCheck] Error:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+};
+
+
 
   export default otpCheck;
