@@ -89,7 +89,7 @@ const getServer6Balance = async () => {
       `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
     );
     const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: "p" };
+    return { balance: parseFloat(parts[1]), currency: "$" };
   } catch (error) {
     console.error("Error fetching Server 6 balance:", error.message);
     return {};
