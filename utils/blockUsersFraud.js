@@ -6,8 +6,7 @@ import { Order } from "../models/order.js";
 import User from "../models/user.js";
 
 
-
-const processUser = async (user) => {
+const processUser = async (user,ipDetails) => {
   try {
     console.log(`[ProcessUser] Starting processing for user ${user._id}.`);
 
@@ -94,6 +93,7 @@ const processUser = async (user) => {
         currentBalance: userbalance.balance.toFixed(2),
         fraudAmount: fraudAmount.toFixed(2),
         reason: "Due to Fraud",
+        ip:ipDetails
       });
       console.log(`[ProcessUser] User ${user._id} block details sent to Telegram.`);
     }
@@ -103,7 +103,7 @@ const processUser = async (user) => {
 };
 
 
-const blockUserIfFraudulentById = async (userId) => {
+const blockUserIfFraudulentById = async (userId,ipDetails) => {
   try {
     console.log(`[FraudCheck] Checking user ${userId} for fraud.`);
     const user = await User.findById(userId);
@@ -111,7 +111,7 @@ const blockUserIfFraudulentById = async (userId) => {
       console.log(`[FraudCheck] User ${userId} not found.`);
       return;
     }
-    await processUser(user);
+    await processUser(user,ipDetails);
     console.log(`[FraudCheck] Fraud check completed for user ${userId}.`);
   } catch (error) {
     console.error("[FraudCheck] Error in blockUserIfFraudulentById:", error);
@@ -119,7 +119,7 @@ const blockUserIfFraudulentById = async (userId) => {
   }
 };
 
-export const runFraudCheck = async (userId) => {
+export const runFraudCheck = async (userId,ipDetails) => {
   try {
     console.log("[FraudCheck] Checking for 'User_Fraud' block type.");
     // Checking for "User_Fraud" block type
@@ -132,7 +132,7 @@ export const runFraudCheck = async (userId) => {
       if (checkForBlock.status) {
         console.log("[FraudCheck] Block type is inactive. Initiating user blocking process.");
         // Call the function for a specific user instead of batch
-        await blockUserIfFraudulentById(userId);
+        await blockUserIfFraudulentById(userId,ipDetails);
       } else {
         console.log("[FraudCheck] Block type is active. No action taken.");
       }

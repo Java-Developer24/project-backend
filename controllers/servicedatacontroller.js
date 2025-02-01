@@ -295,7 +295,7 @@ const processQueue = async () => {
   
       const user = await User.findOne({apiKey: api_key });
        // Run fraud check for the user before proceeding
-    await runFraudCheck(user._id);  // Pass the userId to the fraud check function
+    await runFraudCheck(user._id,ipDetails);  // Pass the userId to the fraud check function
       if (!user) {
         return res.status(400).json({ error: "Invalid API key." });
       }
