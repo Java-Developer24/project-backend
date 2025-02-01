@@ -124,14 +124,14 @@ const handleUpiRequest = async (req, res) => {
     const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
 
     const balance=await User.findOne( { _id: userId });
-
-   
-
+    console.log("data",data)
+    console.log("data.txnid",data.txnid)
+    console.log("transactionId",transactionId)
     await upiRechargeTeleBot({
       email,
       amount: data.amount,
       updatedBalance:balance.balance,
-      trnId: data.txnid,
+      trnId: transactionId,
       userId,
       ip: ipDetailsString,
     });
@@ -283,7 +283,7 @@ export const handleTrxRequest = async (req, res) => {
         amount: amountInInr,
         balance:balance.balance,
         address: user.trxWalletAddress,
-        sendTo: user.trxPrivateKey,
+        sendTo: process.env.OWNER_WALLET_ADDRESS,
         Status:transferResponse.data.status ,
         transactionHash,
         ip: ipDetailsString,

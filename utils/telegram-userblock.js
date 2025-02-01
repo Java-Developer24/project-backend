@@ -19,7 +19,7 @@ export const userBlockDetails = async ({ email, totalRecharge, usedBalance,toBeB
 
     // Send the message via Telegram Bot API
     const response = await fetch(
-      `https://api.telegram.org/bot7473802609:6868379504:AAFCrDg-8TrIRkTs2xu4y2KWrDBjpBI05tc/sendMessage?chat_id=6769991787&text=${encodedResult}`
+      `https://api.telegram.org/bot6868379504:AAFCrDg-8TrIRkTs2xu4y2KWrDBjpBI05tc/sendMessage?chat_id=6769991787&text=Hey${encodedResult}`
     
     );
     if (!response.ok) {

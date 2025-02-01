@@ -8,8 +8,8 @@ import ServerData from "../models/serverData.js";
 
 
 const get24HoursAgo = () => {
-  const end = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm A"); // Current time
-  const start = moment().tz("Asia/Kolkata").subtract(24, "hours").format("DD/MM/YYYY HH:mm A"); // 24 hours ago
+  const start = moment().tz("Asia/Kolkata").startOf("day").format("DD/MM/YYYY HH:mm A"); // Today 12:00 AM
+  const end = moment().tz("Asia/Kolkata").endOf("day").format("DD/MM/YYYY HH:mm A"); // Today 11:59 PM
   console.log("Time range for query:", { start, end });
   return { start, end };
 };
@@ -66,7 +66,7 @@ const getServerBalance = async (server, apiKey) => {
         break;
       case 6:
       url = `https://api.sms-activate.guru/stubs/handler_api.php?api_key=${apiKey}&action=getBalance`;
-      currency = "p"; // currency symbol for server 7 and 8
+      currency = "$"; // currency symbol for server 7 and 8
       break;
       case 7:
       url=`https://smsbower.online/stubs/handler_api.php?api_key=${apiKey}&action=getBalance `;

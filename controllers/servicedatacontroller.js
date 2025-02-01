@@ -1062,7 +1062,8 @@ console.log("service code form otp",serviceData.code)
       
       // Skip the time difference check if OTP exists
       if (otpReceivedforId === null || otpReceivedforId === undefined) {
-        const transactionTime = moment.tz(transaction.date_time, "DD/MM/YYYY HH:mm", "Asia/Kolkata");
+        const transactionTime = moment.tz(transaction.date_time, "DD/MM/YYYY HH:mm:ss A", "Asia/Kolkata");
+
         const currentTime = moment.tz("Asia/Kolkata");
         const timeDifference = currentTime.diff(transactionTime, 'minutes');
         
