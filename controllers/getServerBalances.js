@@ -103,7 +103,7 @@ const getServer8Balance = async () => {
       "https://own5k.in/p/ccpay.php?type=balance"
     );
     
-    return { balance: parseFloat(response.data), currency: "p" };
+    return { balance: parseFloat(response.data), currency: "$" };
   } catch (error) {
     console.error("Error fetching Server 8 balance:", error.message);
     return {};
@@ -120,7 +120,7 @@ const getServer7Balance = async () => {
     );
     console.log(response)
     const parts = response.data.split(":");
-    return { balance: parseFloat(parts[1]), currency: "$" };
+    return { balance: parseFloat(parts[1]), currency: "p" };
   } catch (error) {
     console.error("Error fetching Server 7 balance:", error.message);
     return {"balance": null,
