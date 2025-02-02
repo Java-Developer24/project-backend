@@ -68,12 +68,12 @@ router.post('/validateToken', validateAuthRoutes);
 
 
 
-router.post('/signup',signup);
+router.post('/signup',validateCaptcha,signup);
 
 
 // Login Route
 
-router.post('/login', login);
+router.post('/login',validateCaptcha, login);
 
 router.post("/admin-api/admin-user-login/admin-login",adminLogin)
 

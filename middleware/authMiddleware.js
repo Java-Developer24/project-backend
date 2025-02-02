@@ -9,7 +9,7 @@ export const validateCaptcha = async (req, res, next) => {
     return res.status(400).json({ message: "Captcha is required." });
   }
 
-  const secretKey = "0x4AAAAAAA1Y9sni0xFIWixrIm8PsCkGq9Q";
+  const secretKey = "0x4AAAAAAA7JkWFceZas3LLLE-6qJWuzZ-M";
 
   try {
     // Create a URLSearchParams object to encode the data as x-www-form-urlencoded
