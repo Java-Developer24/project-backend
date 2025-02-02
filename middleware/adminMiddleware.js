@@ -10,16 +10,19 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
+// Extract IP from 'X-Forwarded-For' (Cloudflare and others)
+let ip = req.headers['x-forwarded-for'] 
+    ? req.headers['x-forwarded-for'].split(',').pop().trim() // Get the last IP from the chain
+    : req.connection.remoteAddress; // Fallback if header doesn't exist
 
-    const ip = req.headers["x-forwarded-for"]
-    ? req.headers["x-forwarded-for"].split(",")[0].trim()
-    : req.socket.remoteAddress; // Fallback to socket remote address
-  
-  // Convert IPv6-mapped IPv4 addresses (e.g., "::ffff:14.192.3.193") to pure IPv4
-  if (ip.includes("::ffff:")) {
-    ip = ip.split("::ffff:")[1];
-  }
-  
+// Normalize IPv6 if necessary
+if (ip.startsWith('::ffff:')) {
+    ip = ip.split('::ffff:')[1];  // Convert IPv6-mapped IPv4 to pure IPv4
+}
+
+console.log("Client IP:", ip);  // Log the real client IP (IPv6 or IPv4)
+req.clientIp = ip;  // Store the IP in req.clientIp
+
  
       
 req.clientIp = ip;
