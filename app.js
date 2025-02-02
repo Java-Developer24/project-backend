@@ -45,7 +45,10 @@ app.use(
       "https://testing-frontend-app.vercel.app",
       "https://frontendapp.tech-developer.online",
       "https://admin-dashboard.tech-developer.online",
-      "https://obscure-guide-p5x7gqwq496f4vp-5173.app.github.dev"
+      "https://obscure-guide-p5x7gqwq496f4vp-5173.app.github.dev",
+      "https://paidsms.org",
+      "http://paidsms.org",
+      "https://babricebin.paidsms.org"
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
