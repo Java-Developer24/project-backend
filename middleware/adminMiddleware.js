@@ -10,38 +10,38 @@ export const authenticateToken = async (req, res, next) => {
   }
 
   try {
-// Extract IP from 'X-Forwarded-For' (Cloudflare and others)
-let ip = req.headers['x-forwarded-for'] 
-    ? req.headers['x-forwarded-for'].split(',').pop().trim() // Get the last IP from the chain
-    : req.connection.remoteAddress; // Fallback if header doesn't exist
-    console.log("X-Forwarded-For:", req.headers['x-forwarded-for']);
-// Normalize IPv6 if necessary
-if (ip.startsWith('::ffff:')) {
-    ip = ip.split('::ffff:')[1];  // Convert IPv6-mapped IPv4 to pure IPv4
-}
+// // Extract IP from 'X-Forwarded-For' (Cloudflare and others)
+// let ip = req.headers['x-forwarded-for'] 
+//     ? req.headers['x-forwarded-for'].split(',').pop().trim() // Get the last IP from the chain
+//     : req.connection.remoteAddress; // Fallback if header doesn't exist
+//     console.log("X-Forwarded-For:", req.headers['x-forwarded-for']);
+// // Normalize IPv6 if necessary
+// if (ip.startsWith('::ffff:')) {
+//     ip = ip.split('::ffff:')[1];  // Convert IPv6-mapped IPv4 to pure IPv4
+// }
 
-console.log("Client IP:", ip);  // Log the real client IP (IPv6 or IPv4)
-req.clientIp = ip;  // Store the IP in req.clientIp
+// console.log("Client IP:", ip);  // Log the real client IP (IPv6 or IPv4)
+// req.clientIp = ip;  // Store the IP in req.clientIp
 
  
       
-req.clientIp = ip;
+// req.clientIp = ip;
   
-    console.log("middlewareip",ip)
+//     console.log("middlewareip",ip)
 
-    // Step 2: Fetch the `apiAdminIp` from the Admin collection
-    const admin = await Admin.findOne({ /* Your query to identify the admin */ });
+//     // Step 2: Fetch the `apiAdminIp` from the Admin collection
+//     const admin = await Admin.findOne({ /* Your query to identify the admin */ });
 
-    if (!admin) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
-    }
+//     if (!admin) {
+//       return res.status(404).json({ success: false, message: 'Admin not found' });
+//     }
 
-    const apiAdminIp = admin.apiAdminIp; // Assuming `apiAdminIp` is stored in the Admin model
+//     const apiAdminIp = admin.apiAdminIp; // Assuming `apiAdminIp` is stored in the Admin model
 
-    // Step 3: Compare the Request IP with the `apiAdminIp`
-    if (req.clientIp !== apiAdminIp) {
-      return res.status(403).json({ success: false, message: 'Access Denied: IP not authorized' });
-    }
+//     // Step 3: Compare the Request IP with the `apiAdminIp`
+//     if (req.clientIp !== apiAdminIp) {
+//       return res.status(403).json({ success: false, message: 'Access Denied: IP not authorized' });
+//     }
 
     // Step 4: Verify the token
     const verified = jwt.verify(token, JWT_SECRET);
