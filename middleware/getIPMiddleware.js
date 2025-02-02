@@ -5,6 +5,7 @@ export const captureIpMiddleware = (req, res, next) => {
 
   // Store the IP in a custom property
   req.clientIp = ip;
+  console.log("mobile IP",req.clientIp)
 
   next(); // Call the next middleware or route handler
 };
