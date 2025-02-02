@@ -51,7 +51,7 @@ passport.use(
 
           // Generate JWT token after signup
           const jwtToken = jwt.sign(
-            { id: user._id, email: user.email, role: user.role },
+            { id: user._id, email: user.email, role: user.role, loginType: 'google' },
             process.env.JWT_SECRET,
             { expiresIn: '5h' }
           );
@@ -97,7 +97,7 @@ const configureGoogleLogin = () => {
 
         // If user exists, generate a JWT token for the login
         const jwtToken = jwt.sign(
-          { id: user._id, email: user.email, role: user.role },
+          { id: user._id, email: user.email, role: user.role,loginType: 'google' },
           process.env.JWT_SECRET,
           { expiresIn: '5h' }
         );
