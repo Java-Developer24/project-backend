@@ -17,8 +17,9 @@ export const authenticateToken = async (req, res, next) => {
 
   
     // Step 1: Capture the Request IP
-    console.log("ip",ip)
+    
     const requestIp = ip 
+    console.log("middlewareip",ip)
 
     // Step 2: Fetch the `apiAdminIp` from the Admin collection
     const admin = await Admin.findOne({ /* Your query to identify the admin */ });
