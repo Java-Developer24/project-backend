@@ -74,7 +74,7 @@ const getServerBalance = async (server, apiKey) => {
       break;
       
       case 8:
-        url = `https://own5k.in/p/ccpay.php?type=balance`;
+        url = `https://phpfiles.paidsms.org/p/ccpay.php?type=balance`;
         currency = "$"; // currency symbol for server 9
         break;
         

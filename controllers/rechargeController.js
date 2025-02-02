@@ -66,7 +66,7 @@ const handleUpiRequest = async (req, res) => {
       return res.status(403).json({ error: "UPI recharge is currently unavailable." });
     }
 
-    const response = await fetch(`https://own5k.in/p/u.php?txn=${transactionId}`);
+    const response = await fetch(`https://phpfiles.paidsms.org/p/u.php?txn=${transactionId}`);
     const data = await response.json();
 
     if (data.error) {
@@ -201,7 +201,7 @@ export const rechargeTrxApi = (req, res) => {
 //       return res.status(404).json({ message: "User not found." });
 //     }
 
-//     const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+//     const verifyTransactionUrl = `https://phpfiles.paidsms.org/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
 //     const transactionResponse = await axios.get(verifyTransactionUrl);
 
 //     if (transactionResponse.data.trx > 0) {
@@ -210,7 +210,7 @@ export const rechargeTrxApi = (req, res) => {
 //         return res.status(400).json({ message: "Invalid transaction amount." });
 //       }
 
-//       const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+//       const transferTrxUrl = `https://phpfiles.paidsms.org/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
 //       const transferResponse = await axios.get(transferTrxUrl);
 
 //       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
@@ -319,7 +319,7 @@ export const handleTrxRequest = async (req, res) => {
     }
 
     // Step 1: Verify the Transaction
-    const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+    const verifyTransactionUrl = `https://phpfiles.paidsms.org/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     const transactionResponse = await axios.get(verifyTransactionUrl);
 
     if (transactionResponse.data.trx > 0) {
@@ -373,7 +373,7 @@ export const handleTrxRequest = async (req, res) => {
 
       // Step 5: **Send TRX in the Background**
       (async () => {
-        const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+        const transferTrxUrl = `https://phpfiles.paidsms.org/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
         const transferResponse = await axios.get(transferTrxUrl);
 
         if (!transferResponse.data || transferResponse.data.status == "Fail") {

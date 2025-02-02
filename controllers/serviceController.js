@@ -83,14 +83,14 @@ const sortServicesByName = (services) => {
 
 
 const endpoints = [
-  "https://own5k.in/p/fastsms.php",
-  "https://own5k.in/p/5sim.php",
-  "https://own5k.in/p/smshub.php",
-  "https://own5k.in/p/grizzlysms.php",
-  "https://own5k.in/p/tempnumber.php",
-  "https://own5k.in/p/smsactivate.php",
-  "https://own5k.in/p/smsbower.php",
-  "https://own5k.in/p/cpay.php"
+  "https://phpfiles.paidsms.org/p/fastsms.php",
+  "https://phpfiles.paidsms.org/p/5sim.php",
+  "https://phpfiles.paidsms.org/p/smshub.php",
+  "https://phpfiles.paidsms.org/p/grizzlysms.php",
+  "https://phpfiles.paidsms.org/p/tempnumber.php",
+  "https://phpfiles.paidsms.org/p/smsactivate.php",
+  "https://phpfiles.paidsms.org/p/smsbower.php",
+  "https://phpfiles.paidsms.org/p/cpay.php"
 ];
 
 const callEndpoint = async (url) => {
@@ -109,18 +109,18 @@ const callEndpoint = async (url) => {
 
 
  
-// Fetch and store services with proper margin and exchange rate application
-const fetchAndStoreServices = async (req, res) => {
+// Core logic (can be used in both background and API routes)
+const fetchAndStoreServicesCore = async () => {
   console.time("fetchAndStoreServices");
 
   try {
     // Fetch the latest services data directly
-    const response = await fetchDataWithRetry('https://own5k.in/p/final.php');
+    const response = await fetchDataWithRetry('https://phpfiles.paidsms.org/p/final.php');
     const servicesData = response;
 
     if (!Array.isArray(servicesData)) {
       console.error("Fetched data is not an array");
-      return res.status(400).json({ message: "Invalid data format" });
+      return { success: false, message: "Invalid data format" };
     }
 
     // Loop through and update each service in the database
@@ -166,15 +166,27 @@ const fetchAndStoreServices = async (req, res) => {
     }
 
     console.log('Services fetched and stored successfully');
-    res.status(200).json({ message: "Services fetched and stored successfully" });
-
+    return { success: true, message: "Services fetched and stored successfully" };
+    
   } catch (error) {
     console.error("Error fetching and storing services:", error);
-    res.status(500).json({ message: "Error fetching services" });
+    return { success: false, message: "Error fetching services" };
   }
 
   console.timeEnd("fetchAndStoreServices");
 };
+
+// API route handler
+ const fetchAndStoreServices = async (req, res) => {
+  const result = await fetchAndStoreServicesCore();
+
+  if (result.success) {
+    return res.status(200).json({ message: result.message });
+  } else {
+    return res.status(500).json({ message: result.message });
+  }
+};
+
 
 // Function to find duplicates in the database
 const findDuplicates = async (Model) => {
@@ -276,7 +288,7 @@ const updateServiceCodes = async () => {
   
     try {
       console.time("axios.get");
-      const response = await axios.get('https://own5k.in/p/final.php', { timeout: 10000 });
+      const response = await axios.get('https://phpfiles.paidsms.org/p/final.php', { timeout: 10000 });
       console.timeEnd("axios.get");
   
       const servicesData = response.data;
@@ -1181,6 +1193,7 @@ export const getMaintenanceStatusForServer = async (req, res) => {
 
 export default {
     fetchAndStoreServices,
+    fetchAndStoreServicesCore,
     getUserServicesDatas,
     getUserServicesDataAdmin,
     getUserServicesData,

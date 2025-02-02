@@ -137,8 +137,14 @@ const startIntervalJob = async () => {
     intervalId = setInterval(async () => {
       console.log(`Running scheduled task: fetchAndStoreServices every ${minute} minute(s)`);
       // Access the function from the object
-const { fetchAndStoreServices } = serviceController;
-      await fetchAndStoreServices(); // Your function that fetches and stores data
+const { fetchAndStoreServicesCore } = serviceController;
+     const results= await fetchAndStoreServicesCore(); 
+      if (result.success) {
+        console.log("Successfully fetched and stored services");
+      } else {
+        console.error("Error fetching services:", result.message);
+      }
+    // Your function that fetches and stores data
     }, intervalInMilliseconds);  // This will run every `minute` interval
  
     console.log(`Cron job started and will run every ${minute} minutes.`);
