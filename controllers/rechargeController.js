@@ -322,7 +322,7 @@ export const handleTrxRequest = async (req, res) => {
     }
 
     // Step 1: Verify the Transaction
-    const verifyTransactionUrl = `https://phpfiles.paidsms.org/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+    const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     console.log("Verifying transaction with URL:", verifyTransactionUrl);
     const transactionResponse = await axios.get(verifyTransactionUrl);
     console.log("Transaction verification response:", transactionResponse.data);
@@ -384,7 +384,7 @@ export const handleTrxRequest = async (req, res) => {
       // Step 5: **Send TRX in the Background**
       console.log("Initiating TRX transfer in the background.");
       (async () => {
-        const transferTrxUrl = `https://phpfiles.paidsms.org/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+        const transferTrxUrl = `https://phpfiles.paidsms.org/p/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
         const transferResponse = await axios.get(transferTrxUrl);
         console.log("TRX transfer response:", transferResponse.data);
 
