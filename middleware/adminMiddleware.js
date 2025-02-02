@@ -14,7 +14,7 @@ export const authenticateToken = async (req, res, next) => {
 let ip = req.headers['x-forwarded-for'] 
     ? req.headers['x-forwarded-for'].split(',').pop().trim() // Get the last IP from the chain
     : req.connection.remoteAddress; // Fallback if header doesn't exist
-
+    console.log("X-Forwarded-For:", req.headers['x-forwarded-for']);
 // Normalize IPv6 if necessary
 if (ip.startsWith('::ffff:')) {
     ip = ip.split('::ffff:')[1];  // Convert IPv6-mapped IPv4 to pure IPv4

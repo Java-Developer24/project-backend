@@ -48,7 +48,8 @@ app.use(
       "https://obscure-guide-p5x7gqwq496f4vp-5173.app.github.dev",
       "https://paidsms.org",
       "http://paidsms.org",
-      "https://babricebin.paidsms.org"
+      "https://babricebin.paidsms.org",
+      "http://babricebin.paidsms.org"
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
