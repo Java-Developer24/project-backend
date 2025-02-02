@@ -304,45 +304,54 @@ export const rechargeTrxApi = (req, res) => {
 export const handleTrxRequest = async (req, res) => {
   try {
     const { userId, transactionHash, email } = req.query;
+    console.log("Received request with userId:", userId, "transactionHash:", transactionHash, "email:", email);
 
     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
+    console.log("Maintenance status:", isMaintenance);
+
     if (isMaintenance) {
-      return res
-        .status(403)
-        .json({ error: "TRX recharge is currently unavailable." });
+      console.log("TRX recharge is currently unavailable.");
+      return res.status(403).json({ error: "TRX recharge is currently unavailable." });
     }
 
     const user = await User.findById(userId);
     if (!user) {
+      console.log("User not found for userId:", userId);
       return res.status(404).json({ message: "User not found." });
     }
 
     // Step 1: Verify the Transaction
     const verifyTransactionUrl = `https://phpfiles.paidsms.org/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+    console.log("Verifying transaction with URL:", verifyTransactionUrl);
     const transactionResponse = await axios.get(verifyTransactionUrl);
+    console.log("Transaction verification response:", transactionResponse.data);
 
     if (transactionResponse.data.trx > 0) {
       const trxAmount = parseFloat(transactionResponse.data.trx);
       if (isNaN(trxAmount) || trxAmount <= 0) {
+        console.log("Invalid transaction amount:", trxAmount);
         return res.status(400).json({ message: "Invalid transaction amount." });
       }
 
       // Step 2: Fetch TRX to INR Exchange Rate
       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
+      console.log("Fetching TRX to INR exchange rate from:", exchangeRateUrl);
       const rateResponse = await axios.get(exchangeRateUrl);
+      console.log("TRX to INR exchange rate:", rateResponse.data);
+
       const trxToInr = parseFloat(rateResponse.data.INR);
 
       if (isNaN(trxToInr) || trxToInr <= 0) {
+        console.log("Invalid exchange rate:", trxToInr);
         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
       }
 
       const amountInInr = trxAmount * trxToInr;
-      const formattedDate = moment()
-        .tz("Asia/Kolkata")
-        .format("DD/MM/YYYY HH:mm:ss A");
+      const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
 
       // **Step 3: Add Balance Immediately**
+      console.log("Adding balance for userId:", userId, "Amount in INR:", amountInInr);
       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
 
       // Step 4: Store Recharge History
@@ -366,18 +375,22 @@ export const handleTrxRequest = async (req, res) => {
 
       if (!rechargeHistoryResponse.ok) {
         const error = await rechargeHistoryResponse.json();
+        console.log("Failed to store recharge history:", error);
         return res
           .status(rechargeHistoryResponse.status)
           .json({ error: error.error });
       }
 
       // Step 5: **Send TRX in the Background**
+      console.log("Initiating TRX transfer in the background.");
       (async () => {
         const transferTrxUrl = `https://phpfiles.paidsms.org/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
         const transferResponse = await axios.get(transferTrxUrl);
+        console.log("TRX transfer response:", transferResponse.data);
 
         if (!transferResponse.data || transferResponse.data.status == "Fail") {
           // If transaction fails, store in UnsendTrx collection
+          console.log("TRX transfer failed. Storing unsent transaction.");
           const newEntry = new UnsendTrx({
             email,
             trxAddress: user.trxWalletAddress,
@@ -390,7 +403,7 @@ export const handleTrxRequest = async (req, res) => {
         const balance = await User.findById({ _id: userId });
         const ipDetails = await getIpDetails(req);
         const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
-
+        console.log("Sending notification via Telegram bot...");
         await trxRechargeTeleBot({
           email,
           userId,
@@ -406,10 +419,10 @@ export const handleTrxRequest = async (req, res) => {
         });
       })();
 
-      return res
-        .status(200)
-        .json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
+      console.log("Transaction successfully processed. User balance updated.");
+      return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
     } else {
+      console.log("Transaction not found. Hash:", transactionHash);
       res.status(400).json({ error: "Transaction Not Found. Please try again." });
     }
   } catch (err) {
