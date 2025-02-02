@@ -322,7 +322,7 @@ export const handleTrxRequest = async (req, res) => {
     }
 
     // Step 1: Verify the Transaction
-    const verifyTransactionUrl = `https://phpfiles.paidsms.org/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+    const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     console.log("Verifying transaction with URL:", verifyTransactionUrl);
     const transactionResponse = await axios.get(verifyTransactionUrl);
     console.log("Transaction verification response:", transactionResponse.data);
