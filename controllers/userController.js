@@ -745,7 +745,7 @@ export const getOrdersByUserId = async (req, res) => {
 };
 
 
-export const deleteUserAccount=async (req, res) => {
+export const deleteUserAccount = async (req, res) => {
   const { userId } = req.query;
 
   try {
@@ -761,9 +761,11 @@ export const deleteUserAccount=async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete associated data (if necessary)
-    await RechargeHistory.deleteMany({ _id: { $in: user.rechargeHistory } });
-    await NumberHistory.deleteMany({ _id: { $in: user.orderHistory } });
+    // Directly delete the user's recharge history from the RechargeHistory collection
+    await RechargeHistory.deleteMany({ userId: userId });
+
+    // Directly delete the user's order history from the NumberHistory collection
+    await NumberHistory.deleteMany({ userId: userId });
 
     // Delete the user
     await User.findByIdAndDelete(userId);

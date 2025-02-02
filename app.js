@@ -138,7 +138,7 @@ const startIntervalJob = async () => {
       console.log(`Running scheduled task: fetchAndStoreServices every ${minute} minute(s)`);
       // Access the function from the object
 const { fetchAndStoreServicesCore } = serviceController;
-     const results= await fetchAndStoreServicesCore(); 
+     const result= await fetchAndStoreServicesCore(); 
       if (result.success) {
         console.log("Successfully fetched and stored services");
       } else {
