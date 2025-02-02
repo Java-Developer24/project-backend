@@ -49,7 +49,6 @@ app.use(
       "https://paidsms.org",
       "http://paidsms.org",
       "https://babricebin.paidsms.org",
-      "http://babricebin.paidsms.org"
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
