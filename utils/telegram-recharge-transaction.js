@@ -232,6 +232,7 @@ export const getServerDetails = async () => {
     const gettotalreacharge = await fetch(
       `${process.env.BACKEND_URL}/api/user/admin-api/all-users/get-all-users`
     );
+    console.log("gettotalreacharge", gettotalreacharge); 
     const usersData = await gettotalreacharge.json();
     console.log(usersData);
 

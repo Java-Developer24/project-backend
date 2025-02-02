@@ -80,6 +80,10 @@ import unsendRoutes from "./routes/unsend-trx.js";
 import blockRoutes from "./routes/block-users.js";
 import configRoutes from "./routes/config.js";
 import mfaRoutes from "./routes/mfa.js";
+import serviceController from "./controllers/serviceController.js";
+
+
+
 import infoRoutes from "./routes/info.js";
 import  fetchAndStoreServices  from "./controllers/serviceController.js"
 import { captureIpMiddleware } from "./middleware/getIPMiddleware.js";
@@ -132,6 +136,8 @@ const startIntervalJob = async () => {
     // Set the new interval to call fetchAndStoreServices at the specified interval
     intervalId = setInterval(async () => {
       console.log(`Running scheduled task: fetchAndStoreServices every ${minute} minute(s)`);
+      // Access the function from the object
+const { fetchAndStoreServices } = serviceController;
       await fetchAndStoreServices(); // Your function that fetches and stores data
     }, intervalInMilliseconds);  // This will run every `minute` interval
  

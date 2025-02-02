@@ -184,6 +184,123 @@ export const rechargeTrxApi = (req, res) => {
 };
 
 // Handle individual TRX requests
+// export const handleTrxRequest = async (req, res) => {
+//   try {
+//     const { userId, transactionHash, email } = req.query;
+
+//     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
+//     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
+//     if (isMaintenance) {
+//       return res
+//         .status(403)
+//         .json({ error: "TRX recharge is currently unavailable." });
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found." });
+//     }
+
+//     const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+//     const transactionResponse = await axios.get(verifyTransactionUrl);
+
+//     if (transactionResponse.data.trx > 0) {
+//       const trxAmount = parseFloat(transactionResponse.data.trx);
+//       if (isNaN(trxAmount) || trxAmount <= 0) {
+//         return res.status(400).json({ message: "Invalid transaction amount." });
+//       }
+
+//       const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+//       const transferResponse = await axios.get(transferTrxUrl);
+
+//       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
+//       const rateResponse = await axios.get(exchangeRateUrl);
+//       const trxToInr = parseFloat(rateResponse.data.INR);
+
+//       if (isNaN(trxToInr) || trxToInr <= 0) {
+//         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
+//       }
+
+//       const amountInInr = trxAmount * trxToInr;
+//       const formattedDate = moment()
+//       .tz("Asia/Kolkata")
+//       .format("DD/MM/YYYY HH:mm:ss A");
+     
+
+//       const rechargeHistoryResponse = await fetch(
+//         "https://api.paidsms.org/api/history/saveRechargeHistory",
+//         {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json", Accept: "application/json" },
+//           body: JSON.stringify({
+//             userId,
+//             method: "trx",
+//             amount: amountInInr,
+//             exchangeRate: trxToInr,
+//             transactionId: transactionHash,
+//             status: "completed",
+//             date_time: formattedDate,
+//           }),
+//           credentials: "include",
+//         }
+//       );
+
+      
+
+//       if (!rechargeHistoryResponse.ok) {
+//         const error = await rechargeHistoryResponse.json();
+//         return res
+//           .status(rechargeHistoryResponse.status)
+//           .json({ error: error.error });
+//       }
+
+//       if (!transferResponse.data || transferResponse.data.status == "Fail") {
+//         const newEntry = new UnsendTrx({
+//           email,
+//           trxAddress: user.trxWalletAddress,
+//           trxPrivateKey: user.trxPrivateKey,
+//         });
+//         await newEntry.save();
+
+//         await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+//         return res
+//           .status(200)
+//           .json({ message: `${amountInInr}\u20B9 Added Successfully!` });
+//       }
+
+//       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+//       const balance=await User.findById({_id:userId})
+//       const ipDetails = await getIpDetails(req);
+//       const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
+      
+//       await trxRechargeTeleBot({
+//         email,
+//         userId,
+//         trx: trxAmount,
+//         exchangeRate: trxToInr,
+//         amount: amountInInr,
+//         balance:balance.balance,
+//         address: user.trxWalletAddress,
+//         sendTo: process.env.OWNER_WALLET_ADDRESS,
+//         Status:transferResponse.data.status ,
+//         transactionHash,
+//         ip: ipDetailsString,
+//       });
+
+//       return res
+//         .status(200)
+//         .json({ message: ` ${amountInInr}\u20B9 Added  Successfully!`, balance: user.balance });
+//     } else {
+//       res.status(400).json({ error: "Transaction Not Found. Please try again." });
+//     }
+//   } catch (err) {
+//     console.error("Error during TRX recharge:", err.message);
+//     res.status(500).json({ error: "Internal server error. Please try again later." });
+//   }
+// };
+// Handle individual TRX requests
 export const handleTrxRequest = async (req, res) => {
   try {
     const { userId, transactionHash, email } = req.query;
@@ -201,6 +318,7 @@ export const handleTrxRequest = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Step 1: Verify the Transaction
     const verifyTransactionUrl = `https://own5k.in/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
     const transactionResponse = await axios.get(verifyTransactionUrl);
 
@@ -210,9 +328,7 @@ export const handleTrxRequest = async (req, res) => {
         return res.status(400).json({ message: "Invalid transaction amount." });
       }
 
-      const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
-      const transferResponse = await axios.get(transferTrxUrl);
-
+      // Step 2: Fetch TRX to INR Exchange Rate
       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
       const rateResponse = await axios.get(exchangeRateUrl);
       const trxToInr = parseFloat(rateResponse.data.INR);
@@ -223,12 +339,15 @@ export const handleTrxRequest = async (req, res) => {
 
       const amountInInr = trxAmount * trxToInr;
       const formattedDate = moment()
-      .tz("Asia/Kolkata")
-      .format("DD/MM/YYYY HH:mm:ss A");
-     
+        .tz("Asia/Kolkata")
+        .format("DD/MM/YYYY HH:mm:ss A");
 
+      // **Step 3: Add Balance Immediately**
+      await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+      // Step 4: Store Recharge History
       const rechargeHistoryResponse = await fetch(
-        "https://project-backend-1-93ag.onrender.com/api/history/saveRechargeHistory",
+        "https://api.paidsms.org/api/history/saveRechargeHistory",
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -245,8 +364,6 @@ export const handleTrxRequest = async (req, res) => {
         }
       );
 
-      
-
       if (!rechargeHistoryResponse.ok) {
         const error = await rechargeHistoryResponse.json();
         return res
@@ -254,44 +371,44 @@ export const handleTrxRequest = async (req, res) => {
           .json({ error: error.error });
       }
 
-      if (!transferResponse.data || transferResponse.data.status == "Fail") {
-        const newEntry = new UnsendTrx({
+      // Step 5: **Send TRX in the Background**
+      (async () => {
+        const transferTrxUrl = `https://own5k.in/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+        const transferResponse = await axios.get(transferTrxUrl);
+
+        if (!transferResponse.data || transferResponse.data.status == "Fail") {
+          // If transaction fails, store in UnsendTrx collection
+          const newEntry = new UnsendTrx({
+            email,
+            trxAddress: user.trxWalletAddress,
+            trxPrivateKey: user.trxPrivateKey,
+          });
+          await newEntry.save();
+        }
+
+        // Notify via Telegram Bot
+        const balance = await User.findById({ _id: userId });
+        const ipDetails = await getIpDetails(req);
+        const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
+
+        await trxRechargeTeleBot({
           email,
-          trxAddress: user.trxWalletAddress,
-          trxPrivateKey: user.trxPrivateKey,
+          userId,
+          trx: trxAmount,
+          exchangeRate: trxToInr,
+          amount: amountInInr,
+          balance: balance.balance,
+          address: user.trxWalletAddress,
+          sendTo: process.env.OWNER_WALLET_ADDRESS,
+          Status: transferResponse.data?.status || "Pending",
+          transactionHash,
+          ip: ipDetailsString,
         });
-        await newEntry.save();
-
-        await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
-
-        return res
-          .status(200)
-          .json({ message: `${amountInInr}\u20B9 Added Successfully!` });
-      }
-
-      await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
-
-      const balance=await User.findById({_id:userId})
-      const ipDetails = await getIpDetails(req);
-      const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
-      
-      await trxRechargeTeleBot({
-        email,
-        userId,
-        trx: trxAmount,
-        exchangeRate: trxToInr,
-        amount: amountInInr,
-        balance:balance.balance,
-        address: user.trxWalletAddress,
-        sendTo: process.env.OWNER_WALLET_ADDRESS,
-        Status:transferResponse.data.status ,
-        transactionHash,
-        ip: ipDetailsString,
-      });
+      })();
 
       return res
         .status(200)
-        .json({ message: ` ${amountInInr}\u20B9 Added  Successfully!`, balance: user.balance });
+        .json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
     } else {
       res.status(400).json({ error: "Transaction Not Found. Please try again." });
     }
@@ -300,6 +417,7 @@ export const handleTrxRequest = async (req, res) => {
     res.status(500).json({ error: "Internal server error. Please try again later." });
   }
 };
+
 
 
 

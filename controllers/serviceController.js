@@ -108,7 +108,7 @@ const callEndpoint = async (url) => {
 
 
 
-
+ 
 // Fetch and store services with proper margin and exchange rate application
 const fetchAndStoreServices = async (req, res) => {
   console.time("fetchAndStoreServices");
