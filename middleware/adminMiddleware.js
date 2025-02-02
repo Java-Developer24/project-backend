@@ -13,12 +13,17 @@ export const authenticateToken = async (req, res, next) => {
 
     const ip = req.headers["x-forwarded-for"]
     ? req.headers["x-forwarded-for"].split(",")[0].trim()
-    : req.connection.remoteAddress;
-
+    : req.socket.remoteAddress; // Fallback to socket remote address
   
-    // Step 1: Capture the Request IP
-    
-    const requestIp = ip 
+  // Convert IPv6-mapped IPv4 addresses (e.g., "::ffff:14.192.3.193") to pure IPv4
+  if (ip.includes("::ffff:")) {
+    ip = ip.split("::ffff:")[1];
+  }
+  
+ 
+      
+req.clientIp = ip;
+  
     console.log("middlewareip",ip)
 
     // Step 2: Fetch the `apiAdminIp` from the Admin collection
@@ -31,7 +36,7 @@ export const authenticateToken = async (req, res, next) => {
     const apiAdminIp = admin.apiAdminIp; // Assuming `apiAdminIp` is stored in the Admin model
 
     // Step 3: Compare the Request IP with the `apiAdminIp`
-    if (requestIp !== apiAdminIp) {
+    if (req.clientIp !== apiAdminIp) {
       return res.status(403).json({ success: false, message: 'Access Denied: IP not authorized' });
     }
 
