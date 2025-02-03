@@ -1139,6 +1139,7 @@ console.log("service code form otp",serviceData.code)
      
   
       const responseData = await response.text();
+      console.log(responseData)
   
       if (!responseData || responseData.trim() === "") {
         throw new Error("Received empty response data.");
