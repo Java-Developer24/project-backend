@@ -1,6 +1,7 @@
 import express from "express";
 const router = express.Router();
 import serviceController from "../controllers/serviceController.js";
+import { checkServiceAvailabilitydata } from "../controllers/servicedatacontroller.js";
 import {
   getNumber,
   getOtp,
@@ -12,7 +13,7 @@ import { captureIpMiddleware } from "../middleware/getIPMiddleware.js";
 import {authenticateToken} from "../middleware/adminMiddleware.js"
 
 router.get("/admin-api/service-data/get-service-data-admin",authenticateToken, serviceController.getUserServicesDataAdmin); //admin dashboard
-
+router.get("/get-service-server-maintence",checkServiceAvailabilitydata); //admin dashboard
 router.get(
   "/admin-api/service-data-update/fetch-update-compare-services",authenticateToken,
   serviceController.fetchAndStoreServices

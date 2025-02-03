@@ -63,6 +63,39 @@ const processQueue = async () => {
   }
 };
 
+export const checkServiceAvailabilitydata = async (req, res) => {
+  try {
+      // Fetch service data from the database
+      const { code, server } = req.query;
+      console.log(code)
+      console.log(server)
+      const serviceData = await Service.findOne({ name: code }).lean();
+      console.log(serviceData)
+      if (!serviceData) {
+          return res.status(404).json({ error: 'Service not found' });
+      }
+
+      // Check if the entire service is under maintenance
+      if (serviceData.maintenance) {
+          return res.status(503).json({ error: 'server not available' });
+      }
+      
+      // Check if the specified server is under maintenance
+      const serverData = serviceData.servers.find(s => s.serverNumber === Number(server));
+      console.log(serverData)
+      if (!serverData) {
+          return res.status(404).json({ error: 'server not found' });
+      }
+
+      if (serverData.maintenance) {
+          return res.status(503).json({ error: 'server not available' });
+      }
+      
+      return res.status(200).json({ success: 'server available', data: serverData });
+  } catch (error) {
+      return { error: error.message || 'An error occurred' };
+  }
+};
 const checkServiceAvailability = async (sname, server) => {
   try {
       // Fetch service data from the database
@@ -78,7 +111,7 @@ const checkServiceAvailability = async (sname, server) => {
       }
       
       // Check if the specified server is under maintenance
-      const server = serviceData.servers.find(s => s.serverNumber === server);
+      const server = serviceData.servers.find(s => s.serverNumber === Number(server));
       if (!server) {
           return { error: 'server not found' };
       }
@@ -1700,7 +1733,9 @@ console.log("service code form otp",serviceData.code)
     getOtp,
   numberCancel,
   checkAndCancelExpiredOrders,
-  handleNumberCancel
+  handleNumberCancel,
+  checkServiceAvailability,
+  
    
   };
   
