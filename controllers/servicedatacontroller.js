@@ -372,12 +372,13 @@ const checkServiceAvailability = async (sname, server) => {
       
 
       const serverDatas = await getServerMaintenanceData(server);
+     
+      
+      const api_key_server = serverDatas.api_key;
       const serviceDataMaintence=await checkServiceAvailability(sname, server);
       if(serviceDataMaintence.error){
         return res.status(400).json({ error: serviceDataMaintence.error });
       }
-      
-      const api_key_server = serverDatas.api_key;
   
       const serviceData = await getServerData(sname, server);
       console.log("serverdata",serviceData)
