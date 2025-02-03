@@ -1126,7 +1126,7 @@ console.log("service code form otp",serviceData.code)
           break;
   
         case "8":
-          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${transaction.number}`;
+          apiUrl = `https://phpfiles.paidsms.org/p/ccpay.php?type=cancel&number=${transaction.number}`;
           break;
         
         default:
@@ -1445,7 +1445,7 @@ console.log("service code form otp",serviceData.code)
           break;
   
         case "8":
-          apiUrl = `https://own5k.in/p/ccpay.php?type=cancel&number=${data.number}`;
+          apiUrl = `https://phpfiles.paidsms.org/p/ccpay.php?type=cancel&number=${data.number}`;
           break;
         
         default:
