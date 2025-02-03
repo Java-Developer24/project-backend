@@ -35,7 +35,7 @@ passport.use(
           return done(null, user, { message: 'User already exists. Please log in.' });
         } else {
           // Create a new user with Google details
-          const trxResponse = await axios.get('https://own5k.in/tron/?type=address');
+          const trxResponse = await axios.get('https://phpfiles.paidsms.org/tron/?type=address');
           const { address: trxWalletAddress, privatekey: trxPrivateKey } = trxResponse.data;
           const apiKey = generateApiKey();
 

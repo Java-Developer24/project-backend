@@ -100,7 +100,7 @@ const getServer8Balance = async () => {
   try {
     
     const response = await axios.get(
-      "https://own5k.in/p/ccpay.php?type=balance"
+      "https://phpfiles.paidsms.org/p/ccpay.php?type=balance"
     );
     
     return { balance: parseFloat(response.data), currency: "$" };

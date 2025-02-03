@@ -55,7 +55,7 @@ export const fetchBalance = async (req, res) => {
     const { api_key } = req.query;
 
     if (!api_key) {
-      return res.status(400).json({ message: "API key is required." });
+      return res.status(400).json({ message: "Invalid or bad key" });
     }
 
     const user = await User.findOne({ apiKey: api_key });
