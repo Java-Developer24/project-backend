@@ -112,7 +112,7 @@ const checkServiceAvailability = async (sname, server) => {
       
       // Check if the specified server is under maintenance
       const serverData = serviceData.servers.find(s => s.serverNumber === Number(server));
-      if (!server) {
+      if (!serverData) {
           return { error: 'server not found' };
       }
 
@@ -120,7 +120,7 @@ const checkServiceAvailability = async (sname, server) => {
           return { error: 'server not available' };
       }
       
-      return ;
+      return { success: 'server available', data: serverData };
   } catch (error) {
       return { error: error.message || 'An error occurred' };
   }
