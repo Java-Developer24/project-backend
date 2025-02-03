@@ -1139,7 +1139,7 @@ console.log("service code form otp",serviceData.code)
      
   
       const responseData = await response.text();
-      console.log("responseData",responseData)
+      
   
       if (!responseData || responseData.trim() === "") {
         throw new Error("Received empty response data.");
@@ -1281,7 +1281,7 @@ console.log("service code form otp",serviceData.code)
         default:
           return res.status(400).json({ error: "Invalid server value." });
       }
-  
+      console.log("responseData",responseData)
       if (otpReceived) {
         await Order.deleteOne({ numberId: id });
         return res.status(200).json({ status: "Order Finished" });
