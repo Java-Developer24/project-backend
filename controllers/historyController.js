@@ -126,11 +126,11 @@ export const getRechargeHistory = async (req, res) => {
     try {
       // Extract userId from URL parameters
       const { userId } = req.query;
-  
-      const maintainanceServerData = await ServerData.findOne({ server: 0 });
-      if (maintainanceServerData.maintenance) {
-        return res.status(403).json({ error: "Site is under maintenance." });
-      }
+     
+      // const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      // if (maintainanceServerData.maintenance) {
+      //   return res.status(403).json({ error: "Site is under maintenance." });
+      // }
   
       // Query recharge history data based on the userId
       const transactionHistoryData = await NumberHistory.find({ userId })
@@ -155,10 +155,10 @@ export const getTransactionHistoryUser = async (req, res) => {
       // Extract email from URL parameters
       const { userId } = req.query;
  
-      const maintainanceServerData = await ServerData.findOne({ server: 0 });
-      if (maintainanceServerData.maintenance) {
-        return res.status(403).json({ error: "Site is under maintenance." });
-      }
+      // const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      // if (maintainanceServerData.maintenance) {
+      //   return res.status(403).json({ error: "Site is under maintenance." });
+      // }
   
       // Query recharge history data based on the email ID
       const transactionHistoryData = await NumberHistory.find(
