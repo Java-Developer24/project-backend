@@ -63,7 +63,37 @@ const processQueue = async () => {
   }
 };
 
-  
+const checkServiceAvailability = async (sname, server) => {
+  try {
+      // Fetch service data from the database
+      const serviceData = await Service.findOne({ name: sname }).lean();
+      
+      if (!serviceData) {
+          return { error: 'Service not found' };
+      }
+
+      // Check if the entire service is under maintenance
+      if (serviceData.maintenance) {
+          return { error: 'server not available' };
+      }
+      
+      // Check if the specified server is under maintenance
+      const server = serviceData.servers.find(s => s.serverNumber === server);
+      if (!server) {
+          return { error: 'server not found' };
+      }
+
+      if (server.maintenance) {
+          return { error: 'server not available' };
+      }
+      
+      return { success: 'server available', data: server };
+  } catch (error) {
+      return { error: error.message || 'An error occurred' };
+  }
+};
+
+
   // Helper function to get API key and check maintenance
   const getServerMaintenanceData = async (server) => {
     // Check if the server is under maintenance
@@ -309,6 +339,10 @@ const processQueue = async () => {
       
 
       const serverDatas = await getServerMaintenanceData(server);
+      const serviceDataMaintence=await checkServiceAvailability(sname, server);
+      if(serviceDataMaintence.error){
+        return res.status(400).json({ error: serviceDataMaintence.error });
+      }
       
       const api_key_server = serverDatas.api_key;
   
