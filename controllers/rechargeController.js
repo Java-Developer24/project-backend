@@ -70,11 +70,7 @@ const handleUpiRequest = async (req, res) => {
   const { userId, email, transactionId } = req.body;
 
   try {
-    // Check if transaction ID has already been processed
-    const existingTransaction = await Recharge.findOne({ transactionId });
-    if (existingTransaction) {
-      return res.status(400).json({ error: "Duplicate transaction ID detected." });
-    }
+   
 
     // Fetch maintenance status
     const serverData = await ServerData.findOne({ server: 0 });

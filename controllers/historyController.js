@@ -50,7 +50,7 @@ export const saveRechargeHistory = async (req, res) => {
       // Check for duplicate transaction
       const existingTransaction = await RechargeHistory.findOne({ transactionId });
       if (existingTransaction) {
-        return res.status(400).json({ message: "Transaction ID already exists." });
+        return res.status(400).json({ message: "ID already used." });
       }
   
       // Prepare data for history

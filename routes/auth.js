@@ -20,7 +20,7 @@ router.get(
   (req, res) => {
     // Generate a new JWT token on successful sign-up, including user ID and email
     const jwtToken = jwt.sign(
-      { id: req.user._id, email: req.user.email, role: req.user.role,loginType: 'google' }, // Add ID and other user details
+      { id: req.user._id, email: req.user.email, role: req.user.role,loginType:'google' }, // Add ID and other user details
       process.env.JWT_SECRET,
       { expiresIn: '5h' }
     );
