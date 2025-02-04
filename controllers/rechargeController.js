@@ -20,28 +20,42 @@ import ServerData from '../models/serverData.js';
 
 
 
-const upiRequestQueue = [];
-let activeWorker = 0;
-const MAX_WORKERS = 10000; // Adjust this value based on server capacity
+const MAX_WORKERS = 100; // Limit total parallel processing
+let activeWorkerCount = 0; // Track total active workers
 
-const enqueueUpiRequest = (requestHandler) => {
-  upiRequestQueue.push(requestHandler);
-  processUpiQueue();
+const upiRequestQueue = new Map();
+const activeUsers = new Set();
+
+const enqueueUpiRequest = (userId, requestHandler) => {
+  if (!upiRequestQueue.has(userId)) {
+    upiRequestQueue.set(userId, []);
+  }
+  upiRequestQueue.get(userId).push(requestHandler);
+  processUpiQueue(userId);
 };
 
-const processUpiQueue = async () => {
-  if (activeWorker >= MAX_WORKERS || upiRequestQueue.length === 0) return;
+const processUpiQueue = async (userId) => {
+  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; 
 
-  activeWorker++;
-  const currentRequestHandler = upiRequestQueue.shift();
-  await currentRequestHandler();
-  activeWorker--;
+  activeUsers.add(userId);
+  activeWorkerCount++; 
 
-  processUpiQueue(); // Check for the next request in the queue
-};
+  const currentRequestHandler = upiRequestQueue.get(userId).shift();
 
-export const rechargeUpiApi = (req, res) => {
-  enqueueUpiRequest(() => handleUpiRequest(req, res));
+  try {
+    await currentRequestHandler();
+  } catch (error) {
+    console.error(`Error processing request for user ${userId}:`, error);
+  }
+
+  activeUsers.delete(userId);
+  activeWorkerCount--; 
+
+  if (upiRequestQueue.get(userId)?.length > 0) {
+    processUpiQueue(userId);
+  } else {
+    upiRequestQueue.delete(userId);
+  }
 };
 
 const handleUpiRequest = async (req, res) => {
@@ -147,41 +161,52 @@ const handleUpiRequest = async (req, res) => {
 
 
 
-const WORKER_COUNT = 10000; // Number of concurrent workers
-const trxRequestQueue = [];
-let activeWorkers = 0;
+const MAX_WORKERS = 100; // Adjust based on server capacity
+let activeWorkerCount = 0; 
+const trxRequestQueue = new Map(); // Queue per user
+const activeUsers = new Set(); // Track active users
 
 // Enqueue a TRX request
-const enqueueTrxRequest = (requestHandler) => {
-  trxRequestQueue.push(requestHandler);
-  processTrxQueue();
+const enqueueTrxRequest = (userId, requestHandler) => {
+  if (!trxRequestQueue.has(userId)) {
+    trxRequestQueue.set(userId, []);
+  }
+  trxRequestQueue.get(userId).push(requestHandler);
+  processTrxQueue(userId);
 };
 
-// Process TRX queue with a worker pool
-const processTrxQueue = async () => {
-  if (activeWorkers >= WORKER_COUNT || trxRequestQueue.length === 0) return;
+// Process TRX queue
+const processTrxQueue = async (userId) => {
+  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return;
 
-  activeWorkers++;
-  const currentRequestHandler = trxRequestQueue.shift();
+  activeUsers.add(userId);
+  activeWorkerCount++;
+
+  const currentRequestHandler = trxRequestQueue.get(userId).shift();
 
   try {
     await currentRequestHandler();
   } catch (error) {
-    console.error("Error processing TRX request:", error.message);
+    console.error(`Error processing TRX request for user ${userId}:`, error.message);
   } finally {
-    activeWorkers--;
+    activeUsers.delete(userId);
+    activeWorkerCount--;
 
-    // Process the next task in the queue
-    if (trxRequestQueue.length > 0) {
-      processTrxQueue();
+    if (trxRequestQueue.get(userId)?.length > 0) {
+      processTrxQueue(userId); // Process next request for the user
+    } else {
+      trxRequestQueue.delete(userId);
     }
   }
 };
 
 // TRX API handler
 export const rechargeTrxApi = (req, res) => {
-  enqueueTrxRequest(() => handleTrxRequest(req, res));
+  const { userId } = req.body;
+
+  enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
 };
+
 
 // Handle individual TRX requests
 // export const handleTrxRequest = async (req, res) => {
