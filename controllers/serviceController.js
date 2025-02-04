@@ -503,9 +503,9 @@ const getUserServicesDatas = async (req, res) => {
         let discount = 0;
 
         // Get the service-level discount if exists
-        if (service.discount) {
-          discount += service.discount; // Assuming the service model has a discount field
-        }
+        // if (service.discount) {
+        //   discount += service.discount; // Assuming the service model has a discount field
+        // }
 
         // Get the server-level discount if exists
         if (server.discount) {
