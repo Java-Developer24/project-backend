@@ -416,10 +416,10 @@ const getUserServicesData = async (req, res) => {
        // Initialize the discount at the server level
        let discount = 0;
 
-       // Get the service-level discount if exists
-       if (service.discount) {
-         discount += service.discount; // Assuming the service model has a discount field
-       }
+      //  // Get the service-level discount if exists
+      //  if (service.discount) {
+      //    discount += service.discount; // Assuming the service model has a discount field
+      //  }
 
        // Get the server-level discount if exists
        if (server.discount) {
@@ -590,10 +590,10 @@ const getUserServicesDataAdmin = async (req, res) => {
         // Initialize the discount at the server level
         let discount = 0;
 
-        // Get the service-level discount if exists
-        if (service.discount) {
-          discount += service.discount; // Assuming the service model has a discount field
-        }
+        // // Get the service-level discount if exists
+        // if (service.discount) {
+        //   discount += service.discount; // Assuming the service model has a discount field
+        // }
 
         // Get the server-level discount if exists
         if (server.discount) {
