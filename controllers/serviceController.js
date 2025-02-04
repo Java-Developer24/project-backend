@@ -507,22 +507,20 @@ const getUserServicesDatas = async (req, res) => {
         // Get the server-level discount if exists
         if (server.discount) {
           discount += server.discount;
-          console.log(`Server discount for ${server.serverNumber}:`, server.discount); // Log server discount
         }
 
         // Get user-specific discount if exists
         const serviceKey = `${service.name}_${server.serverNumber}`;
         const userDiscount = userDiscountMap.get(serviceKey) || 0;
-        discount += userDiscount;
         if (userDiscount) {
-          console.log(`User-specific discount for ${serviceKey}:`, userDiscount); // Log user-specific discount
+          discount += userDiscount;
+          console.log(`Applying user-specific discount for ${serviceKey}:`, userDiscount); // Log user-specific discount application
         }
 
         // Apply the discount directly to the server price
         const originalPrice = parseFloat(server.price);
         const newPrice = (originalPrice - discount).toFixed(2); // Subtract the discount from the price
         server.price = newPrice;
-        console.log(`Updated price for server ${server.serverNumber}:`, newPrice); // Log the updated price
 
         return {
           serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
