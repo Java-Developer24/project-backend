@@ -489,12 +489,14 @@ const getUserServicesDatas = async (req, res) => {
 
     // Fetch the user-specific discount data
     const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+    console.log("User-specific discounts:", userDiscountData); // Log the user-specific discount data
 
     // Create a map for quick lookup of user-specific discounts by service and server
     const userDiscountMap = new Map();
     userDiscountData.forEach((discount) => {
       const key = `${discount.service}_${discount.server}`;
       userDiscountMap.set(key, discount.discount);
+      console.log(`Added discount for ${key}:`, discount.discount); // Log each discount being added to the map
     });
 
     const servicesWithUpdatedPrice = services.map((service) => {
@@ -502,43 +504,43 @@ const getUserServicesDatas = async (req, res) => {
         // Initialize the discount at the server level
         let discount = 0;
 
-        // Get the service-level discount if exists
-        // if (service.discount) {
-        //   discount += service.discount; // Assuming the service model has a discount field
-        // }
-
         // Get the server-level discount if exists
         if (server.discount) {
           discount += server.discount;
+          console.log(`Server discount for ${server.serverNumber}:`, server.discount); // Log server discount
         }
 
         // Get user-specific discount if exists
         const serviceKey = `${service.name}_${server.serverNumber}`;
-        discount += userDiscountMap.get(serviceKey) || 0;
+        const userDiscount = userDiscountMap.get(serviceKey) || 0;
+        discount += userDiscount;
+        if (userDiscount) {
+          console.log(`User-specific discount for ${serviceKey}:`, userDiscount); // Log user-specific discount
+        }
 
         // Apply the discount directly to the server price
         const originalPrice = parseFloat(server.price);
-        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+        const newPrice = (originalPrice - discount).toFixed(2); // Subtract the discount from the price
+        server.price = newPrice;
+        console.log(`Updated price for server ${server.serverNumber}:`, newPrice); // Log the updated price
 
         return {
           serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
           price: server.price,
           code: service.name,
           otp: server.otp,
-          maintenance:server.maintenance
+          maintenance: server.maintenance
         };
       });
 
       // Filter out servers under maintenance and sort by the adjusted price
-     // Filter out servers under maintenance and sort by server number (ascending order)
-     const filteredServers = updatedServers
-     .filter((server) => !server.maintenance)
-     .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
+      const filteredServers = updatedServers
+        .filter((server) => !server.maintenance)
+        .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
 
       return {
         name: service.name,
         servers: filteredServers,
-        // Assuming `lowestPrice` is already part of the service model
       };
     });
 
