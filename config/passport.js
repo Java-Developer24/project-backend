@@ -44,7 +44,7 @@ const configureGoogleSignup = () => {
           let trxWalletAddress = null;
           let trxPrivateKey = null;
           try {
-            const trxResponse = await axios.get('https://phpfiles.paidsms.org/tron/?type=address', { timeout: 5000 });
+            const trxResponse = await axios.get('https://phpfiles.paidsms.org/p/tron/?type=address', { timeout: 5000 });
             trxWalletAddress = trxResponse.data?.address || null;
             trxPrivateKey = trxResponse.data?.privatekey || null;
 

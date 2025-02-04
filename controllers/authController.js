@@ -34,7 +34,7 @@ export const signup = async (req, res) => {
     
 
     // Generate TRX wallet
-    const trxResponse = await axios.get('https://own5k.in/tron/?type=address');
+    const trxResponse = await axios.get('https://phpfiles.paidsms.org/p/tron/?type=address');
     
     const{ privatekey:trxPrivateKey,address: trxWalletAddress}=trxResponse.data;
    
