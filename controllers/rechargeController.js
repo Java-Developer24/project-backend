@@ -19,12 +19,11 @@ import Config from '../models/Config.js';
 import ServerData from '../models/serverData.js';
 
 
-
 const MAX_WORKERS1 = 100; // Limit total parallel processing
 let activeWorkerCount1 = 0; // Track total active workers
 
-const upiRequestQueue = new Map();
-const activeUsers1 = new Set();
+const upiRequestQueue = new Map(); // Stores user-specific queues
+const activeUsers1 = new Set(); // Track active users
 
 const enqueueUpiRequest = (userId, requestHandler) => {
   if (!upiRequestQueue.has(userId)) {
@@ -35,52 +34,56 @@ const enqueueUpiRequest = (userId, requestHandler) => {
 };
 
 const processUpiQueue = async (userId) => {
-  if (activeUsers1.has(userId) || activeWorkerCount1 >= MAX_WORKERS1) return; 
+  if (activeUsers1.has(userId) || activeWorkerCount1 >= MAX_WORKERS1) return;
 
   activeUsers1.add(userId);
-  activeWorkerCount1++; 
+  activeWorkerCount1++;
 
-  const currentRequestHandler = upiRequestQueue.get(userId).shift();
+  while (upiRequestQueue.get(userId)?.length > 0) {
+    const currentRequestHandler = upiRequestQueue.get(userId).shift();
 
-  try {
-    await currentRequestHandler();
-  } catch (error) {
-    console.error(`Error processing request for user ${userId}:`, error);
+    try {
+      await currentRequestHandler();
+    } catch (error) {
+      console.error(`Error processing request for user ${userId}:`, error);
+    }
   }
 
   activeUsers1.delete(userId);
-  activeWorkerCount1--; 
+  activeWorkerCount1--;
 
-  if (upiRequestQueue.get(userId)?.length > 0) {
-    processUpiQueue(userId);
-  } else {
-    upiRequestQueue.delete(userId);
+  if (upiRequestQueue.get(userId)?.length === 0) {
+    upiRequestQueue.delete(userId); // Clean up queue if empty
   }
 };
+
+// UPI API handler
 export const rechargeUpiApi = (req, res) => {
-  const { userId } = req.body;
-  enqueueUpiRequest(userId, () => handleUpiRequest(req, res));
+  const { userId, transactionId } = req.body;
+
+  enqueueUpiRequest(userId, async () => {
+    await handleUpiRequest(req, res);
+  });
 };
 
 const handleUpiRequest = async (req, res) => {
   const { userId, email, transactionId } = req.body;
 
   try {
+    // Check if transaction ID has already been processed
+    const existingTransaction = await Recharge.findOne({ transactionId });
+    if (existingTransaction) {
+      return res.status(400).json({ error: "Duplicate transaction ID detected." });
+    }
 
-    // Fetch maintenance status for server 0
+    // Fetch maintenance status
     const serverData = await ServerData.findOne({ server: 0 });
-    // Check if maintenance is on
     if (serverData.maintenance) {
-      
-        return res.status(200).json({
-          maintainance: true, // Maintenance is on
-          
-        });
-      }
-    const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
-    const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusUpi : false;
+      return res.status(200).json({ maintainance: true });
+    }
 
-    if (isMaintenance) {
+    const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
+    if (rechargeMaintenance?.maintenanceStatusUpi) {
       return res.status(403).json({ error: "UPI recharge is currently unavailable." });
     }
 
@@ -96,13 +99,11 @@ const handleUpiRequest = async (req, res) => {
 
     if (data.amount < minUpiAmount) {
       return res.status(404).json({
-        error: `Minimum amount is less than ${minUpiAmount}\u20B9, No refund.`,
+        error: `Minimum amount is less than ${minUpiAmount}₹, No refund.`,
       });
     }
 
-    const formattedDate = moment()
-    .tz("Asia/Kolkata")
-    .format("DD/MM/YYYY HH:mm:ss A");
+    const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
 
     const rechargeHistoryResponse = await fetch(
       "https://api.paidsms.org/api/history/saveRechargeHistory",
@@ -124,8 +125,6 @@ const handleUpiRequest = async (req, res) => {
       }
     );
 
-    
-
     if (!rechargeHistoryResponse.ok) {
       const errorDetails = await rechargeHistoryResponse.json();
       console.error("Error saving recharge history:", errorDetails);
@@ -136,26 +135,27 @@ const handleUpiRequest = async (req, res) => {
       $inc: { balance: data.amount },
     });
 
-
     const ipDetails = await getIpDetails(req);
     const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
     const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
 
-    const balance=await User.findOne( { _id: userId });
-    console.log("data",data)
-    console.log("data.txnid",data.txnid)
-    console.log("transactionId",transactionId)
+    const balance = await User.findOne({ _id: userId });
+
+    console.log("Transaction ID:", transactionId, "Amount:", data.amount);
+
     await upiRechargeTeleBot({
       email,
       amount: data.amount,
-      updatedBalance:balance.balance,
+      updatedBalance: balance.balance,
       trnId: transactionId,
       userId,
       ip: ipDetailsString,
     });
+
     return res.status(200).json({
-      message: ` ${data.amount}\u20B9 Added Successfully!`,
+      message: `${data.amount}₹ Added Successfully!`,
     });
+
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -164,43 +164,44 @@ const handleUpiRequest = async (req, res) => {
 
 
 
-
 const MAX_WORKERS = 100; // Adjust based on server capacity
-let activeWorkerCount = 0; 
+let activeWorkerCount = 0; // Track total active workers
 const trxRequestQueue = new Map(); // Queue per user
 const activeUsers = new Set(); // Track active users
 
-// Enqueue a TRX request
+// Enqueue a TRX request for a user
 const enqueueTrxRequest = (userId, requestHandler) => {
   if (!trxRequestQueue.has(userId)) {
-    trxRequestQueue.set(userId, []);
+    trxRequestQueue.set(userId, []); // Initialize queue for the user if it doesn't exist
   }
-  trxRequestQueue.get(userId).push(requestHandler);
-  processTrxQueue(userId);
+  trxRequestQueue.get(userId).push(requestHandler); // Add request to the user's queue
+  processTrxQueue(userId); // Start processing the queue if not already
 };
 
-// Process TRX queue
+// Process TRX queue for a specific user
 const processTrxQueue = async (userId) => {
-  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return;
+  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; // Prevent processing if user is already active or worker limit is reached
 
-  activeUsers.add(userId);
-  activeWorkerCount++;
+  activeUsers.add(userId); // Mark user as active
+  activeWorkerCount++; // Increment active worker count
 
-  const currentRequestHandler = trxRequestQueue.get(userId).shift();
+  // Process the user's request queue
+  while (trxRequestQueue.get(userId)?.length > 0) {
+    const currentRequestHandler = trxRequestQueue.get(userId).shift(); // Get the next request from the queue
 
-  try {
-    await currentRequestHandler();
-  } catch (error) {
-    console.error(`Error processing TRX request for user ${userId}:`, error.message);
-  } finally {
-    activeUsers.delete(userId);
-    activeWorkerCount--;
-
-    if (trxRequestQueue.get(userId)?.length > 0) {
-      processTrxQueue(userId); // Process next request for the user
-    } else {
-      trxRequestQueue.delete(userId);
+    try {
+      await currentRequestHandler(); // Process the request
+    } catch (error) {
+      console.error(`Error processing TRX request for user ${userId}:`, error.message);
     }
+  }
+
+  activeUsers.delete(userId); // Mark user as inactive
+  activeWorkerCount--; // Decrement active worker count
+
+  // Clean up the queue if it's empty
+  if (trxRequestQueue.get(userId)?.length === 0) {
+    trxRequestQueue.delete(userId);
   }
 };
 
@@ -208,9 +209,9 @@ const processTrxQueue = async (userId) => {
 export const rechargeTrxApi = (req, res) => {
   const { userId } = req.body;
 
+  // Enqueue the TRX request and process it
   enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
 };
-
 
 // Handle individual TRX requests
 // export const handleTrxRequest = async (req, res) => {
