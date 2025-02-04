@@ -20,11 +20,11 @@ import ServerData from '../models/serverData.js';
 
 
 
-const MAX_WORKERS = 100; // Limit total parallel processing
-let activeWorkerCount = 0; // Track total active workers
+const MAX_WORKERS1 = 100; // Limit total parallel processing
+let activeWorkerCount1 = 0; // Track total active workers
 
 const upiRequestQueue = new Map();
-const activeUsers = new Set();
+const activeUsers1 = new Set();
 
 const enqueueUpiRequest = (userId, requestHandler) => {
   if (!upiRequestQueue.has(userId)) {
@@ -35,10 +35,10 @@ const enqueueUpiRequest = (userId, requestHandler) => {
 };
 
 const processUpiQueue = async (userId) => {
-  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; 
+  if (activeUsers1.has(userId) || activeWorkerCount1 >= MAX_WORKERS1) return; 
 
-  activeUsers.add(userId);
-  activeWorkerCount++; 
+  activeUsers1.add(userId);
+  activeWorkerCount1++; 
 
   const currentRequestHandler = upiRequestQueue.get(userId).shift();
 
@@ -48,14 +48,18 @@ const processUpiQueue = async (userId) => {
     console.error(`Error processing request for user ${userId}:`, error);
   }
 
-  activeUsers.delete(userId);
-  activeWorkerCount--; 
+  activeUsers1.delete(userId);
+  activeWorkerCount1--; 
 
   if (upiRequestQueue.get(userId)?.length > 0) {
     processUpiQueue(userId);
   } else {
     upiRequestQueue.delete(userId);
   }
+};
+export const rechargeUpiApi = (req, res) => {
+  const { userId } = req.body;
+  enqueueUpiRequest(userId, () => handleUpiRequest(req, res));
 };
 
 const handleUpiRequest = async (req, res) => {
