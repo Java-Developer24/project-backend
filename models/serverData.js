@@ -10,7 +10,7 @@ const serverSchema = new mongoose.Schema(
     token: { type: String, required: false },
     exchangeRate: { type: Number, required: true },
     margin: { type: Number, required: true },
-    discount: { type: Number,  default: 0 }, // Added discount field
+    discount: { type: Number,  default: null }, // Added discount field
   },
   {
     timestamps: true, // Automatically add createdAt and updatedAt fields
