@@ -66,8 +66,11 @@ const getServerData = async (sname, server) => {
     const currentRequestHandler = userQueue.shift();
   
     try {
+      // Add the 0.5-second delay before processing the request
+      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
+  
+      // Process the request handler
       await currentRequestHandler();
-      await new Promise((resolve) => setTimeout(resolve, 900)); // 0.5s delay
     } catch (error) {
       console.error("Error processing request:", error);
     } finally {
@@ -76,12 +79,18 @@ const getServerData = async (sname, server) => {
     }
   };
   
+  // Generate a unique ID based on the current time and a random component
+  const generateUniqueID = () => {
+    const timestamp = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
+    const randomSuffix = Math.floor(100 + Math.random() * 900); // Random 3-digit number
+    return `${timestamp}${randomSuffix}`;
+  };
+  
   // API route to handle requests
   const getNumber = (req, res) => {
     const userId = req.user?.id || req.ip; // Identify user by ID or IP
     enqueueRequest(userId, () => handleGetNumberRequest(req, res));
   };
-  
 
 export const checkServiceAvailabilitydata = async (req, res) => {
   try {
@@ -460,28 +469,7 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      let lastTimestamp = "";
-let counter = 0;
-
-const generateUniqueID = () => {
-  const timestamp = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
-
-  if (timestamp === lastTimestamp) {
-    counter++; // If same millisecond, increment counter
-  } else {
-    counter = 0; // Reset counter if new millisecond
-  }
-
-  lastTimestamp = timestamp;
-
-  // Return the unique ID with timestamp, counter, and random number
-  return `${timestamp}${counter}${Math.floor(100 + Math.random() * 900)}`;
-};
-
-// Usage
-const uniqueID = generateUniqueID();
-console.log(uniqueID); // This should now give unique IDs even for high concurrency
-
+      const uniqueID = generateUniqueID(); // Generate the unique ID
 
 
          const Id = uniqueID;
