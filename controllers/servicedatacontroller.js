@@ -460,9 +460,26 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      const uniqueID = `${moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS")}${Math.floor(100 + Math.random() * 900)}`;
-
-
+      let lastTimestamp = "";
+      let counter = 0;
+      
+      const generateUniqueID = () => {
+        const timestamp = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
+      
+        if (timestamp === lastTimestamp) {
+          counter++; // Increment if within the same millisecond
+        } else {
+          counter = 0; // Reset counter if timestamp changes
+        }
+      
+        lastTimestamp = timestamp;
+        return `${timestamp}${counter}${Math.floor(100 + Math.random() * 900)}`;
+      };
+      
+      // Example Usage
+      const uniqueID = generateUniqueID();
+      console.log(uniqueID);
+      
          const Id = uniqueID;
 
 
