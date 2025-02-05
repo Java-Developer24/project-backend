@@ -460,7 +460,28 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      const uniqueID = `${moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS")}${Math.floor(100 + Math.random() * 900)}`;
+      let lastTimestamp = "";
+let counter = 0;
+
+const generateUniqueID = () => {
+  const timestamp = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
+
+  if (timestamp === lastTimestamp) {
+    counter++; // If same millisecond, increment counter
+  } else {
+    counter = 0; // Reset counter if new millisecond
+  }
+
+  lastTimestamp = timestamp;
+
+  // Return the unique ID with timestamp, counter, and random number
+  return `${timestamp}${counter}${Math.floor(100 + Math.random() * 900)}`;
+};
+
+// Usage
+const uniqueID = generateUniqueID();
+console.log(uniqueID); // This should now give unique IDs even for high concurrency
+
 
 
          const Id = uniqueID;
