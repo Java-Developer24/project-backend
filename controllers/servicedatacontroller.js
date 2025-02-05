@@ -1051,38 +1051,48 @@ console.log("service code form otp",serviceData.code)
 
 
 
- 
-  
-  const cancelRequestQueue = [];
-  const MAX_WORKER = 10000; // Number of concurrent workers
+  const cancelRequestQueue = new Map(); // Map to track requests per user
+  const MAX_WORKER = 100; // Limit concurrent workers to 100
   let activeWorker = 0;
   
-  // Enqueue a cancel request
-  const enqueueCancelRequest = (requestHandler) => {
-    cancelRequestQueue.push(requestHandler);
-    processCancelQueue();
+  // Enqueue a cancel request for a specific user
+  const enqueueCancelRequest = (userId, requestHandler) => {
+    if (!cancelRequestQueue.has(userId)) {
+      cancelRequestQueue.set(userId, []);
+    }
+    cancelRequestQueue.get(userId).push(requestHandler);
+  
+    processCancelQueue(userId);
   };
   
-  // Process the cancel queue using a worker pool
-  const processCancelQueue = async () => {
-    while (activeWorker < MAX_WORKER && cancelRequestQueue.length > 0) {
-      const currentRequestHandler = cancelRequestQueue.shift();
-      activeWorker++;
-      currentRequestHandler()
-        .then(() => {
-          activeWorker--;
-          processCancelQueue();
-        })
-        .catch((error) => {
-          console.error("Error processing request:", error);
-          activeWorker--;
-          processCancelQueue();
-        });
+  // Process cancel requests for each user sequentially
+  const processCancelQueue = async (userId) => {
+    if (activeWorker >= MAX_WORKER) return; // Limit concurrent workers
+  
+    const userQueue = cancelRequestQueue.get(userId);
+    if (!userQueue || userQueue.length === 0) {
+      cancelRequestQueue.delete(userId); // Remove empty queues
+      return;
+    }
+  
+    activeWorker++;
+    const currentRequestHandler = userQueue.shift();
+  
+    try {
+      await currentRequestHandler();
+      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
+    } catch (error) {
+      console.error("Error processing request:", error);
+    } finally {
+      activeWorker--;
+      processCancelQueue(userId); // Process next request for this user
     }
   };
   
+  // API route to handle cancel requests
   const numberCancel = (req, res) => {
-    enqueueCancelRequest(() => handleNumberCancelRequest(req, res));
+    const userId = req.user?.id || req.ip; // Identify user by ID or IP
+    enqueueCancelRequest(userId, () => handleNumberCancelRequest(req, res));
   };
   
   const handleNumberCancelRequest = async (req, res) => {
