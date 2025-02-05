@@ -67,7 +67,7 @@ const getServerData = async (sname, server) => {
   
     try {
       await currentRequestHandler();
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
+      await new Promise((resolve) => setTimeout(resolve, 900)); // 0.5s delay
     } catch (error) {
       console.error("Error processing request:", error);
     } finally {
