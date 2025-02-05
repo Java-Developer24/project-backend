@@ -38,7 +38,7 @@ const getServerData = async (sname, server) => {
     return serverData;
   };
   
-const requestQueue = new Map(); // Map to track requests per user
+  const requestQueue = new Map(); // Map to track requests per user
   const MAX_WORKERS = 100; // Limit concurrent workers
   let activeWorkers = 0;
   
@@ -49,6 +49,7 @@ const requestQueue = new Map(); // Map to track requests per user
     }
     requestQueue.get(userId).push(requestHandler);
   
+    // Process the queue for this user
     processQueue(userId);
   };
   
@@ -63,11 +64,11 @@ const requestQueue = new Map(); // Map to track requests per user
     }
   
     activeWorkers++;
-    const currentRequestHandler = userQueue.shift();
+    const currentRequestHandler = userQueue.shift(); // Get the next request handler
   
     try {
-      // Add the 0.5-second delay before processing the request
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // 0.5s delay
+      // Enforce a 0.5-second delay before processing the next request for this user
+      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
   
       // Process the request handler
       await currentRequestHandler();
@@ -79,19 +80,12 @@ const requestQueue = new Map(); // Map to track requests per user
     }
   };
   
-  // Generate a unique ID based on the current time and a random component
-  const generateUniqueID = () => {
-    const timestamp = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
-    const randomSuffix = Math.floor(100 + Math.random() * 900); // Random 3-digit number
-    return `${timestamp}${randomSuffix}`;
-  };
-  
   // API route to handle requests
   const getNumber = (req, res) => {
     const userId = req.user?.id || req.ip; // Identify user by ID or IP
     enqueueRequest(userId, () => handleGetNumberRequest(req, res));
   };
-
+  
 export const checkServiceAvailabilitydata = async (req, res) => {
   try {
       // Fetch service data from the database
@@ -469,7 +463,7 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      const uniqueID = generateUniqueID(); // Generate the unique ID
+      const uniqueID = `${moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS")}${Math.floor(100 + Math.random() * 900)}`;
 
 
          const Id = uniqueID;
