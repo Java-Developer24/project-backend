@@ -39,7 +39,7 @@ const getServerData = async (sname, server) => {
   };
   
   const requestQueue = new Map(); // Map to track requests per user
-  const MAX_WORKERS = 100; // Limit concurrent workers
+  const MAX_WORKERS = 100; // Limit concurrent workers globally
   let activeWorkers = 0;
   
   // Enqueue a request for a specific user
@@ -48,14 +48,12 @@ const getServerData = async (sname, server) => {
       requestQueue.set(userId, []);
     }
     requestQueue.get(userId).push(requestHandler);
-  
-    // Process the queue for this user
     processQueue(userId);
   };
   
   // Process the queue for a specific user sequentially
   const processQueue = async (userId) => {
-    if (activeWorkers >= MAX_WORKERS) return; // Limit concurrent workers
+    if (activeWorkers >= MAX_WORKERS) return; // Limit global concurrent workers
   
     const userQueue = requestQueue.get(userId);
     if (!userQueue || userQueue.length === 0) {
@@ -64,10 +62,10 @@ const getServerData = async (sname, server) => {
     }
   
     activeWorkers++;
-    const currentRequestHandler = userQueue.shift(); // Get the next request handler
+    const currentRequestHandler = userQueue.shift();
   
     try {
-      // Enforce a 0.5-second delay before processing the next request for this user
+      // Add the 0.5-second delay before processing the request
       await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
   
       // Process the request handler
@@ -80,12 +78,13 @@ const getServerData = async (sname, server) => {
     }
   };
   
+ 
+  
   // API route to handle requests
   const getNumber = (req, res) => {
     const userId = req.user?.id || req.ip; // Identify user by ID or IP
     enqueueRequest(userId, () => handleGetNumberRequest(req, res));
   };
-  
 export const checkServiceAvailabilitydata = async (req, res) => {
   try {
       // Fetch service data from the database
