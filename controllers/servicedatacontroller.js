@@ -38,7 +38,7 @@ const getServerData = async (sname, server) => {
     return serverData;
   };
   
-  const requestQueue = new Map(); // Map to track requests per user
+const requestQueue = new Map(); // Map to track requests per user
   const MAX_WORKERS = 100; // Limit concurrent workers
   let activeWorkers = 0;
   
@@ -67,7 +67,7 @@ const getServerData = async (sname, server) => {
   
     try {
       // Add the 0.5-second delay before processing the request
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 0.5s delay
   
       // Process the request handler
       await currentRequestHandler();
