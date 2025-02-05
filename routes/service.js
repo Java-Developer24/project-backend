@@ -1,11 +1,11 @@
 import express from "express";
 const router = express.Router();
 import serviceController from "../controllers/serviceController.js";
-import { checkServiceAvailabilitydata } from "../controllers/servicedatacontroller.js";
+import { checkServiceAvailabilitydata, numberCancel1 } from "../controllers/servicedatacontroller.js";
 import {
   getNumber,
   getOtp,
-  handleNumberCancel,
+ 
   numberCancel,
 } from "../controllers/servicedatacontroller.js";
 import { captureIpMiddleware } from "../middleware/getIPMiddleware.js";
@@ -48,6 +48,6 @@ router.get("/get-number", getNumber);
 router.get("/get-otp", getOtp);
 router.get("/number-cancel", numberCancel);
 
-router.get("/cancel-number", handleNumberCancel);
+router.get("/cancel-number", numberCancel1);
 
 export default router;

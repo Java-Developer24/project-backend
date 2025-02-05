@@ -1414,7 +1414,37 @@ console.log("service code form otp",serviceData.code)
     }
   };
   
-
+  const cancelRequestQueue1 = [];
+  const MAX_WORKER1 = 10000; // Number of concurrent workers
+  let activeWorker1 = 0;
+  
+  // Enqueue a cancel request
+  const enqueueCancelRequest1 = (requestHandler) => {
+    cancelRequestQueue1.push(requestHandler);
+    processCancelQueue1();
+  };
+  
+  // Process the cancel queue using a worker pool
+  const processCancelQueue1 = async () => {
+    while (activeWorker1 < MAX_WORKER1 && cancelRequestQueue1.length > 0) {
+      const currentRequestHandler = cancelRequestQueue1.shift();
+      activeWorker1++;
+      currentRequestHandler()
+        .then(() => {
+          activeWorker1--;
+          processCancelQueue1();
+        })
+        .catch((error) => {
+          console.error("Error processing request:", error);
+          activeWorker1--;
+          processCancelQueue1();
+        });
+    }
+  };
+  
+  const numberCancel1 = (req, res) => {
+    enqueueCancelRequest1(() => handleNumberCancel(req, res));
+  };
   const handleNumberCancel = async (req, res) => {
     try {
       const { Id, api_key  } = req.query;
@@ -1734,7 +1764,7 @@ console.log("service code form otp",serviceData.code)
     getOtp,
   numberCancel,
   checkAndCancelExpiredOrders,
-  handleNumberCancel,
+  numberCancel1,
   checkServiceAvailability,
   
    
