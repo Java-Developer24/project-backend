@@ -41,43 +41,7 @@ const getServerData = async (sname, server) => {
   
   
   
-  const requestQueues = {}; // Separate queue for each API (using API key as the key)
 
-  const enqueueRequest = (requestHandler, apiKey) => {
-    if (!requestQueues[apiKey]) {
-      requestQueues[apiKey] = {
-        queue: [],
-        active: false, // Track if processing is ongoing for that API
-      };
-    }
-  
-    requestQueues[apiKey].queue.push(requestHandler);
-    processQueue(apiKey);
-  };
-  
-  const processQueue = async (apiKey) => {
-    const queueInfo = requestQueues[apiKey];
-    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
-  
-    queueInfo.active = true;
-    const currentRequestHandler = queueInfo.queue.shift();
-  
-    try {
-      await currentRequestHandler();
-    } catch (error) {
-      console.error(`Error processing request for API key ${apiKey}:`, error);
-    } finally {
-      queueInfo.active = false;
-      processQueue(apiKey); // Process the next request for this API key
-    }
-  };
-  
-  // Example API Handler (using API Key as the key)
-  const getNumber = (req, res) => {
-    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
-    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
-  };
-  
   
   
   
@@ -318,7 +282,49 @@ const checkServiceAvailability = async (sname, server) => {
     return parseFloat(totalDiscount.toFixed(2));
   };
   
+  const requestQueues = {}; // Separate queue for each API (using API key as the key)
 
+  const enqueueRequest = (requestHandler, apiKey) => {
+    if (!requestQueues[apiKey]) {
+      requestQueues[apiKey] = {
+        queue: [],
+        active: false, // Track if processing is ongoing for that API
+      };
+    }
+  
+    // Check if the request is already in queue to prevent duplication
+    if (requestQueues[apiKey].queue.length === 0) {
+      requestQueues[apiKey].queue.push(requestHandler);
+      processQueue(apiKey);
+    }
+  };
+  
+  const processQueue = async (apiKey) => {
+    const queueInfo = requestQueues[apiKey];
+    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
+  
+    queueInfo.active = true;
+    const currentRequestHandler = queueInfo.queue.shift(); // Get the next request in the queue
+  
+    try {
+      await currentRequestHandler(); // Process the request
+    } catch (error) {
+      console.error(`Error processing request for API key ${apiKey}:`, error);
+    } finally {
+      queueInfo.active = false; // Reset active flag
+      // Process the next request for this API key
+      if (queueInfo.queue.length > 0) {
+        processQueue(apiKey);
+      }
+    }
+  };
+  
+  // Example API Handler (using API Key as the key)
+  const getNumber = (req, res) => {
+    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
+    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
+  };
+  
   
   const handleGetNumberRequest = async (req, res) => {
     try {
