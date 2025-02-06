@@ -449,7 +449,7 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      const uniqueID = `${moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS")}${id}`;
+      const uniqueID = id
 
 
          const Id = uniqueID;
