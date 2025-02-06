@@ -73,7 +73,7 @@ router.post('/signup',validateCaptcha,signup);
 
 // Login Route
 
-router.post('/login',validateCaptcha, login);
+router.post('/login', login);
 
 router.post("/admin-api/admin-user-login/admin-login",adminLogin)
 
