@@ -38,7 +38,7 @@ const getServerData = async (sname, server) => {
     return serverData;
   };
   
-  const requestQueue = new Map(); // Map to track requests per user
+  const requestQueue = new Map(); // Track requests per user
   const MAX_WORKERS = 100; // Limit concurrent workers
   let activeWorkers = 0;
   
@@ -49,11 +49,13 @@ const getServerData = async (sname, server) => {
     }
     requestQueue.get(userId).push(requestHandler);
   
-    // Process the queue for this user
-    processQueue(userId);
+    // Ensure only one queue is processing per user
+    if (requestQueue.get(userId).length === 1) {
+      processQueue(userId);
+    }
   };
   
-  // Process the queue for a specific user sequentially
+  // Process the queue for a specific user sequentially with enforced delay
   const processQueue = async (userId) => {
     if (activeWorkers >= MAX_WORKERS) return; // Limit concurrent workers
   
@@ -67,16 +69,23 @@ const getServerData = async (sname, server) => {
     const currentRequestHandler = userQueue.shift(); // Get the next request handler
   
     try {
-      // Enforce a 0.5-second delay before processing the next request for this user
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
-  
-      // Process the request handler
+      // Process the request handler first
       await currentRequestHandler();
+      
+      // Enforce a 0.5-second delay *AFTER* processing before moving to the next one
+      await new Promise((resolve) => setTimeout(resolve, 500));
+  
     } catch (error) {
       console.error("Error processing request:", error);
     } finally {
       activeWorkers--;
-      processQueue(userId); // Process next request for this user
+  
+      // Ensure queue keeps processing (only if there's something left)
+      if (requestQueue.get(userId)?.length > 0) {
+        processQueue(userId);
+      } else {
+        requestQueue.delete(userId); // Cleanup if queue is empty
+      }
     }
   };
   
@@ -85,6 +94,7 @@ const getServerData = async (sname, server) => {
     const userId = req.user?.id || req.ip; // Identify user by ID or IP
     enqueueRequest(userId, () => handleGetNumberRequest(req, res));
   };
+  
   
 export const checkServiceAvailabilitydata = async (req, res) => {
   try {
