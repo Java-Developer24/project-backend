@@ -40,43 +40,7 @@ const getServerData = async (sname, server) => {
   };
   
   
-  
-  const requestQueues = {}; // Separate queue for each API (using API key as the key)
-
-  const enqueueRequest = (requestHandler, apiKey) => {
-    if (!requestQueues[apiKey]) {
-      requestQueues[apiKey] = {
-        queue: [],
-        active: false, // Track if processing is ongoing for that API
-      };
-    }
-  
-    requestQueues[apiKey].queue.push(requestHandler);
-    processQueue(apiKey);
-  };
-  
-  const processQueue = async (apiKey) => {
-    const queueInfo = requestQueues[apiKey];
-    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
-  
-    queueInfo.active = true;
-    const currentRequestHandler = queueInfo.queue.shift();
-  
-    try {
-      await currentRequestHandler();
-    } catch (error) {
-      console.error(`Error processing request for API key ${apiKey}:`, error);
-    } finally {
-      queueInfo.active = false;
-      processQueue(apiKey); // Process the next request for this API key
-    }
-  };
-  
-  // Example API Handler (using API Key as the key)
-  const getNumber = (req, res) => {
-    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
-    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
-  };
+ 
   
   
   
@@ -320,113 +284,109 @@ const checkServiceAvailability = async (sname, server) => {
   
 
   
+  const requestQueues = {}; // Separate queue for each API (using API key as the key)
+
+  // Function to handle adding the request to the queue and process it
+  const enqueueRequest = (requestHandler, apiKey) => {
+    if (!requestQueues[apiKey]) {
+      requestQueues[apiKey] = {
+        queue: [],
+        active: false, // Track if processing is ongoing for that API
+      };
+    }
+  
+    // Add request to the queue
+    requestQueues[apiKey].queue.push(requestHandler);
+    processQueue(apiKey);
+  };
+  
+  // Function to process the queue for a specific API key
+  const processQueue = async (apiKey) => {
+    const queueInfo = requestQueues[apiKey];
+    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
+  
+    // Mark as active while processing
+    queueInfo.active = true;
+    const currentRequestHandler = queueInfo.queue.shift(); // Dequeue the first request
+  
+    try {
+      await currentRequestHandler();
+    } catch (error) {
+      console.error(`Error processing request for API key ${apiKey}:`, error);
+    } finally {
+      // Mark as inactive and process the next request
+      queueInfo.active = false;
+      processQueue(apiKey); // Process the next request for this API key
+    }
+  };
+  
+  // Example API Handler (using API Key as the key)
+  const getNumber = (req, res) => {
+    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
+    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
+  };
+  
+  // Main logic to handle getting a number request and running fraud checks
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { code, api_key, server} = req.query;
+      const { code, api_key, server } = req.query;
   
       if (!code || !api_key || !server) {
-        return res
-          .status(400)
-          .json({ error: "api key or code missing or server number missing" });
-      }
-      const userapikey = await User.findOne({ apiKey:api_key });
-      if (!userapikey) {
-        return res.status(400).json({ error: "bad key or id missing" });
+        return res.status(400).json({ error: "API key, code, or server number missing" });
       }
   
-      if (server === '8') {
-        // Step 1: Retrieve the API details for server 8 from the database
-        const serverData = await ServerData.findOne({ server: 8 });
-      
-       
-      
-      // Step 2: Use the retrieved `api_key` to hit the endpoint
-        const apiKey = serverData.api_key;
-        const response = await axios.get(
-          `http://www.phantomunion.com:10023/pickCode-api/push/ticket?key=${apiKey}`
-        );
-      
-        if (response.data && response.data.code === '200') {
-          const { token } = response.data.data;
-      
-          // Step 3: Retrieve the server again to ensure it's the most recent instance
-          const updatedServerData = await ServerData.findOne({ server: 8 });
-      
-          
-    
-          // Step 4: Save the new token in the `api` field
-          updatedServerData.api_key = token;
-          console.log("Updated token for server 8:", updatedServerData.api_key);
-          await updatedServerData.save();
-      
-          console.log("Token successfully saved for server 8.");
-        }
+      // Validate the API key
+      const userapikey = await User.findOne({ apiKey: api_key });
+      if (!userapikey) {
+        return res.status(400).json({ error: "Invalid API key or missing user" });
       }
-      
+  
+      // Get the IP details from the request
       const ipDetails = await getIpDetails(req);
   
-      const serverCode = await Service.findOne({name: code });
+      // Validate the service code
+      const serverCode = await Service.findOne({ name: code });
       if (!serverCode) {
         throw new Error("Service not found.");
       }
-  
       const sname = serverCode.name;
   
-      const user = await User.findOne({apiKey: api_key });
-       // Run fraud check for the user before proceeding
-    await runFraudCheck(user._id,ipDetails);  // Pass the userId to the fraud check function
+      // Fetch user data to ensure the user exists
+      const user = await User.findOne({ apiKey: api_key });
       if (!user) {
         return res.status(400).json({ error: "Invalid API key." });
       }
   
-      const userData = await User.findById({ _id: user._id });
-      if (userData.blocked) {
-        return res
-          .status(400)
-          .json({ error: "Your account is blocked, contact the Admin." });
-      }
-      
-
-      const serverDatas = await getServerMaintenanceData(server);
-     
-      
-      const api_key_server = serverDatas.api_key;
-      const serviceDataMaintence=await checkServiceAvailability(sname, server);
-      if(serviceDataMaintence.error){
-        return res.status(400).json({ error: serviceDataMaintence.error });
+      // Run fraud check for the user before proceeding
+      await runFraudCheck(user._id, ipDetails);  // Ensure fraud check is triggered for every request
+      if (user.blocked) {
+        return res.status(400).json({ error: "Your account is blocked, contact Admin." });
       }
   
-      const serviceData = await getServerData(sname, server);
-      console.log("serverdata",serviceData)
-      
-      let price = parseFloat(serviceData.price);
+      // Validate server and availability
+      const serverData = await getServerMaintenanceData(server);
+      const serviceData = await checkServiceAvailability(sname, server);
+      if (serviceData.error) {
+        return res.status(400).json({ error: serviceData.error });
+      }
   
+      const price = parseFloat(serviceData.price);
       if (user.balance < price) {
-        return res.status(400).json({ error: "low balance." });
+        return res.status(400).json({ error: "Insufficient balance." });
       }
-      
-      const apiUrl = constructApiUrl(server, api_key_server, serviceData);
-      console.log("serverdata",serviceData)
   
+      // Construct the API URL and fetch the number from external service
+      const apiUrl = constructApiUrl(server, serverData.api_key, serviceData);
       let response, responseData;
       let retry = true;
   
       for (let attempt = 0; attempt < 2 && retry; attempt++) {
-        if (typeof apiUrl === "string") {
-          response = await fetch(apiUrl);
-        } else {
-          response = await fetch(apiUrl.url, { headers: apiUrl.headers });
-        }
-  
+        response = await fetch(apiUrl);
         if (!response.ok) {
-          console.log('Error status:', response.status);  // Log status code for debugging
           throw new Error("No numbers available. Please try different server.");
         }
-        
         responseData = await response.text();
-        console.log('API Response Data:', responseData);
-  
-        if (!responseData ||responseData.trim() === "") {
+        if (!responseData || responseData.trim() === "") {
           throw new Error("No numbers available. Please try a different server.");
         }
   
@@ -434,100 +394,38 @@ const checkServiceAvailability = async (sname, server) => {
           var { id, number } = handleResponseData(server, responseData);
           retry = false;
         } catch (error) {
-          console.error(error);
           if (attempt === 1) {
-            return res.status(400).json({
-              // error: "No numbers available. Please try different server.",
-              error: "No stock.",
-            });
+            return res.status(400).json({ error: "No stock." });
           }
         }
       }
   
+      // Deduct the balance and update the number history
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
-      const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
-      price=parseFloat((Originalprice + totalDiscount).toFixed(2))
-      
-      // Update balance in the database using MongoDB $inc operator
-      await User.updateOne(
-        { _id: user._id },
-        { $inc: { balance: -price } }
-      );
-      
-      
-      
+      const finalPrice = parseFloat((price + totalDiscount).toFixed(2));
+      await User.updateOne({ _id: user._id }, { $inc: { balance: -finalPrice } });
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
-
-
-
-         const Id = uniqueID;
-      
-
-
-
   
       const numberHistory = new NumberHistory({
         userId: user._id,
         serviceName: sname,
-        price,
+        price: finalPrice,
         server,
         id,
-        Id, 
-        otp: null,
-        status: "Success",
-        reason:"Waiting for SMS",
         number,
         date_time: formattedDateTime,
       });
       await numberHistory.save();
-  console.log("serviceData code",serviceData.code)
-  const balance=await User.findOne( { _id: user._id });
-  console.log("remaining balance",balance.balance)
-      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
-      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
-      const userBalance= await User.findOne({ apiKey:api_key });
-      await numberGetDetails({
-        email: user.email,
-        serviceName: sname,
-        code: serviceData.code,
-        price,
-        server,
-        number,
-        balance: balance.balance,
-        ip: ipDetailsString,
-      });
   
-      const expirationTime = new Date();
-      // Check if it's server 7, set 10 minutes; otherwise, set 20 minutes
-      console.log("server",server)
-      const expirationMinutes = server === "7" ? 10 : 20;
-      console.log("expirationMinutes",expirationMinutes)
-      const expirationTimeUTC =expirationTime.setMinutes(expirationTime.getMinutes() + expirationMinutes);
-      const expirationTimeIST = moment(expirationTimeUTC).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      console.log("expirationTimeUTC converted ",expirationTimeIST)
-  
-      const newOrder = new Order({
-        userId: user._id,
-        service: sname,
-        price,
-        server,
-        Id,
-        otpType:serviceData.otp,
-        numberId: id,
-        number,
-        orderTime: new Date(),
-        expirationTime,
-      });
-      await newOrder.save();
-  
-      res.status(200).json({ number, Id });
+      // Return response to the user
+      res.status(200).json({ number, id });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message });
     }
   };
+  
   
 
 
@@ -535,14 +433,14 @@ const checkServiceAvailability = async (sname, server) => {
   const checkAndCancelExpiredOrders = async () => {
     try {
       const currentTime = new Date();
-      console.log("Current Time:", currentTime);
+     
   
       // Fetch orders expiring within TIME_OFFSET or already expired
       const expiredOrders = await Order.find({
         expirationTime: { $lte: new Date(currentTime.getTime() + 120000) },
       });
   
-      console.log("Expired Orders Found:", expiredOrders.length);
+     ;
   
       for (const order of expiredOrders) {
         console.log("Processing Order ID:", order._id);
@@ -575,38 +473,33 @@ const checkServiceAvailability = async (sname, server) => {
       console.log("Cancelling Order ID:", order._id);
   
       const user = await User.findOne({ _id: order.userId });
-      console.log("User Found for Order:", user ? user._id : "No user found");
+      
   
       if (user && user.apiKey) {
-        console.log("User's API Key:", user.apiKey);
-        console.log("Order Number ID:", order.Id);
-        console.log("Order Server:", order.server);
+        
   
         await callNumberCancelAPI(user.apiKey, order.Id);
       } else {
-        console.error(`No API key found for user ${order.userId}`);
+       
       }
     } catch (error) {
-      console.error(`Error cancelling order ${order._id}:`, error.message);
+     
     }
   };
   
   const callNumberCancelAPI = async (apiKey, Id) => {
     try {
-      console.log("Calling Cancel API...");
-      console.log("API Key:", apiKey);
-      console.log("Number ID:", Id);
       
   
       const response = await fetch(
         `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&Id=${Id}`
       );
   
-      console.log("API Response Status:", response.status);
+     
   
       if (!response.ok) {
         const errorResponse = await response.json();
-        console.error(`API call failed:`, errorResponse);
+       
       } else {
         console.log("API call successful");
       }

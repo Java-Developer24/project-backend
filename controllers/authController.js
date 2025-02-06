@@ -212,35 +212,15 @@ export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Find admin by email
     let admin = await Admin.findOne({ email });
-    console.log("admindata",admin)
+    console.log("Admin Data:", admin);
 
     if (!admin) {
-      // If no admin found, create a new admin record
-      const hashedPassword = await bcrypt.hash(password, 10); // Hash the password before saving
-
-      // Create the new admin entry
-      admin = new Admin({
-        email,
-        password: hashedPassword,
-        is2FAEnabled: false, // Assuming MFA is disabled by default
-      });
-
-      // Save the new admin to the database
-      await admin.save();
-
-      return res.status(201).json({
-        success: true,
-        message: 'Admin created and logged in',
-        is2FAEnabled: false,
-      });
+      return res.status(500).json({ success: false, message: 'Invalid email' });
     }
 
-    // Verify password (assumes password is hashed)
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
-
-    if (!isPasswordValid) {
+    // Directly check the password without hashing
+    if (password !== admin.password) {
       return res.status(400).json({ success: false, message: 'Invalid password' });
     }
 
@@ -250,7 +230,9 @@ export const adminLogin = async (req, res) => {
       JWT_SECRET, // Secret key
       { expiresIn: '5h' } // Token expiration time
     );
-    console.log(token)
+
+    console.log("Generated Token:", token);
+
     // Save the token in the database by replacing the existing token
     admin.token = token; // Replace with the new token
     await admin.save();
@@ -265,7 +247,7 @@ export const adminLogin = async (req, res) => {
       is2FAEnabled,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Server Error:", err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };

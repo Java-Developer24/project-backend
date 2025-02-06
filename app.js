@@ -4,6 +4,8 @@ import cors from "cors";
 import connectDB from "./config/database.js";
 import { checkAndCancelExpiredOrders } from "./controllers/servicedatacontroller.js";
 import session from "express-session";
+import ServerData from "./models/serverData.js";
+import axios from "axios"
 
 import {scheduleJob} from "./utils/telegram-recharge-transaction.js";
 import {
@@ -31,21 +33,10 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://www.tech-developer.online",
-      "https://admin.tech-developer.online",
-      "https://www.admin.tech-developer.online/login",
-      "https://www.admin.tech-developer.online",
+      
       "http://localhost:5174",
       "http://localhost:5173",
-      "http://192.168.0.147:5173",
-      "http://frontend-app-react.s3-website.ap-south-1.amazonaws.com",
-      "http://frontend.tech-developer.online",
-      "https://adminpanel.tech-developer.online",
-      "https://testing-frontend-app-git-main-java-developer24s-projects.vercel.app",
-      "https://testing-frontend-app.vercel.app",
-      "https://frontendapp.tech-developer.online",
-      "https://admin-dashboard.tech-developer.online",
-      "https://obscure-guide-p5x7gqwq496f4vp-5173.app.github.dev",
+      
       "https://paidsms.org",
       "http://paidsms.org",
       "https://babricebin.paidsms.org",
@@ -159,6 +150,63 @@ startIntervalJob();
 // Check for new cron settings every 10 minutes (600000 ms)
 setInterval(startIntervalJob, 10 * 60 * 1000); // This checks for new settings every 10 minutes
 
+
+
+
+
+// Function to handle the API logic
+const updateTokenForServer8 = async () => {
+  try {
+    console.log("[updateTokenForServer8] Starting token update process for server 8...");
+
+    // Step 1: Retrieve the API details for server 8 from the database
+    const serverData = await ServerData.findOne({ server: 8 });
+    if (!serverData) {
+      console.log("[updateTokenForServer8] Server data for server 8 not found.");
+      return;
+    }
+    console.log("[updateTokenForServer8] Retrieved server data:", serverData);
+
+    // Step 2: Use the retrieved `api_key` to hit the endpoint
+    const apiKey = serverData.api_key;
+    console.log("[updateTokenForServer8] Using API key for server 8:", apiKey);
+
+    const response = await axios.get(
+      `http://www.phantomunion.com:10023/pickCode-api/push/ticket?key=${apiKey}`
+    );
+    console.log("[updateTokenForServer8] API response received:", response.data);
+
+    if (response.data && response.data.code === '200') {
+      const { token } = response.data.data;
+      console.log("[updateTokenForServer8] New token received:", token);
+
+      // Step 3: Retrieve the server again to ensure it's the most recent instance
+      const updatedServerData = await ServerData.findOne({ server: 8 });
+      if (!updatedServerData) {
+        console.log("[updateTokenForServer8] Server data for server 8 could not be found for updating.");
+        return;
+      }
+      console.log("[updateTokenForServer8] Retrieved most recent server data:", updatedServerData);
+
+      // Step 4: Save the new token in the `api` field
+      updatedServerData.api_key = token;
+      console.log("[updateTokenForServer8] Updating token in the database...");
+
+      await updatedServerData.save();
+
+      console.log("[updateTokenForServer8] Token successfully saved for server 8.");
+    } else {
+      console.log("[updateTokenForServer8] API response did not return a valid token.");
+    }
+  } catch (error) {
+    console.error("[updateTokenForServer8] Error updating token for server 8:", error);
+  }
+};
+
+
+// Set an interval to call the function every 2 hours (7200000 milliseconds)
+ setInterval(updateTokenForServer8, 2 * 60 * 60 * 1000); // 2 hours = 2 * 60 * 60 * 1000 milliseconds
+// setInterval(updateTokenForServer8, 2 * 60 * 1000); // 2 minutes = 2 * 60 * 1000 milliseconds
 
 
 

@@ -173,7 +173,7 @@ const fetchAndStoreServicesCore = async () => {
     return { success: false, message: "Error fetching services" };
   }
 
-  console.timeEnd("fetchAndStoreServices");
+ 
 };
 
 // API route handler

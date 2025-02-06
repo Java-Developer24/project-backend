@@ -10,7 +10,7 @@ import ServerData from "../models/serverData.js";
 const get24HoursAgo = () => {
   const start = moment().tz("Asia/Kolkata").startOf("day").format("DD/MM/YYYY HH:mm A"); // Today 12:00 AM
   const end = moment().tz("Asia/Kolkata").endOf("day").format("DD/MM/YYYY HH:mm A"); // Today 11:59 PM
-  console.log("Time range for query:", { start, end });
+ 
   return { start, end };
 };
 
@@ -128,7 +128,7 @@ export const getServerDetails = async () => {
     const recentRechargeHistory = await RechargeHistory.find({
       date_time: { $gte: start, $lt: end },
     });
- console.log(recentRechargeHistory)
+
     let totalAmount = 0;
     let trxTotal = 0;
     let upiTotal = 0;
@@ -151,7 +151,7 @@ export const getServerDetails = async () => {
     const recentTransactionHistory = await NumberHistory.find({
       date_time: { $gte: start, $lt: end },
     });
-          console.log("recent number history",recentTransactionHistory)
+    
     // Group transactions by their ID
     const transactionsById = recentTransactionHistory.reduce(
       (acc, transaction) => {
@@ -232,9 +232,9 @@ export const getServerDetails = async () => {
     const gettotalreacharge = await fetch(
       `${process.env.BACKEND_URL}/api/user/admin-api/all-users/get-all-users`
     );
-    console.log("gettotalreacharge", gettotalreacharge); 
+   
     const usersData = await gettotalreacharge.json();
-    console.log(usersData);
+    
 
     const totalBalance = usersData.reduce(
       (accumulator, user) => accumulator + user.balance,
@@ -291,7 +291,7 @@ export const getServerDetails = async () => {
 
     return result;
   } catch (error) {
-    console.error("Error fetching server details:", error);
+   
     throw error;
   }
 };
@@ -316,7 +316,7 @@ export const scheduleJob = () => {
     setInterval(runJob, 30 * 60 * 1000); // Run every 3 minutes
   }, timeToNextInterval);
 
-  console.log(`Job will run every 30 minutes, starting in ${timeToNextInterval / 1000} seconds`);
+
 };
 
 
