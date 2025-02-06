@@ -38,9 +38,14 @@ const getServerData = async (sname, server) => {
     return serverData;
   };
   
+  
+  
   const requestQueueMap = new Map(); // Store queues per API key
   const isProcessingMap = new Map(); // Track processing status per API key
+  const MAX_WORKERS = 100; // Limit concurrent workers to 100
+  let activeWorkers = 0;
   
+  // Enqueue a number-get request for a specific API key
   const enqueueRequest = (apiKey, requestHandler) => {
     if (!requestQueueMap.has(apiKey)) {
       requestQueueMap.set(apiKey, []);
@@ -50,28 +55,38 @@ const getServerData = async (sname, server) => {
     processQueue(apiKey);
   };
   
+  // Process number-get requests for each API key sequentially, with concurrency control
   const processQueue = async (apiKey) => {
-    if (isProcessingMap.get(apiKey) || requestQueueMap.get(apiKey)?.length === 0) return;
+    if (activeWorkers >= MAX_WORKERS) return; // Limit concurrent workers
   
-    isProcessingMap.set(apiKey, true);
-  
-    while (requestQueueMap.get(apiKey)?.length > 0) {
-      const currentRequestHandler = requestQueueMap.get(apiKey).shift();
-  
-      try {
-        await currentRequestHandler(); // Ensure this request completes before moving to the next
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
-      } catch (error) {
-        console.error("Error processing request:", error);
-      }
+    const userQueue = requestQueueMap.get(apiKey);
+    if (!userQueue || userQueue.length === 0) {
+      isProcessingMap.set(apiKey, false); // Mark as not processing when the queue is empty
+      return;
     }
   
-    isProcessingMap.set(apiKey, false);
+    activeWorkers++; // Increase active worker count
+    const currentRequestHandler = userQueue.shift(); // Get the next request handler
+  
+    try {
+      await currentRequestHandler(); // Execute the number-get request
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
+    } catch (error) {
+      console.error("Error processing get number request:", error);
+    } finally {
+      activeWorker--; // Decrease active worker count when done
+      processQueue(apiKey); // Process the next request for this API key
+    }
   };
   
+  // API route to handle get number requests
   const getNumber = (req, res) => {
     const { api_key } = req.query;
     if (!api_key) return res.status(400).json({ error: "API key is required" });
+  
+    if (!isProcessingMap.get(api_key)) {
+      isProcessingMap.set(api_key, true);
+    }
   
     enqueueRequest(api_key, async () => await handleGetNumberRequest(req, res));
   };
@@ -1064,7 +1079,6 @@ console.log("service code form otp",serviceData.code)
   
 
 
-
   const cancelRequestQueue = new Map(); // Map to track requests per user
   const MAX_WORKER = 100; // Limit concurrent workers to 100
   let activeWorker = 0;
@@ -1074,31 +1088,31 @@ console.log("service code form otp",serviceData.code)
     if (!cancelRequestQueue.has(userId)) {
       cancelRequestQueue.set(userId, []);
     }
-    cancelRequestQueue.get(userId).push(requestHandler);
   
+    cancelRequestQueue.get(userId).push(requestHandler);
     processCancelQueue(userId);
   };
   
   // Process cancel requests for each user sequentially
   const processCancelQueue = async (userId) => {
-    if (activeWorker >= MAX_WORKER) return; // Limit concurrent workers
-  
+    if (activeWorker >= MAX_WORKER) return; // Limit concurrent workers to 100
+    
     const userQueue = cancelRequestQueue.get(userId);
     if (!userQueue || userQueue.length === 0) {
       cancelRequestQueue.delete(userId); // Remove empty queues
       return;
     }
   
-    activeWorker++;
-    const currentRequestHandler = userQueue.shift();
+    activeWorker++; // Increase active worker count
+    const currentRequestHandler = userQueue.shift(); // Get the next cancel request
   
     try {
-      await currentRequestHandler();
-      await new Promise((resolve) => setTimeout(resolve, 500)); // 0.5s delay
+      await currentRequestHandler(); // Execute the cancel request
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay
     } catch (error) {
-      console.error("Error processing request:", error);
+      console.error("Error processing cancel request:", error);
     } finally {
-      activeWorker--;
+      activeWorker--; // Decrease active worker count when done
       processCancelQueue(userId); // Process next request for this user
     }
   };
@@ -1108,6 +1122,7 @@ console.log("service code form otp",serviceData.code)
     const userId = req.user?.id || req.ip; // Identify user by ID or IP
     enqueueCancelRequest(userId, () => handleNumberCancelRequest(req, res));
   };
+  
   
   const handleNumberCancelRequest = async (req, res) => {
     try {
