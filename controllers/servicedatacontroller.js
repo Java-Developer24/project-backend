@@ -41,34 +41,43 @@ const getServerData = async (sname, server) => {
   
   
   
-  const requestQueue = [];
-  const MAX_WORKERS = 1000; // Adjust the number of workers based on your needs
-  let activeWorkers = 0;
+  const requestQueues = {}; // Separate queue for each API (using API key as the key)
+
+  const enqueueRequest = (requestHandler, apiKey) => {
+    if (!requestQueues[apiKey]) {
+      requestQueues[apiKey] = {
+        queue: [],
+        active: false, // Track if processing is ongoing for that API
+      };
+    }
   
-  const enqueueRequest = (requestHandler) => {
-    requestQueue.push(requestHandler);
-    processQueue();
+    requestQueues[apiKey].queue.push(requestHandler);
+    processQueue(apiKey);
   };
   
-  const processQueue = async () => {
-    if (activeWorkers >= MAX_WORKERS || requestQueue.length === 0) return;
+  const processQueue = async (apiKey) => {
+    const queueInfo = requestQueues[apiKey];
+    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
   
-    activeWorkers++;
-    const currentRequestHandler = requestQueue.shift();
+    queueInfo.active = true;
+    const currentRequestHandler = queueInfo.queue.shift();
   
     try {
       await currentRequestHandler();
     } catch (error) {
-      console.error("Error processing request:", error);
+      console.error(`Error processing request for API key ${apiKey}:`, error);
     } finally {
-      activeWorkers--;
-      processQueue();
+      queueInfo.active = false;
+      processQueue(apiKey); // Process the next request for this API key
     }
   };
   
+  // Example API Handler (using API Key as the key)
   const getNumber = (req, res) => {
-    enqueueRequest(() => handleGetNumberRequest(req, res));
+    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
+    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
   };
+  
   
   
   
