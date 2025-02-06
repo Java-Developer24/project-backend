@@ -42,10 +42,7 @@ const getServerData = async (sname, server) => {
   
   const requestQueueMap = new Map(); // Store queues per API key
   const isProcessingMap = new Map(); // Track processing status per API key
-  const MAX_WORKERS = 100; // Limit concurrent workers to 100
-  let activeWorkers = 0;
   
-  // Enqueue a number-get request for a specific API key
   const enqueueRequest = (apiKey, requestHandler) => {
     if (!requestQueueMap.has(apiKey)) {
       requestQueueMap.set(apiKey, []);
@@ -55,42 +52,31 @@ const getServerData = async (sname, server) => {
     processQueue(apiKey);
   };
   
-  // Process number-get requests for each API key sequentially, with concurrency control
   const processQueue = async (apiKey) => {
-    if (activeWorkers >= MAX_WORKERS) return; // Limit concurrent workers
+    if (isProcessingMap.get(apiKey) || requestQueueMap.get(apiKey)?.length === 0) return;
   
-    const userQueue = requestQueueMap.get(apiKey);
-    if (!userQueue || userQueue.length === 0) {
-      isProcessingMap.set(apiKey, false); // Mark as not processing when the queue is empty
-      return;
+    isProcessingMap.set(apiKey, true);
+  
+    while (requestQueueMap.get(apiKey)?.length > 0) {
+      const currentRequestHandler = requestQueueMap.get(apiKey).shift();
+  
+      try {
+        await currentRequestHandler(); // Ensure this request completes before moving to the next
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
+      } catch (error) {
+        console.error("Error processing request:", error);
+      }
     }
   
-    activeWorkers++; // Increase active worker count
-    const currentRequestHandler = userQueue.shift(); // Get the next request handler
-  
-    try {
-      await currentRequestHandler(); // Execute the number-get request
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
-    } catch (error) {
-      console.error("Error processing get number request:", error);
-    } finally {
-      activeWorker--; // Decrease active worker count when done
-      processQueue(apiKey); // Process the next request for this API key
-    }
+    isProcessingMap.set(apiKey, false);
   };
   
-  // API route to handle get number requests
   const getNumber = (req, res) => {
     const { api_key } = req.query;
     if (!api_key) return res.status(400).json({ error: "API key is required" });
   
-    if (!isProcessingMap.get(api_key)) {
-      isProcessingMap.set(api_key, true);
-    }
-  
     enqueueRequest(api_key, async () => await handleGetNumberRequest(req, res));
   };
-  
   
   
 export const checkServiceAvailabilitydata = async (req, res) => {
@@ -1079,48 +1065,46 @@ console.log("service code form otp",serviceData.code)
   
 
 
-  const cancelRequestQueue = new Map(); // Map to track requests per user
-  const MAX_WORKER = 100; // Limit concurrent workers to 100
-  let activeWorker = 0;
+  const cancelRequestQueueMap = new Map(); // Store queues per API key
+  const isCancelProcessingMap = new Map(); // Track processing status per API key
   
-  // Enqueue a cancel request for a specific user
-  const enqueueCancelRequest = (userId, requestHandler) => {
-    if (!cancelRequestQueue.has(userId)) {
-      cancelRequestQueue.set(userId, []);
+  // Enqueue a cancel request for a specific API key
+  const enqueueCancelRequest = (apiKey, requestHandler) => {
+    if (!cancelRequestQueueMap.has(apiKey)) {
+      cancelRequestQueueMap.set(apiKey, []);
     }
   
-    cancelRequestQueue.get(userId).push(requestHandler);
-    processCancelQueue(userId);
+    cancelRequestQueueMap.get(apiKey).push(requestHandler);
+    processCancelQueue(apiKey);
   };
   
-  // Process cancel requests for each user sequentially
-  const processCancelQueue = async (userId) => {
-    if (activeWorker >= MAX_WORKER) return; // Limit concurrent workers to 100
-    
-    const userQueue = cancelRequestQueue.get(userId);
-    if (!userQueue || userQueue.length === 0) {
-      cancelRequestQueue.delete(userId); // Remove empty queues
-      return;
+  // Process cancel requests for each API key sequentially
+  const processCancelQueue = async (apiKey) => {
+    // Check if the queue is already being processed or if it's empty
+    if (isCancelProcessingMap.get(apiKey) || cancelRequestQueueMap.get(apiKey)?.length === 0) return;
+  
+    isCancelProcessingMap.set(apiKey, true);
+  
+    while (cancelRequestQueueMap.get(apiKey)?.length > 0) {
+      const currentRequestHandler = cancelRequestQueueMap.get(apiKey).shift();
+  
+      try {
+        await currentRequestHandler(); // Ensure this request completes before moving to the next
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
+      } catch (error) {
+        console.error("Error processing cancel request:", error);
+      }
     }
   
-    activeWorker++; // Increase active worker count
-    const currentRequestHandler = userQueue.shift(); // Get the next cancel request
-  
-    try {
-      await currentRequestHandler(); // Execute the cancel request
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay
-    } catch (error) {
-      console.error("Error processing cancel request:", error);
-    } finally {
-      activeWorker--; // Decrease active worker count when done
-      processCancelQueue(userId); // Process next request for this user
-    }
+    isCancelProcessingMap.set(apiKey, false);
   };
   
   // API route to handle cancel requests
   const numberCancel = (req, res) => {
-    const userId = req.user?.id || req.ip; // Identify user by ID or IP
-    enqueueCancelRequest(userId, () => handleNumberCancelRequest(req, res));
+    const { api_key } = req.query;
+    if (!api_key) return res.status(400).json({ error: "API key is required" });
+  
+    enqueueCancelRequest(api_key, async () => await handleNumberCancelRequest(req, res));
   };
   
   
