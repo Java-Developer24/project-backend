@@ -38,55 +38,44 @@ const getServerData = async (sname, server) => {
     return serverData;
   };
   
-  const requestQueue = new Map(); // Track requests per user
-  const MAX_WORKERS = 100; // Limit concurrent workers
-  let activeWorkers = 0;
+  const requestQueueMap = new Map(); // Store queues per API key
+  const isProcessingMap = new Map(); // Track processing status per API key
   
-  // Enqueue a request for a specific user
-  const enqueueRequest = (userId, requestHandler) => {
-    if (!requestQueue.has(userId)) {
-      requestQueue.set(userId, []);
+  const enqueueRequest = (apiKey, requestHandler) => {
+    if (!requestQueueMap.has(apiKey)) {
+      requestQueueMap.set(apiKey, []);
     }
-    requestQueue.get(userId).push(requestHandler);
   
-    // Ensure only one queue is processing per user
-    if (requestQueue.get(userId).length === 1) {
-      processQueue(userId);
-    }
+    requestQueueMap.get(apiKey).push(requestHandler);
+    processQueue(apiKey);
   };
   
-  // Process the queue for a specific user sequentially with enforced delay
-  const processQueue = async (userId) => {
-    if (activeWorkers >= MAX_WORKERS) return; // Limit concurrent workers
+  const processQueue = async (apiKey) => {
+    if (isProcessingMap.get(apiKey) || requestQueueMap.get(apiKey)?.length === 0) return;
   
-    const userQueue = requestQueue.get(userId);
-    if (!userQueue || userQueue.length === 0) {
-      requestQueue.delete(userId);
-      return;
-    }
+    isProcessingMap.set(apiKey, true);
   
-    activeWorkers++;
-    const currentRequestHandler = userQueue.shift(); // Get next request
+    while (requestQueueMap.get(apiKey)?.length > 0) {
+      const currentRequestHandler = requestQueueMap.get(apiKey).shift();
   
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Ensure delay BEFORE processing
-      await currentRequestHandler(); // Process request
-    } catch (error) {
-      console.error("Error processing request:", error);
-    } finally {
-      activeWorkers--;
-      if (requestQueue.get(userId)?.length > 0) {
-        processQueue(userId);
-      } else {
-        requestQueue.delete(userId);
+      try {
+        await currentRequestHandler(); // Ensure this request completes before moving to the next
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Optional: 0.5s delay between requests
+      } catch (error) {
+        console.error("Error processing request:", error);
       }
     }
+  
+    isProcessingMap.set(apiKey, false);
   };
   
   const getNumber = (req, res) => {
-    const userId = req.query.api_key || req.user?.id || req.ip; // Use API key for queuing
-    enqueueRequest(userId, () => handleGetNumberRequest(req, res));
+    const { api_key } = req.query;
+    if (!api_key) return res.status(400).json({ error: "API key is required" });
+  
+    enqueueRequest(api_key, async () => await handleGetNumberRequest(req, res));
   };
+  
   
   
 export const checkServiceAvailabilitydata = async (req, res) => {
