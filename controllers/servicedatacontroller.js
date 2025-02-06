@@ -452,7 +452,7 @@ const checkServiceAvailability = async (sname, server) => {
   
         if (timeDifference <= 0) {
           // Immediately cancel already expired orders
-          console.log(`Immediately cancelling already expired order ${order._id}`);
+         
           await cancelOrder(order);
         } else if (timeDifference <= TIME_OFFSET) {
           // Schedule cancellation for orders expiring within TIME_OFFSET
