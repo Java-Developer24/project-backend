@@ -449,27 +449,10 @@ const checkServiceAvailability = async (sname, server) => {
       
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-      let counter = 1;  // Initialize the counter starting from 1
-
-      const generateUniqueID = () => {
-          // Format the current date-time
-          const formattedDate = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
-          // Increment the counter and create the unique ID
-          const uniqueID = `${formattedDate}${counter}`;
-          
-          // Increment the counter for the next ID
-          counter++;
-      
-          return uniqueID;
-      };
-      
-      // Example usage
-      console.log(generateUniqueID());  // Outputs uniqueID like: 060220251530456781
-      console.log(generateUniqueID());  // Outputs next uniqueID with counter incremented
-      
+      const uniqueID = `${moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS")}${id}`;
 
 
-         const Id = generateUniqueID;
+         const Id = uniqueID;
       
 
 
