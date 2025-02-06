@@ -61,37 +61,30 @@ const getServerData = async (sname, server) => {
   
     const userQueue = requestQueue.get(userId);
     if (!userQueue || userQueue.length === 0) {
-      requestQueue.delete(userId); // Remove empty queues
+      requestQueue.delete(userId);
       return;
     }
   
     activeWorkers++;
-    const currentRequestHandler = userQueue.shift(); // Get the next request handler
+    const currentRequestHandler = userQueue.shift(); // Get next request
   
     try {
-      // Process the request handler first
-      await currentRequestHandler();
-      
-      // Enforce a 0.5-second delay *AFTER* processing before moving to the next one
-      await new Promise((resolve) => setTimeout(resolve, 500));
-  
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Ensure delay BEFORE processing
+      await currentRequestHandler(); // Process request
     } catch (error) {
       console.error("Error processing request:", error);
     } finally {
       activeWorkers--;
-  
-      // Ensure queue keeps processing (only if there's something left)
       if (requestQueue.get(userId)?.length > 0) {
         processQueue(userId);
       } else {
-        requestQueue.delete(userId); // Cleanup if queue is empty
+        requestQueue.delete(userId);
       }
     }
   };
   
-  // API route to handle requests
   const getNumber = (req, res) => {
-    const userId = req.user?.id || req.ip; // Identify user by ID or IP
+    const userId = req.query.api_key || req.user?.id || req.ip; // Use API key for queuing
     enqueueRequest(userId, () => handleGetNumberRequest(req, res));
   };
   
