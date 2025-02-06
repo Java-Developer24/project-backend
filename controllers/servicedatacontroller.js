@@ -443,13 +443,12 @@ const checkServiceAvailability = async (sname, server) => {
      ;
   
       for (const order of expiredOrders) {
-        console.log("Processing Order ID:", order._id);
+       
   
         const expirationTime = new Date(order.expirationTime);
         // Deduct 60000 milliseconds (1 minute) from the actual expiration time
         const timeDifference = expirationTime.getTime() - currentTime.getTime() - 120000;
-        console.log("Expiration Time:", expirationTime);
-        console.log("Time Difference (ms):", timeDifference);
+        
   
         if (timeDifference <= 0) {
           // Immediately cancel already expired orders
@@ -457,20 +456,20 @@ const checkServiceAvailability = async (sname, server) => {
           await cancelOrder(order);
         } else if (timeDifference <= TIME_OFFSET) {
           // Schedule cancellation for orders expiring within TIME_OFFSET
-          console.log(`Scheduling cancellation for order ${order._id} after ${timeDifference}ms`);
+        
           setTimeout(() => cancelOrder(order), timeDifference);
         } else {
-          console.log(`Order ${order._id} is still valid and not expiring soon.`);
+          
         }
       }
     } catch (error) {
-      console.error("Error in checkAndCancelExpiredOrders:", error.message);
+     
     }
   };
   
   export const cancelOrder = async (order) => {
     try {
-      console.log("Cancelling Order ID:", order._id);
+      
   
       const user = await User.findOne({ _id: order.userId });
       

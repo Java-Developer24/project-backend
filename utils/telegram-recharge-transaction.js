@@ -326,7 +326,7 @@ const runJob = async () => {
   try {
     console.log("job running")
     const result = await getServerDetails();
-    console.log(result);
+    
   } catch (error) {
     console.error("Error running scheduled job:", error);
   }
