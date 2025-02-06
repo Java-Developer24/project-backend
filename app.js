@@ -33,13 +33,12 @@ const app = express();
 app.use(
   cors({
     origin: [
-      
       "http://localhost:5174",
       "http://localhost:5173",
-      
       "https://paidsms.org",
       "http://paidsms.org",
-      "https://babricebin.paidsms.org",
+      "https://apnasathi.paidsms.org",
+
     ], // Explicitly set frontend origin
     credentials: true, // Allow credentials (cookies, Authorization headers, etc.)
   })
