@@ -191,7 +191,7 @@ const handleUpiRequest = async (req, res) => {
     const data = await response.json();
 
     if (data.error) {
-      return res.status(400).json({ error: "Transaction Not Found. Please try again." });
+      return res.status(400).json({ error: "ID Not Found." });
     }
 
     const config = await Config.findOne();
@@ -695,7 +695,7 @@ export const handleTrxRequest = async (req, res) => {
       return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
     } else {
       console.log("Transaction not found. Hash:", transactionHash);
-      res.status(400).json({ error: "Transaction Not Found. Please try again." });
+      res.status(400).json({ error: "ID Not Found." });
     }
   } catch (err) {
     console.error("Error during TRX recharge:", err.message);
