@@ -144,7 +144,7 @@ export const getRechargeHistory = async (req, res) => {
   
       res.status(200).json({ data: transactionHistoryData });
     } catch (error) {
-      console.error("Error fetching transaction history:", error);
+      
       res.status(500).json({ error: "Failed to fetch transaction history" });
     }
   };
@@ -175,7 +175,7 @@ export const getTransactionHistoryUser = async (req, res) => {
   
       res.status(200).json(transactionHistoryData.reverse());
     } catch (error) {
-      console.error("Error fetching transaction history:", error);
+      
       res.status(500).json({ error: "Failed to fetch transaction history" });
     }
   };
@@ -211,7 +211,7 @@ export const getTransactionHistoryUser = async (req, res) => {
 
     res.status(200).json(formattedResponse);
   } catch (error) {
-    console.error("Error fetching recharge history:", error);
+   
     res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 };
@@ -234,7 +234,7 @@ export const  getTotalRechargeBalance= async (req, res) => {
     // Format response to match required structure
     res.status(200).json({ totalAmount: totalAmount.toFixed(2) });
   } catch (error) {
-    console.error("Error calculating total recharge balance:", error);
+    
     res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 };
@@ -270,7 +270,7 @@ export const getTransactionHistoryAdmin=async (req, res) => {
 
     res.status(200).json(formattedHistory);
   } catch (error) {
-    console.error('Error fetching number history:', error);
+    
     res.status(500).json({ message: 'Error fetching number history', error });
   }
 };
@@ -319,7 +319,7 @@ export const transactionCount = async (req, res) => {
 
     res.json({ successCount, cancelledCount, pendingCount });
   } catch (error) {
-    console.error("Error transaction count:", error);
+    
     res.status(500).json({ error: "Failed to count transaction" });
   }
 };
@@ -345,7 +345,7 @@ export const deleteRechargeHistory = async (req, res) => {
     // Send success response
     res.status(200).json({ message: "Recharge history deleted successfully." });
   } catch (error) {
-    console.error(error);
+    
     res.status(500).json({ message: "An error occurred.", error });
   }
 };
@@ -369,7 +369,7 @@ export const deleteNumberHistory = async (req, res) => {
     // Send success response
     res.status(200).json({ message: "Number history deleted successfully." });
   } catch (error) {
-    console.error(error);
+   
     res.status(500).json({ message: "An error occurred.", error });
   }
 };
@@ -387,7 +387,7 @@ export const  activeOrders = async (req, res) => {
     // Return the active orders as response
     return res.status(200).json( activeOrders );
   } catch (error) {
-    console.error("Error fetching active orders:", error.message);
+    
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

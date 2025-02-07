@@ -304,7 +304,7 @@ const processQueue = async () => {
   try {
     await currentRequestHandler();
   } catch (error) {
-    console.error("Error processing request:", error);
+    
   } finally {
     activeWorkers--;
     processQueue();
@@ -402,7 +402,7 @@ const getNumber = (req, res) => {
           var { id, number } = handleResponseData(server, responseData);
           retry = false;
         } catch (error) {
-          console.error(error);
+          
           if (attempt === 1) {
             return res.status(400).json({
               // error: "No numbers available. Please try different server.",
@@ -492,7 +492,7 @@ const getNumber = (req, res) => {
   
       res.status(200).json({ number, Id });
     } catch (error) {
-      console.error(error);
+     
       res.status(500).json({ error: error.message });
     }
   };
