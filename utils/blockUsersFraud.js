@@ -46,14 +46,18 @@ const processUser = async (user,ipDetails) => {
     const totalTransaction = Math.round(Object.values(uniqueTransactions).reduce(
       (total, transaction) => total + parseFloat(transaction.price),
       0
-    ) * 100) / 100;
+    ) ) 
     console.log(`[ProcessUser] Total transaction price for user ${user._id}: ${totalTransaction}`);
 
     // Calculate expected balance
-    const expectedBalance = Math.round((totalRecharge - totalTransaction) * 100) / 100;
+    const expectedBalance2 = Math.round((totalRecharge - totalTransaction) ) 
 
+    const expectedBalance= parseFloat(totalRecharge.toFixed(2)) -
+    parseFloat(totalTransaction.toFixed(2));
     // Calculate fraud amount
-    const fraudAmount = Math.round((userbalance.balance - expectedBalance) * 100) / 100;
+    const fraudAmount2 = Math.round((userbalance.balance - expectedBalance) ) 
+    const fraudAmount = parseFloat(userbalance.balance.toFixed(2)) -
+    parseFloat(expectedBalance.toFixed(2)); 
 
     console.log(`[ProcessUser] Expected balance: ${expectedBalance}`);
     console.log(`[ProcessUser] Actual balance: ${userbalance.balance}`);
