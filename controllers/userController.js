@@ -18,6 +18,7 @@ import {
 import { sendOtpEmail } from "../utils/emailHelper.js";
 import OTP from '../models/otp.js'; // Import OTP model
 import Admin from "../models/mfa.js";
+import ServerData from "../models/serverData.js";
 
 // Custom function to generate a 6-digit numeric OTP
 const generateNumericOtp = () => {
@@ -54,7 +55,7 @@ export const fetchUserData = async (req, res) => {
 export const fetchBalance = async (req, res) => {
   try {
     const { api_key } = req.query;
-    
+
     const admin = await Admin.findOne({});
     const apiAdminIp = admin?.adminIp;
    const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
