@@ -1117,6 +1117,7 @@ console.log("service code form otp",serviceData.code)
       const admin = await Admin.findOne({});
       const apiAdminIp = admin?.adminIp;
       const isAdmin = req.clientIp === apiAdminIp;
+      console.log("isAdmin from handlenumbercancel",isAdmin)
       if(!isAdmin){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
       if (maintainanceServerData.maintenance) {
@@ -1482,6 +1483,7 @@ console.log("service code form otp",serviceData.code)
       const admin = await Admin.findOne({});
       const apiAdminIp = admin?.adminIp;
       const isAdmin = req.clientIp === apiAdminIp;
+      console.log("isAdmin from handlenumbercancel",isAdmin)
       if(!isAdmin){
         const maintainanceServerData = await ServerData.findOne({ server: 0 });
         if (maintainanceServerData.maintenance) {

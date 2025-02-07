@@ -46,8 +46,8 @@ router.get(
 
 router.get("/get-number",captureIpMiddleware, getNumber);
 router.get("/get-otp",captureIpMiddleware, getOtp);
-router.get("/number-cancel", numberCancel);
+router.get("/number-cancel",captureIpMiddleware, numberCancel);
 
-router.get("/cancel-number", numberCancel1);
+router.get("/cancel-number",captureIpMiddleware, numberCancel1);
 
 export default router;
