@@ -470,7 +470,7 @@ const getUserServicesData = async (req, res) => {
           serverNumber: server.serverNumber.toString(),
           price: server.price,
           code: service.name,
-          maintenance: server.maintenance, // Keep maintenance status for filtering
+          
         };
       });
 
