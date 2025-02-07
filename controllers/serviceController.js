@@ -113,11 +113,50 @@ const callEndpoint = async (url) => {
 const fetchAndStoreServicesCore = async () => {
   console.time("fetchAndStoreServices");
 
-  try {
+  
+  // Store the results of each endpoint call
+  let endpointResults = {};
+
+  // Retry logic for endpoints
+  const retryInterval = 2 * 60 * 1000; // 2 minutes in milliseconds
+  let retryAttempts = 3;  // Retry up to 3 times for each endpoint
+  let failedEndpoints = [...endpoints]; // Initially all endpoints are considered for retry
+
+  const callAllEndpoints = async () => {
+    let retryEndTime = Date.now() + retryInterval;
+
+    // Retry failed endpoints until the retry interval is over
+    while (failedEndpoints.length > 0 && Date.now() < retryEndTime) {
+      const promises = failedEndpoints.map(async (endpoint) => {
+        const result = await callEndpoint(endpoint);
+        endpointResults[endpoint] = result;
+        if (result === 'ok') {
+          failedEndpoints = failedEndpoints.filter((e) => e !== endpoint);  // Remove successful endpoint
+        }
+      });
+      await Promise.all(promises);
+      if (failedEndpoints.length > 0) {
+        console.log(`Waiting for retry... Remaining endpoints: ${failedEndpoints.join(', ')}`);
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for 10 seconds before retrying
+      }
+    }
+
+    if (failedEndpoints.length > 0) {
+      console.error(`Some endpoints failed after retries: ${failedEndpoints.join(', ')}`);
+    } else {
+      console.log('All endpoints were successfully called');
+    }
+
     // Fetch the latest services data directly
     const response = await fetchDataWithRetry('https://phpfiles.paidsms.org/p/final.php');
     const servicesData = response;
+    return servicesData;
+  };
 
+  try {
+    
+// Call all the endpoints first
+const servicesData = await callAllEndpoints();
     if (!Array.isArray(servicesData)) {
      
       return { success: false, message: "Invalid data format" };
@@ -175,6 +214,8 @@ const fetchAndStoreServicesCore = async () => {
 
  
 };
+
+
 
 // API route handler
  const fetchAndStoreServices = async (req, res) => {
@@ -283,7 +324,7 @@ const updateServiceCodes = async () => {
   }
 };
 
-  export const getServiceData = async (req, res) => {
+export const getServiceData = async (req, res) => {
    
   
     try {
