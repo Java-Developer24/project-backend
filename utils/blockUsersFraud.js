@@ -14,11 +14,11 @@ const processUser = async (user,ipDetails) => {
     const recharges = await RechargeHistory.find({ userId: user._id });
     console.log(`[ProcessUser] Found ${recharges.length} recharge records for user ${user._id}.`);
 
-    const totalRecharge = Math.round(recharges.reduce((total, recharge) => total + parseFloat(recharge.amount), 0) * 100) / 100;
-    console.log(`[ProcessUser] Total recharge for user ${user._id}: ${totalRecharge}`);
+    const totalRecharge = recharges.reduce((total, recharge) => total + parseFloat(recharge.amount),0) 
+    console.log(`[ProcessUser] Total recharge for user ${user._id}: ${totalRecharge.toFixed(2)}`);
 
     const userbalance = await User.findOne({ _id: user._id });
-    console.log(`[ProcessUser] Current balance for user ${user._id}: ${userbalance.balance}`);
+    console.log(`[ProcessUser] Current balance for user ${user._id}: ${userbalance.balance.toFixed(2)}`);
 
     // Fetch the user's transactions
     const transactions = await NumberHistory.find({
@@ -47,7 +47,7 @@ const processUser = async (user,ipDetails) => {
       (total, transaction) => total + parseFloat(transaction.price),
       0
     ) 
-    console.log(`[ProcessUser] Total transaction price for user ${user._id}: ${totalTransaction}`);
+    console.log(`[ProcessUser] Total transaction price for user ${user._id}: ${totalTransaction.toFixed(2)}`);
 
     // Calculate expected balance
     const expectedBalance2 = Math.round((totalRecharge - totalTransaction) ) 
@@ -59,12 +59,12 @@ const processUser = async (user,ipDetails) => {
     const fraudAmount = parseFloat(userbalance.balance.toFixed(2)) -
     parseFloat(expectedBalance.toFixed(2)); 
 
-    console.log(`[ProcessUser] Expected balance: ${expectedBalance}`);
+    console.log(`[ProcessUser] Expected balance: ${expectedBalance.toFixed(2)}`);
     console.log(`[ProcessUser] Actual balance: ${userbalance.balance.toFixed(2)}`);
-    console.log(`[ProcessUser] Fraud amount: ${fraudAmount}`);
+    console.log(`[ProcessUser] Fraud amount: ${fraudAmount.toFixed(2)}`);
 
     if (fraudAmount >= 1) {
-      console.log(`[ProcessUser] User ${user._id} is fraudulent. Fraud amount: ${fraudAmount}`);
+      console.log(`[ProcessUser] User ${user._id} is fraudulent. Fraud amount: ${fraudAmount.toFixed(2)}`);
       
       // Proceed with blocking and canceling orders
       const freshUser = await User.findById(user._id);
