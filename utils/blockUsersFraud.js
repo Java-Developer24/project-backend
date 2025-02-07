@@ -60,7 +60,7 @@ const processUser = async (user,ipDetails) => {
     parseFloat(expectedBalance.toFixed(2)); 
 
     console.log(`[ProcessUser] Expected balance: ${expectedBalance}`);
-    console.log(`[ProcessUser] Actual balance: ${userbalance.balance}`);
+    console.log(`[ProcessUser] Actual balance: ${userbalance.balance.toFixed(2)}`);
     console.log(`[ProcessUser] Fraud amount: ${fraudAmount}`);
 
     if (fraudAmount >= 1) {
