@@ -299,8 +299,7 @@ export const getServerDetails = async () => {
 export const scheduleJob = () => {
   console.log("Scheduling job...");
 
-  // Run the job immediately for testing
-  runJob();
+  
 
   const now = new Date();
   const minutes = now.getMinutes();

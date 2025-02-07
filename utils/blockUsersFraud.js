@@ -74,7 +74,7 @@ const processUser = async (user,ipDetails) => {
       }
 
       freshUser.blocked = true;
-      freshUser.blocked_reason = `Due to Fraud. Fraud Amount: ${fraudAmount}`;
+      freshUser.blocked_reason = `Due to Fraud. Fraud Amount: ${fraudAmount.toFixed(2)}`;
       freshUser.status = "blocked";
       await freshUser.save();
       console.log(`[ProcessUser] User ${user._id} has been blocked.`);
