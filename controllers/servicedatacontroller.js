@@ -473,7 +473,7 @@ const getNumber = (req, res) => {
         price,
         server,
         number,
-        balance: balance.balance,
+        balance: balance.balance.toFixed(2),
         ip: ipDetailsString,
       });
   
