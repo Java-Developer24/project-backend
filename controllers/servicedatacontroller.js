@@ -645,12 +645,13 @@ const getNumber = (req, res) => {
     const sname=transactions.serviceName
     
     const serviceData = await getServerData(sname, server);
-  
+    let serverData = await ServerData.findOne({ server }); 
+    
       // Check server maintenance and get API key
       if (!isAdmin) {
-        serverDatas = await getServerMaintenanceData(server);
+         serverData = await getServerMaintenanceData(server);
     }
-     let serverData = await ServerData.findOne({ server });
+     
       const api_key_server = serverData.api_key; // Fetch API key from ServerModel
      
   
