@@ -429,9 +429,9 @@ const getUserServicesData = async (req, res) => {
     }
 
     // Get the IP details of the request
-    const ipDetails = await getIpDetails(req);
     const admin = await Admin.findOne({});
-    const isAdminIP = admin?.adminIp === ipDetails.ip; // Compare request IP with stored admin IP
+      const apiAdminIp = admin?.adminIp;
+    const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
 
     // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP
@@ -679,10 +679,11 @@ const getUserServicesDatas = async (req, res) => {
   try {
     const { userId } = req.query;
 
-    // Get the IP details of the request
-    const ipDetails = await getIpDetails(req);
-    const admin = await Admin.findOne({});
-    const isAdminIP = admin?.adminIp === ipDetails.ip; // Compare request IP with stored admin IP
+    
+     // Get the IP details of the request
+     const admin = await Admin.findOne({});
+     const apiAdminIp = admin?.adminIp;
+   const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
 
     // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP
