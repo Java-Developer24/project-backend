@@ -1118,6 +1118,7 @@ console.log("service code form otp",serviceData.code)
       const apiAdminIp = admin?.adminIp;
       const isAdmin = req.clientIp === apiAdminIp;
       console.log("isAdmin from handlenumbercancel",isAdmin)
+
       if(!isAdmin){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
       if (maintainanceServerData.maintenance) {
@@ -1149,12 +1150,12 @@ console.log("service code form otp",serviceData.code)
       const serviceData = await getServerData(sname, server);
       console.log(server)
       const serverData = await ServerData.findOne({ server });
-  
+  if(!isAdmin){
       if (serverData.maintenance) {
         return res
           .status(403)
           .json({ message: `Server ${server} is under maintenance.` });
-      }
+      }}
   
       // Fetch user's transaction history to check for consecutive cancellations
       
@@ -1504,11 +1505,12 @@ console.log("service code form otp",serviceData.code)
       console.log(server)
       const serverData = await ServerData.findOne({ server });
   
-      if (serverData.maintenance) {
-        return res
-          .status(403)
-          .json({ message: `Server ${server} is under maintenance.` });
-      }
+      if(!isAdmin){
+        if (serverData.maintenance) {
+          return res
+            .status(403)
+            .json({ message: `Server ${server} is under maintenance.` });
+        }}
   
       // Fetch user's transaction history to check for consecutive cancellations
       
