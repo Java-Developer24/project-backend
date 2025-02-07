@@ -607,6 +607,12 @@ const getNumber = (req, res) => {
           .status(400)
           .json({ error: "bad key or id missing " });
       }
+
+      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+    if (maintainanceServerData.maintenance) {
+      throw new Error("Site is under maintenance.");
+    }
+  
       const userapikey = await User.findOne({ apiKey:api_key });
       if (!userapikey) {
         return res.status(400).json({ error: "bad key or id missing" });
@@ -614,7 +620,13 @@ const getNumber = (req, res) => {
       // Check if the transaction with the given Id exists and its status
     const transactions = await NumberHistory.findOne({ Id });
     console.log(transactions)
-    
+    if (!transactions) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
+
+    if (transactions.status === "Cancelled") {
+      return res.status(400).json({ otp: "number cancelled" });
+    }
     
   
       let apiUrl;
@@ -631,7 +643,9 @@ const getNumber = (req, res) => {
       const userData = await User.findById({ _id: user._id });
       // Fetch the actual ID based on the provided request ID
     const transaction = await NumberHistory.findOne({ Id: Id }); // Fetch the actual ID from the database
-   
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found." });
+    }
     const id = transaction.id; // Get the actual ID from the transaction data
     const server=transaction.server
     const sname=transactions.serviceName
@@ -643,17 +657,7 @@ const getNumber = (req, res) => {
       if (!isAdmin) {
          serverData = await getServerMaintenanceData(server);
     }
-    if (!transactions) {
-      return res.status(404).json({ error: "Transaction not found." });
-    }
-
-    if (transactions.status === "Cancelled") {
-      return res.status(400).json({ otp: "number cancelled" });
-    }
-
-    if (!transaction) {
-      return res.status(404).json({ error: "Transaction not found." });
-    }
+     
       const api_key_server = serverData.api_key; // Fetch API key from ServerModel
      
   
