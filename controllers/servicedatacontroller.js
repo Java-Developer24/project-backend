@@ -365,10 +365,14 @@ const getNumber = (req, res) => {
      let serverDatas = await ServerData.findOne({ server });
       
       const api_key_server = serverDatas.api_key;
-      const serviceDataMaintence=await checkServiceAvailability(sname, server);
-      if(serviceDataMaintence.error){
-        return res.status(400).json({ error: serviceDataMaintence.error });
+      if(!isAdmin){
+        const serviceDataMaintence=await checkServiceAvailability(sname, server);
+        if(serviceDataMaintence.error){
+          return res.status(400).json({ error: serviceDataMaintence.error });
+        }
       }
+      
+      
   
       const serviceData = await getServerData(sname, server);
       console.log("serverdata",serviceData)
