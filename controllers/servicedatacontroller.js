@@ -285,42 +285,35 @@ const checkServiceAvailability = async (sname, server) => {
 
   
   
-  const requestQueues = {}; // Separate queue for each API (using API key as the key)
+  
+  const requestQueue = [];
+const MAX_WORKERS = 100; // Adjust the number of workers based on your needs
+let activeWorkers = 0;
 
-  const enqueueRequest = (requestHandler, apiKey) => {
-    if (!requestQueues[apiKey]) {
-      requestQueues[apiKey] = {
-        queue: [],
-        active: false, // Track if processing is ongoing for that API
-      };
-    }
+const enqueueRequest = (requestHandler) => {
+  requestQueue.push(requestHandler);
+  processQueue();
+};
+
+const processQueue = async () => {
+  if (activeWorkers >= MAX_WORKERS || requestQueue.length === 0) return;
+
+  activeWorkers++;
+  const currentRequestHandler = requestQueue.shift();
+
+  try {
+    await currentRequestHandler();
+  } catch (error) {
+    console.error("Error processing request:", error);
+  } finally {
+    activeWorkers--;
+    processQueue();
+  }
+};
   
-    requestQueues[apiKey].queue.push(requestHandler);
-    processQueue(apiKey);
-  };
-  
-  const processQueue = async (apiKey) => {
-    const queueInfo = requestQueues[apiKey];
-    if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
-  
-    queueInfo.active = true;
-    const currentRequestHandler = queueInfo.queue.shift();
-  
-    try {
-      await currentRequestHandler();
-    } catch (error) {
-      console.error(`Error processing request for API key ${apiKey}:`, error);
-    } finally {
-      queueInfo.active = false;
-      processQueue(apiKey); // Process the next request for this API key
-    }
-  };
-  
-  // Example API Handler (using API Key as the key)
-  const getNumber = (req, res) => {
-    const apiKey = req.query.api_key; // Assuming the API key is passed as a query parameter
-    enqueueRequest(() => handleGetNumberRequest(req, res), apiKey);
-  };
+const getNumber = (req, res) => {
+  enqueueRequest(() => handleGetNumberRequest(req, res));
+};
   
   // Main logic to handle getting a number request and running fraud checks
   const handleGetNumberRequest = async (req, res) => {
