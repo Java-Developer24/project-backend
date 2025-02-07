@@ -256,7 +256,7 @@ const otpCheck = async (req, res) => {
           server: `Server ${dbResults[0].server}`,
         });
       }
-    }
+    }      
 
     // If no results found, return appropriate response
     if (combinedResults.length > 0) {
