@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import Service from '../models/service.js';
 import { NumberHistory } from "./../models/history.js";
 import User from "../models/user.js";
-import { userDiscountModel } from '../models/userDiscount.js'
-;import { getIpDetails } from "../utils/getIpDetails.js";
+import { userDiscountModel } from '../models/userDiscount.js';
+import { getIpDetails } from "../utils/getIpDetails.js";
 import { Order } from "./../models/order.js";
 import fetch from "node-fetch";
 import ServerData from "../models/serverData.js";
@@ -332,6 +332,9 @@ const getNumber = (req, res) => {
   
       
       const ipDetails = await getIpDetails(req);
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
   
       const serverCode = await Service.findOne({name: code });
       if (!serverCode) {
@@ -355,8 +358,10 @@ const getNumber = (req, res) => {
       }
       
 
-      const serverDatas = await getServerMaintenanceData(server);
-     
+      if (!isAdmin) {
+        serverDatas = await getServerMaintenanceData(server);
+    }
+     let serverData = await ServerData.findOne({ server });
       
       const api_key_server = serverDatas.api_key;
       const serviceDataMaintence=await checkServiceAvailability(sname, server);
@@ -634,7 +639,10 @@ const getNumber = (req, res) => {
     const serviceData = await getServerData(sname, server);
   
       // Check server maintenance and get API key
-      const serverData = await getServerMaintenanceData(server);
+      if (!isAdmin) {
+        serverDatas = await getServerMaintenanceData(server);
+    }
+     let serverData = await ServerData.findOne({ server });
       const api_key_server = serverData.api_key; // Fetch API key from ServerModel
      
   

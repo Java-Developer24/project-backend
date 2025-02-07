@@ -7,8 +7,9 @@ import User from "../models/user.js"
 
 import ServerData from '../models/serverData.js';
 import Admin from '../models/mfa.js';
+import { getIpDetails } from "../utils/getIpDetails.js";
 
-;
+
 
 // / Function to get margin and exchange rate from the database based on server number
 const getServerData = async (serverNumber) => {
@@ -415,112 +416,29 @@ export const getServiceData = async (req, res) => {
 //APi page of  user get services data  end point
 const getUserServicesData = async (req, res) => {
   try {
-    
-
     const { userId, api_key } = req.query;
 
-    // Validate api_key
     if (!api_key) {
       return res.status(400).json({ error: "API key is required" });
     }
 
-    const apikeyrequest = await User.findOne({ apiKey:api_key });
+    const apikeyrequest = await User.findOne({ apiKey: api_key });
 
     if (!apikeyrequest) {
       return res.status(400).json({ error: "Invalid API key" });
     }
 
-   // Fetch all services that are not under maintenance
-   const services = await Service.find({ maintenance: false }).lean();
-  
+    const ipDetails = await getIpDetails(req);
+    const isAdminIP = checkIfAdminIP(ipDetails.ip); // Function to check if IP is admin
 
-   if (!services || services.length === 0) {
-     return res.status(404).json({ message: 'No services found' });
-   }
-
-   
-
-   // Fetch the user-specific discount data
-   const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
-
-   // Create a map for quick lookup of user-specific discounts by service and server
-   const userDiscountMap = new Map();
-   userDiscountData.forEach((discount) => {
-     const key = `${discount.service}_${discount.server}`;
-     userDiscountMap.set(key, discount.discount);
-   });
-
-   const servicesWithUpdatedPrice = services.map((service) => {
-     const updatedServers = service.servers.map((server) => {
-       // Initialize the discount at the server level
-       let discount = 0;
-
-      //  // Get the service-level discount if exists
-      //  if (service.discount) {
-      //    discount += service.discount; // Assuming the service model has a discount field
-      //  }
-
-       // Get the server-level discount if exists
-       if (server.discount) {
-         discount += server.discount;
-       }
-
-       // Get user-specific discount if exists
-       const serviceKey = `${service.name}_${server.serverNumber}`;
-       discount += userDiscountMap.get(serviceKey) || 0;
-
-       // Apply the discount directly to the server price
-       const originalPrice = parseFloat(server.price);
-       server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
-
-       return {
-         serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
-         price: server.price,
-         code: service.name,
-        
-       };
-     });
-
-     // Filter out servers under maintenance and sort by the adjusted price
-    // Filter out servers under maintenance and sort by server number (ascending order)
-    const filteredServers = updatedServers
-    .filter((server) => !server.maintenance)
-    .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
-
-     return {
-       name: service.name,
-       servers: filteredServers,
-       // Assuming `lowestPrice` is already part of the service model
-     };
-   });
-
-  
-   // Sort services by name
-   const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
-   
-   res.status(200).json(sortedServices);
-  } catch (error) {
-    console.timeEnd("getServices");
-    console.error("Error getting services:", error);
-    res.status(500).json({ message: 'Error getting services', error: error.message });
-  }
-};
-
-
-const getUserServicesDatas = async (req, res) => {
-  try {
-    
-    const { userId } = req.query;
-
-    // Fetch all services that are not under maintenance
-    const services = await Service.find({ maintenance: false }).lean();
-   
+    // Fetch all services (without filtering maintenance if admin IP)
+    const services = isAdminIP
+      ? await Service.find().lean() // Fetch all services
+      : await Service.find({ maintenance: false }).lean(); // Fetch only active services for non-admins
 
     if (!services || services.length === 0) {
-      return res.status(404).json({ message: 'No services found' });
+      return res.status(404).json({ message: "No services found" });
     }
-
-  
 
     // Fetch the user-specific discount data
     const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
@@ -534,63 +452,295 @@ const getUserServicesDatas = async (req, res) => {
 
     const servicesWithUpdatedPrice = services.map((service) => {
       const updatedServers = service.servers.map((server) => {
-        // Initialize the discount at the server level
         let discount = 0;
 
-        // Get the service-level discount if exists
-        // if (service.discount) {
-        //   discount += service.discount; // Assuming the service model has a discount field
-        // }
-
-        // Get the server-level discount if exists
         if (server.discount) {
           discount += server.discount;
         }
 
-        // Get user-specific discount if exists
         const serviceKey = `${service.name}_${server.serverNumber}`;
         discount += userDiscountMap.get(serviceKey) || 0;
 
-        // Apply the discount directly to the server price
         const originalPrice = parseFloat(server.price);
-        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+        server.price = (originalPrice + discount).toFixed(2);
 
         return {
-          serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
+          serverNumber: server.serverNumber.toString(),
           price: server.price,
           code: service.name,
-          otp: server.otp,
-          maintenance:server.maintenance
+          maintenance: server.maintenance, // Keep maintenance status for filtering
         };
       });
 
-      // Filter out servers under maintenance and sort by the adjusted price
-     // Filter out servers under maintenance and sort by server number (ascending order)
-     const filteredServers = updatedServers
-     .filter((server) => !server.maintenance)
-     .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
+      // If admin IP, don't filter maintenance, otherwise exclude maintenance servers
+      const filteredServers = isAdminIP
+        ? updatedServers // Admin gets all servers
+        : updatedServers.filter((server) => !server.maintenance); // Exclude maintenance servers for non-admins
 
       return {
         name: service.name,
-        servers: filteredServers,
-        // Assuming `lowestPrice` is already part of the service model
+        servers: filteredServers.sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)), // Sort by server number
       };
     });
+
+    // Sort services by name
+    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.status(200).json(sortedServices);
+  } catch (error) {
+    console.error("Error getting services:", error);
+    res.status(500).json({ message: "Error getting services", error: error.message });
+  }
+};
+
+// const getUserServicesData = async (req, res) => {
+//   try {
+    
+
+//     const { userId, api_key } = req.query;
+
+//     // Validate api_key
+//     if (!api_key) {
+//       return res.status(400).json({ error: "API key is required" });
+//     }
+
+//     const apikeyrequest = await User.findOne({ apiKey:api_key });
+
+//     if (!apikeyrequest) {
+//       return res.status(400).json({ error: "Invalid API key" });
+//     }
+
+//    // Fetch all services that are not under maintenance
+//    const services = await Service.find({ maintenance: false }).lean();
+  
+
+//    if (!services || services.length === 0) {
+//      return res.status(404).json({ message: 'No services found' });
+//    }
+
+   
+
+//    // Fetch the user-specific discount data
+//    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+
+//    // Create a map for quick lookup of user-specific discounts by service and server
+//    const userDiscountMap = new Map();
+//    userDiscountData.forEach((discount) => {
+//      const key = `${discount.service}_${discount.server}`;
+//      userDiscountMap.set(key, discount.discount);
+//    });
+
+//    const servicesWithUpdatedPrice = services.map((service) => {
+//      const updatedServers = service.servers.map((server) => {
+//        // Initialize the discount at the server level
+//        let discount = 0;
+
+//       //  // Get the service-level discount if exists
+//       //  if (service.discount) {
+//       //    discount += service.discount; // Assuming the service model has a discount field
+//       //  }
+
+//        // Get the server-level discount if exists
+//        if (server.discount) {
+//          discount += server.discount;
+//        }
+
+//        // Get user-specific discount if exists
+//        const serviceKey = `${service.name}_${server.serverNumber}`;
+//        discount += userDiscountMap.get(serviceKey) || 0;
+
+//        // Apply the discount directly to the server price
+//        const originalPrice = parseFloat(server.price);
+//        server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+
+//        return {
+//          serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
+//          price: server.price,
+//          code: service.name,
+        
+//        };
+//      });
+
+//      // Filter out servers under maintenance and sort by the adjusted price
+//     // Filter out servers under maintenance and sort by server number (ascending order)
+//     const filteredServers = updatedServers
+//     .filter((server) => !server.maintenance)
+//     .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
+
+//      return {
+//        name: service.name,
+//        servers: filteredServers,
+//        // Assuming `lowestPrice` is already part of the service model
+//      };
+//    });
+
+  
+//    // Sort services by name
+//    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+   
+//    res.status(200).json(sortedServices);
+//   } catch (error) {
+//     console.timeEnd("getServices");
+//     console.error("Error getting services:", error);
+//     res.status(500).json({ message: 'Error getting services', error: error.message });
+//   }
+// };
+
+
+
+// const getUserServicesDatas = async (req, res) => {
+//   try {
+    
+//     const { userId } = req.query;
+
+//     // Fetch all services that are not under maintenance
+//     const services = await Service.find({ maintenance: false }).lean();
+   
+
+//     if (!services || services.length === 0) {
+//       return res.status(404).json({ message: 'No services found' });
+//     }
+
+  
+
+//     // Fetch the user-specific discount data
+//     const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+
+//     // Create a map for quick lookup of user-specific discounts by service and server
+//     const userDiscountMap = new Map();
+//     userDiscountData.forEach((discount) => {
+//       const key = `${discount.service}_${discount.server}`;
+//       userDiscountMap.set(key, discount.discount);
+//     });
+
+//     const servicesWithUpdatedPrice = services.map((service) => {
+//       const updatedServers = service.servers.map((server) => {
+//         // Initialize the discount at the server level
+//         let discount = 0;
+
+//         // Get the service-level discount if exists
+//         // if (service.discount) {
+//         //   discount += service.discount; // Assuming the service model has a discount field
+//         // }
+
+//         // Get the server-level discount if exists
+//         if (server.discount) {
+//           discount += server.discount;
+//         }
+
+//         // Get user-specific discount if exists
+//         const serviceKey = `${service.name}_${server.serverNumber}`;
+//         discount += userDiscountMap.get(serviceKey) || 0;
+
+//         // Apply the discount directly to the server price
+//         const originalPrice = parseFloat(server.price);
+//         server.price = (originalPrice + discount).toFixed(2); // Directly update the price with discounts
+
+//         return {
+//           serverNumber: server.serverNumber.toString(), // Ensuring server number is a string
+//           price: server.price,
+//           code: service.name,
+//           otp: server.otp,
+//           maintenance:server.maintenance
+//         };
+//       });
+
+//       // Filter out servers under maintenance and sort by the adjusted price
+//      // Filter out servers under maintenance and sort by server number (ascending order)
+//      const filteredServers = updatedServers
+//      .filter((server) => !server.maintenance)
+//      .sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)); // Sort by server number
+
+//       return {
+//         name: service.name,
+//         servers: filteredServers,
+//         // Assuming `lowestPrice` is already part of the service model
+//       };
+//     });
 
     
 
   
-    // Sort services by name
-    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+//     // Sort services by name
+//     const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
    
 
     
+//     res.status(200).json(sortedServices);
+//   } catch (error) {
+    
+//     res.status(500).json({ message: 'Error getting services', error: error.message });
+//   }
+// };
+
+const getUserServicesDatas = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const ipDetails = await getIpDetails(req);
+    const isAdminIP = checkIfAdminIP(ipDetails.ip); // Function to check if IP is admin
+
+    // Fetch all services (without filtering maintenance if admin IP)
+    const services = isAdminIP
+      ? await Service.find().lean() // Fetch all services
+      : await Service.find({ maintenance: false }).lean(); // Fetch only active services for non-admins
+
+    if (!services || services.length === 0) {
+      return res.status(404).json({ message: "No services found" });
+    }
+
+    // Fetch the user-specific discount data
+    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
+
+    // Create a map for quick lookup of user-specific discounts by service and server
+    const userDiscountMap = new Map();
+    userDiscountData.forEach((discount) => {
+      const key = `${discount.service}_${discount.server}`;
+      userDiscountMap.set(key, discount.discount);
+    });
+
+    const servicesWithUpdatedPrice = services.map((service) => {
+      const updatedServers = service.servers.map((server) => {
+        let discount = 0;
+
+        if (server.discount) {
+          discount += server.discount;
+        }
+
+        const serviceKey = `${service.name}_${server.serverNumber}`;
+        discount += userDiscountMap.get(serviceKey) || 0;
+
+        const originalPrice = parseFloat(server.price);
+        server.price = (originalPrice + discount).toFixed(2);
+
+        return {
+          serverNumber: server.serverNumber.toString(),
+          price: server.price,
+          code: service.name,
+          otp: server.otp,
+          maintenance: server.maintenance,
+        };
+      });
+
+      // If admin IP, don't filter maintenance, otherwise exclude maintenance servers
+      const filteredServers = isAdminIP
+        ? updatedServers // Admin gets all servers
+        : updatedServers.filter((server) => !server.maintenance); // Exclude maintenance servers for non-admins
+
+      return {
+        name: service.name,
+        servers: filteredServers.sort((a, b) => parseInt(a.serverNumber) - parseInt(b.serverNumber)), // Sort by server number
+      };
+    });
+
+    // Sort services by name
+    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
+
     res.status(200).json(sortedServices);
   } catch (error) {
-    
-    res.status(500).json({ message: 'Error getting services', error: error.message });
+    res.status(500).json({ message: "Error getting services", error: error.message });
   }
 };
+
 
 const getUserServicesDataAdmin = async (req, res) => {
   try {
