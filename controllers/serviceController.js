@@ -112,7 +112,7 @@ const callEndpoint = async (url) => {
  
 // Core logic (can be used in both background and API routes)
 const fetchAndStoreServicesCore = async () => {
-  console.time("fetchAndStoreServices");
+  
 
   
   // Store the results of each endpoint call
@@ -205,7 +205,7 @@ const servicesData = await callAllEndpoints();
       );
     }
 
-    console.log("fetchAndStoreServices completed in", console.timeEnd("fetchAndStoreServices"))
+    console.log("fetchAndStoreServices completed ")
     return { success: true, message: "Services fetched and stored successfully" };
     
   } catch (error) {

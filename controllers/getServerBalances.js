@@ -14,7 +14,7 @@ const getServer1Balance = async () => {
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "p" };
   } catch (error) {
-    console.error("Error fetching Server 1 balance:", error.message);
+   
     return {};
   }
 };
@@ -31,7 +31,7 @@ const getServer2Balance = async () => {
     });
     return { balance: parseFloat(response.data.balance), currency: "p" };
   } catch (error) {
-    console.error("Error fetching Server 2 balance:", error.message);
+   
     return {};
   }
 };
@@ -46,7 +46,7 @@ const getServer3Balance = async () => {
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "$" };
   } catch (error) {
-    console.error("Error fetching Server 3 balance:", error.message);
+    
     return {};
   }
 };
@@ -61,7 +61,7 @@ const getServer4Balance = async () => {
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "p" };
   } catch (error) {
-    console.error("Error fetching Server 4 balance:", error.message);
+    
     return {};
   }
 };
@@ -76,7 +76,7 @@ const getServer5Balance = async () => {
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "p" };
   } catch (error) {
-    console.error("Error fetching Server 5 balance:", error.message);
+   
     return {};
   }
 };
@@ -91,7 +91,7 @@ const getServer6Balance = async () => {
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "$" };
   } catch (error) {
-    console.error("Error fetching Server 6 balance:", error.message);
+    
     return {};
   }
 };
@@ -105,7 +105,7 @@ const getServer8Balance = async () => {
     
     return { balance: parseFloat(response.data), currency: "$" };
   } catch (error) {
-    console.error("Error fetching Server 8 balance:", error.message);
+    
     return {};
   }
 };
@@ -118,11 +118,11 @@ const getServer7Balance = async () => {
     const response = await axios.get(
       `https://smsbower.online/stubs/handler_api.php?api_key=${serverData.api_key}&action=getBalance`
     );
-    console.log(response)
+    
     const parts = response.data.split(":");
     return { balance: parseFloat(parts[1]), currency: "p" };
   } catch (error) {
-    console.error("Error fetching Server 7 balance:", error.message);
+    
     return {"balance": null,
         "currency": "$"};
   }
@@ -147,7 +147,7 @@ export const serverBalances= async (req, res) => {
     };
     res.json(balances);
   } catch (error) {
-    console.error('Error fetching balances:', error);
+   
     res.status(500).json({ error: 'Failed to fetch balances' });
   }
 };
