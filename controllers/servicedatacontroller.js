@@ -1112,11 +1112,11 @@ console.log("service code form otp",serviceData.code)
       }
       
       const userData = await User.findById(user._id);
-  
+      if(!isAdmin){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
       if (maintainanceServerData.maintenance) {
         return res.status(403).json({ error: "Site is under maintenance." });
-      }
+      }}
       const transaction = await NumberHistory.findOne({ Id: Id });
       const id=transaction.id
       console.log("id",id)
@@ -1474,10 +1474,11 @@ console.log("service code form otp",serviceData.code)
       
       const userData = await User.findById(user._id);
   
-      const maintainanceServerData = await ServerData.findOne({ server: 0 });
-      if (maintainanceServerData.maintenance) {
-        return res.status(403).json({ error: "Site is under maintenance." });
-      }
+      if(!isAdmin){
+        const maintainanceServerData = await ServerData.findOne({ server: 0 });
+        if (maintainanceServerData.maintenance) {
+          return res.status(403).json({ error: "Site is under maintenance." });
+        }}
       const transaction = await NumberHistory.findOne({ Id: Id });
       const id=transaction.id
       console.log("id",id)
