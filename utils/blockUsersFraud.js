@@ -24,8 +24,12 @@ const processUser = async (user,ipDetails) => {
     const transactions = await NumberHistory.find({
       userId: user._id,
       status: "Success",
-      otp: { $exists: true, $ne: null },
+      $or: [
+        { otp: null },        // Matches documents where OTP is explicitly null
+        { otp: { $ne: null } } // Matches documents where OTP has a value (not null)
+      ]
     });
+    
 
     console.log(`[ProcessUser] Found ${transactions.length} transactions for user ${user._id}.`);
 
