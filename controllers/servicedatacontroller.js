@@ -607,11 +607,15 @@ const getNumber = (req, res) => {
           .status(400)
           .json({ error: "bad key or id missing " });
       }
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
 
-      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      if(!isAdmin){
+    const maintainanceServerData = await ServerData.findOne({ server: 0 });
     if (maintainanceServerData.maintenance) {
       throw new Error("Site is under maintenance.");
-    }
+    }}
   
       const userapikey = await User.findOne({ apiKey:api_key });
       if (!userapikey) {
@@ -637,9 +641,7 @@ const getNumber = (req, res) => {
         return res.status(400).json({ error: "Invalid api key." });
       }
       
-      const admin = await Admin.findOne({});
-      const apiAdminIp = admin?.adminIp;
-      const isAdmin = req.clientIp === apiAdminIp;
+      
       const userData = await User.findById({ _id: user._id });
       // Fetch the actual ID based on the provided request ID
     const transaction = await NumberHistory.findOne({ Id: Id }); // Fetch the actual ID from the database
