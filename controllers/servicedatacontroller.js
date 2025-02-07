@@ -462,7 +462,7 @@ const getNumber = (req, res) => {
       await numberHistory.save();
   console.log("serviceData code",serviceData.code)
   const balance=await User.findOne( { _id: user._id });
-  console.log("remaining balance",balance.balance)
+  console.log("remaining balance",balance.balance.toFixed(2))
       const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
       const userBalance= await User.findOne({ apiKey:api_key });
