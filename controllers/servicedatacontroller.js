@@ -7,6 +7,7 @@ import { NumberHistory } from "./../models/history.js";
 import User from "../models/user.js";
 import { userDiscountModel } from '../models/userDiscount.js';
 import { getIpDetails } from "../utils/getIpDetails.js";
+import Admin from '../models/mfa.js';
 import { Order } from "./../models/order.js";
 import fetch from "node-fetch";
 import ServerData from "../models/serverData.js";
@@ -361,7 +362,7 @@ const getNumber = (req, res) => {
       if (!isAdmin) {
         serverDatas = await getServerMaintenanceData(server);
     }
-     let serverData = await ServerData.findOne({ server });
+     let serverDatas = await ServerData.findOne({ server });
       
       const api_key_server = serverDatas.api_key;
       const serviceDataMaintence=await checkServiceAvailability(sname, server);
@@ -625,7 +626,10 @@ const getNumber = (req, res) => {
       if (!user) {
         return res.status(400).json({ error: "Invalid api key." });
       }
-  
+      
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
       const userData = await User.findById({ _id: user._id });
       // Fetch the actual ID based on the provided request ID
     const transaction = await NumberHistory.findOne({ Id: Id }); // Fetch the actual ID from the database

@@ -18,9 +18,9 @@ router.get(
   "/admin-api/service-data-update/fetch-update-compare-services",authenticateToken,
   serviceController.fetchAndStoreServices
 ); //periodically updates the services on site
-router.get("/get-service-server-data", serviceController.getUserServicesDatas); //frontend dashboard
+router.get("/get-service-server-data",captureIpMiddleware, serviceController.getUserServicesDatas); //frontend dashboard
 
-router.get("/get-service", serviceController.getUserServicesData); //Api page logged in user end points
+router.get("/get-service",captureIpMiddleware, serviceController.getUserServicesData); //Api page logged in user end points
 
 router.post("/addService", serviceController.addService);
 router.post("/admin-api/service-update/updateService",authenticateToken, serviceController.updateServerMaintenance);
@@ -44,8 +44,8 @@ router.get(
   serviceController.getMaintenanceStatusForServer
 );
 
-router.get("/get-number", getNumber);
-router.get("/get-otp", getOtp);
+router.get("/get-number",captureIpMiddleware, getNumber);
+router.get("/get-otp",captureIpMiddleware, getOtp);
 router.get("/number-cancel", numberCancel);
 
 router.get("/cancel-number", numberCancel1);

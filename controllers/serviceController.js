@@ -428,13 +428,15 @@ const getUserServicesData = async (req, res) => {
       return res.status(400).json({ error: "Invalid API key" });
     }
 
+    // Get the IP details of the request
     const ipDetails = await getIpDetails(req);
-    const isAdminIP = checkIfAdminIP(ipDetails.ip); // Function to check if IP is admin
+    const admin = await Admin.findOne({});
+    const isAdminIP = admin?.adminIp === ipDetails.ip; // Compare request IP with stored admin IP
 
-    // Fetch all services (without filtering maintenance if admin IP)
+    // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP
-      ? await Service.find().lean() // Fetch all services
-      : await Service.find({ maintenance: false }).lean(); // Fetch only active services for non-admins
+      ? await Service.find().lean() // Admin gets all services
+      : await Service.find({ maintenance: false }).lean(); // Non-admins get only active services
 
     if (!services || services.length === 0) {
       return res.status(404).json({ message: "No services found" });
@@ -475,7 +477,7 @@ const getUserServicesData = async (req, res) => {
       // If admin IP, don't filter maintenance, otherwise exclude maintenance servers
       const filteredServers = isAdminIP
         ? updatedServers // Admin gets all servers
-        : updatedServers.filter((server) => !server.maintenance); // Exclude maintenance servers for non-admins
+        : updatedServers.filter((server) => !server.maintenance); // Non-admins get only active servers
 
       return {
         name: service.name,
@@ -676,13 +678,16 @@ const getUserServicesData = async (req, res) => {
 const getUserServicesDatas = async (req, res) => {
   try {
     const { userId } = req.query;
-    const ipDetails = await getIpDetails(req);
-    const isAdminIP = checkIfAdminIP(ipDetails.ip); // Function to check if IP is admin
 
-    // Fetch all services (without filtering maintenance if admin IP)
+    // Get the IP details of the request
+    const ipDetails = await getIpDetails(req);
+    const admin = await Admin.findOne({});
+    const isAdminIP = admin?.adminIp === ipDetails.ip; // Compare request IP with stored admin IP
+
+    // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP
-      ? await Service.find().lean() // Fetch all services
-      : await Service.find({ maintenance: false }).lean(); // Fetch only active services for non-admins
+      ? await Service.find().lean() // Admin gets all services
+      : await Service.find({ maintenance: false }).lean(); // Non-admins get only active services
 
     if (!services || services.length === 0) {
       return res.status(404).json({ message: "No services found" });
@@ -724,7 +729,7 @@ const getUserServicesDatas = async (req, res) => {
       // If admin IP, don't filter maintenance, otherwise exclude maintenance servers
       const filteredServers = isAdminIP
         ? updatedServers // Admin gets all servers
-        : updatedServers.filter((server) => !server.maintenance); // Exclude maintenance servers for non-admins
+        : updatedServers.filter((server) => !server.maintenance); // Non-admins get only active servers
 
       return {
         name: service.name,
@@ -740,6 +745,7 @@ const getUserServicesDatas = async (req, res) => {
     res.status(500).json({ message: "Error getting services", error: error.message });
   }
 };
+
 
 
 const getUserServicesDataAdmin = async (req, res) => {
