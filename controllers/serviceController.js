@@ -204,7 +204,7 @@ const servicesData = await callAllEndpoints();
       );
     }
 
-    
+    console.log("fetchAndStoreServices completed in", console.timeEnd("fetchAndStoreServices"))
     return { success: true, message: "Services fetched and stored successfully" };
     
   } catch (error) {

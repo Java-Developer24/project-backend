@@ -66,23 +66,126 @@ export const rechargeUpiApi = (req, res) => {
   });
 };
 
-const handleUpiRequest = async (req, res) => {
+// const handleUpiRequest = async (req, res) => {
+//   const { userId, email, transactionId } = req.body;
+
+//   try {
+   
+
+//     // Fetch maintenance status
+//     const serverData = await ServerData.findOne({ server: 0 });
+//     if (serverData.maintenance) {
+//       return res.status(200).json({ maintainance: true });
+//     }
+
+//     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
+//     if (rechargeMaintenance?.maintenanceStatusUpi) {
+//       return res.status(403).json({ error: "UPI recharge is currently unavailable." });
+//     }
+
+//     const response = await fetch(`https://phpfiles.paidsms.org/p/u.php?txn=${transactionId}`);
+//     const data = await response.json();
+
+//     if (data.error) {
+//       return res.status(400).json({ error: "Transaction Not Found. Please try again." });
+//     }
+
+//     const config = await Config.findOne();
+//     const minUpiAmount = config.minUpiAmount;
+
+//     if (data.amount < minUpiAmount) {
+//       return res.status(404).json({
+//         error: `Minimum amount is less than ${minUpiAmount}₹, No refund.`,
+//       });
+//     }
+
+//     const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+
+//     const rechargeHistoryResponse = await fetch(
+//       "https://api.paidsms.org/api/history/saveRechargeHistory",
+//       {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Accept: "application/json",
+//         },
+//         body: JSON.stringify({
+//           userId,
+//           transactionId,
+//           amount: data.amount,
+//           method: "upi",
+//           date_time: formattedDate,
+//           status: "Received",
+//         }),
+//         credentials: "include",
+//       }
+//     );
+
+//     if (!rechargeHistoryResponse.ok) {
+//       const errorDetails = await rechargeHistoryResponse.json();
+//       console.error("Error saving recharge history:", errorDetails);
+//       return res.status(rechargeHistoryResponse.status).json({ error: errorDetails });
+//     }
+
+//     await User.findByIdAndUpdate(userId, {
+//       $inc: { balance: data.amount },
+//     });
+
+//     const ipDetails = await getIpDetails(req);
+//     const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+//     const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+
+//     const balance = await User.findOne({ _id: userId });
+
+//     console.log("Transaction ID:", transactionId, "Amount:", data.amount);
+
+//     await upiRechargeTeleBot({
+//       email,
+//       amount: data.amount,
+//       updatedBalance: balance.balance,
+//       trnId: transactionId,
+//       userId,
+//       ip: ipDetailsString,
+//     });
+
+//     return res.status(200).json({
+//       message: `${data.amount}₹ Added Successfully!`,
+//     });
+
+//   } catch (error) {
+//     console.error("Error:", error);
+//     res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
+const handleUpiRequest = async (req, res) => { 
   const { userId, email, transactionId } = req.body;
 
   try {
-   
+    // Fetch the admin IP from the database
+    const admin = await Admin.findOne({});
+    const apiAdminIp = admin?.adminIp; // Admin IP from the database
 
-    // Fetch maintenance status
-    const serverData = await ServerData.findOne({ server: 0 });
-    if (serverData.maintenance) {
-      return res.status(200).json({ maintainance: true });
+    console.log("Admin IP:", apiAdminIp);
+    console.log("Client IP:", req.clientIp);
+
+    // Check if the request comes from the admin IP
+    const isAdmin = req.clientIp === apiAdminIp;
+
+    // If NOT from the admin, check maintenance statuses
+    if (!isAdmin) {
+      const serverData = await ServerData.findOne({ server: 0 });
+      if (serverData?.maintenance) {
+        return res.status(403).json({ error: "Site is under Maintence" });
+      }
+
+      const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
+      if (rechargeMaintenance?.maintenanceStatusUpi) {
+        return res.status(403).json({ error: "UPI recharge is currently unavailable." });
+      }
     }
 
-    const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusUpi: true });
-    if (rechargeMaintenance?.maintenanceStatusUpi) {
-      return res.status(403).json({ error: "UPI recharge is currently unavailable." });
-    }
-
+    // Proceed with the UPI transaction processing
     const response = await fetch(`https://phpfiles.paidsms.org/p/u.php?txn=${transactionId}`);
     const data = await response.json();
 
@@ -327,18 +430,161 @@ export const rechargeTrxApi = (req, res) => {
 //   }
 // };
 // Handle individual TRX requests
+// export const handleTrxRequest = async (req, res) => {
+//   try {
+//     const { userId, transactionHash, email } = req.query;
+//     console.log("Received request with userId:", userId, "transactionHash:", transactionHash, "email:", email);
+
+//     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
+//     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
+//     console.log("Maintenance status:", isMaintenance);
+
+//     if (isMaintenance) {
+//       console.log("TRX recharge is currently unavailable.");
+//       return res.status(403).json({ error: "TRX recharge is currently unavailable." });
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       console.log("User not found for userId:", userId);
+//       return res.status(404).json({ message: "User not found." });
+//     }
+
+//     // Step 1: Verify the Transaction
+//     const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+//     console.log("Verifying transaction with URL:", verifyTransactionUrl);
+//     const transactionResponse = await axios.get(verifyTransactionUrl);
+//     console.log("Transaction verification response:", transactionResponse.data);
+
+//     if (transactionResponse.data.trx > 0) {
+//       const trxAmount = parseFloat(transactionResponse.data.trx);
+//       if (isNaN(trxAmount) || trxAmount <= 0) {
+//         console.log("Invalid transaction amount:", trxAmount);
+//         return res.status(400).json({ message: "Invalid transaction amount." });
+//       }
+
+//       // Step 2: Fetch TRX to INR Exchange Rate
+//       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
+//       console.log("Fetching TRX to INR exchange rate from:", exchangeRateUrl);
+//       const rateResponse = await axios.get(exchangeRateUrl);
+//       console.log("TRX to INR exchange rate:", rateResponse.data);
+
+//       const trxToInr = parseFloat(rateResponse.data.INR);
+
+//       if (isNaN(trxToInr) || trxToInr <= 0) {
+//         console.log("Invalid exchange rate:", trxToInr);
+//         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
+//       }
+
+//       const amountInInr = trxAmount * trxToInr;
+//       const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+
+//       // **Step 3: Add Balance Immediately**
+//       console.log("Adding balance for userId:", userId, "Amount in INR:", amountInInr);
+//       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+//       // Step 4: Store Recharge History
+//       const rechargeHistoryResponse = await fetch(
+//         "https://api.paidsms.org/api/history/saveRechargeHistory",
+//         {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json", Accept: "application/json" },
+//           body: JSON.stringify({
+//             userId,
+//             method: "trx",
+//             amount: amountInInr,
+//             exchangeRate: trxToInr,
+//             transactionId: transactionHash,
+//             status: "completed",
+//             date_time: formattedDate,
+//           }),
+//           credentials: "include",
+//         }
+//       );
+
+//       if (!rechargeHistoryResponse.ok) {
+//         const error = await rechargeHistoryResponse.json();
+//         console.log("Failed to store recharge history:", error);
+//         return res
+//           .status(rechargeHistoryResponse.status)
+//           .json({ error: error.error });
+//       }
+
+//       // Step 5: **Send TRX in the Background**
+//       console.log("Initiating TRX transfer in the background.");
+//       (async () => {
+//         const transferTrxUrl = `https://phpfiles.paidsms.org/p/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+//         const transferResponse = await axios.get(transferTrxUrl);
+//         console.log("TRX transfer response:", transferResponse.data);
+
+//         if (!transferResponse.data || transferResponse.data.status == "Fail") {
+//           // If transaction fails, store in UnsendTrx collection
+//           console.log("TRX transfer failed. Storing unsent transaction.");
+//           const newEntry = new UnsendTrx({
+//             email,
+//             trxAddress: user.trxWalletAddress,
+//             trxPrivateKey: user.trxPrivateKey,
+//           });
+//           await newEntry.save();
+//         }
+
+//         // Notify via Telegram Bot
+//         const balance = await User.findById({ _id: userId });
+//         const ipDetails = await getIpDetails(req);
+//         const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
+//         console.log("Sending notification via Telegram bot...");
+//         await trxRechargeTeleBot({
+//           email,
+//           userId,
+//           trx: trxAmount,
+//           exchangeRate: trxToInr,
+//           amount: amountInInr,
+//           balance: balance.balance,
+//           address: user.trxWalletAddress,
+//           sendTo: process.env.OWNER_WALLET_ADDRESS,
+//           Status: transferResponse.data?.status || "Pending",
+//           transactionHash,
+//           ip: ipDetailsString,
+//         });
+//       })();
+
+//       console.log("Transaction successfully processed. User balance updated.");
+//       return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
+//     } else {
+//       console.log("Transaction not found. Hash:", transactionHash);
+//       res.status(400).json({ error: "Transaction Not Found. Please try again." });
+//     }
+//   } catch (err) {
+//     console.error("Error during TRX recharge:", err.message);
+//     res.status(500).json({ error: "Internal server error. Please try again later." });
+//   }
+// };
+
 export const handleTrxRequest = async (req, res) => {
   try {
     const { userId, transactionHash, email } = req.query;
     console.log("Received request with userId:", userId, "transactionHash:", transactionHash, "email:", email);
 
-    const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
-    const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
-    console.log("Maintenance status:", isMaintenance);
+    // Fetch the admin IP from the database
+    const admin = await Admin.findOne({});
+    const apiAdminIp = admin?.adminIp; // Admin IP from the database
 
-    if (isMaintenance) {
-      console.log("TRX recharge is currently unavailable.");
-      return res.status(403).json({ error: "TRX recharge is currently unavailable." });
+    console.log("Admin IP:", apiAdminIp);
+    console.log("Client IP:", req.clientIp);
+
+    // Check if the request comes from the admin IP
+    const isAdmin = req.clientIp === apiAdminIp;
+
+    // If NOT from the admin, check TRX maintenance
+    if (!isAdmin) {
+      const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
+      const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
+      console.log("Maintenance status:", isMaintenance);
+
+      if (isMaintenance) {
+        console.log("TRX recharge is currently unavailable.");
+        return res.status(403).json({ error: "TRX recharge is currently unavailable." });
+      }
     }
 
     const user = await User.findById(userId);
@@ -367,7 +613,6 @@ export const handleTrxRequest = async (req, res) => {
       console.log("TRX to INR exchange rate:", rateResponse.data);
 
       const trxToInr = parseFloat(rateResponse.data.INR);
-
       if (isNaN(trxToInr) || trxToInr <= 0) {
         console.log("Invalid exchange rate:", trxToInr);
         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
