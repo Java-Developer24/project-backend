@@ -25,7 +25,7 @@ export const trxRechargeTeleBot = async ({
     result += `Trx => ${trx}\n\n`;
     result += `Trx Exchange Rate => ${exchangeRate}\n\n`;
     result += `Total Amount in Inr  => ${amount}\u20B9\n\n`;
-    result += `Updated Balance  => ${balance.balance}\u20B9\n\n`;
+    result += `Updated Balance  => ${(balance.balance).toFixed(2)}\u20B9\n\n`;
     result += `User Trx address  => ${address}\n\n`;
     result += `Send To => ${sendTo}\n\n`;
     result += `Send Status => ${Status}\n\n`;
@@ -69,7 +69,7 @@ export const upiRechargeTeleBot = async ({
     result += `Date => ${moment().format("DD-MM-YYYY hh:mm:ssa")}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Amount  => ${amount}\u20B9\n\n`;
-    result += `Updated Balance  => ${updatedBalance}\u20B9\n\n`;
+    result += `Updated Balance  => ${updatedBalance.toFixed(2)}\u20B9\n\n`;
     result += `IP Details => ${ip}\n\n`;
     result += `Txn Id => ${trnId}\n\n`;
 
@@ -112,8 +112,8 @@ export const adminRechargeTeleBot = async ({
     result += `Date => ${formattedDate}\n\n`;
     result += `User Email => ${email}\n\n`;
     result += `Transaction ID => ${transactionId}\n\n`;
-    result += `Old Balance => ${oldBalance}\u20B9\n\n`;
-    result += `New Balance => ${new_balance}\u20B9\n\n`;
+    result += `Old Balance => ${oldBalance.toFixed(2)}\u20B9\n\n`;
+    result += `New Balance => ${new_balance.toFixed(2)}\u20B9\n\n`;
     result += `Amount Added => ${new_balance - oldBalance}\u20B9\n\n`;
     result += `Method => Admin\n\n`;
     result += `Status => Completed\n\n`;

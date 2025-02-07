@@ -20,7 +20,7 @@ export const numberGetDetails = async ({
     result += `Price => ${price}\u20B9\n\n`;
     result += `Server => ${server}\n\n`;
     result += `Number => ${number.toString()}\n\n`; // Convert number to string
-    result += `Balance => ${balance}\u20B9\n\n`;
+    result += `Balance => ${balance.toFixed(2)}\u20B9\n\n`;
     result += `IP Details => ${ip}\n\n`;
 
     // Encode the result for URL
@@ -102,7 +102,7 @@ export const numberCancelDetails = async ({
     result += `Price => ${price}\u20B9\n\n`;
     result += `Server => ${server}\n\n`;
     result += `Number => ${number.toString()}\n\n`; // Convert number to string
-    result += `Balance => ${balance}\u20B9\n\n`;
+    result += `Balance => ${balance.toFixed(2)}\u20B9\n\n`;
     result += `Status => Number Cancelled\n\n`;
     result += `IP Details => ${ip}\n\n`;
 
