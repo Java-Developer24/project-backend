@@ -4,13 +4,14 @@ import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateCaptcha } from "../middleware/authMiddleware.js";
 import { getOrdersByUserId } from "../controllers/userController.js";
 import {authenticateToken} from "../middleware/adminMiddleware.js"
+import { captureIpMiddleware } from "../middleware/getIPMiddleware.js";
 const router = express.Router();
 
 // Fetch user data
 router.get("/user-data",authenticateUser,  fetchUserData);
 
 // Fetch user balance
-router.get("/balance", fetchBalance);
+router.get("/balance",captureIpMiddleware, fetchBalance);
 //change user password
 router.post("/change-password",authenticateUser,validateCaptcha,changePassword)
 //change user Api

@@ -421,6 +421,17 @@ const getUserServicesData = async (req, res) => {
     if (!api_key) {
       return res.status(400).json({ error: "API key is required" });
     }
+ // Get the IP details of the request
+ const admin = await Admin.findOne({});
+ const apiAdminIp = admin?.adminIp;
+const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
+if(!isAdminIP){
+ const maintainanceServerData = await ServerData.findOne({ server: 0 });
+ if (maintainanceServerData.maintenance) {
+   return res.status(400).json("Site is under maintenance.");
+ }
+}
+
 
     const apikeyrequest = await User.findOne({ apiKey: api_key });
 
@@ -428,10 +439,7 @@ const getUserServicesData = async (req, res) => {
       return res.status(400).json({ error: "Invalid API key" });
     }
 
-    // Get the IP details of the request
-    const admin = await Admin.findOne({});
-      const apiAdminIp = admin?.adminIp;
-    const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
+   
 
     // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP
@@ -684,6 +692,13 @@ const getUserServicesDatas = async (req, res) => {
      const admin = await Admin.findOne({});
      const apiAdminIp = admin?.adminIp;
    const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
+
+    if(!isAdminIP){
+      const maintainanceServerData = await ServerData.findOne({ server: 0 });
+      if (maintainanceServerData.maintenance) {
+        return res.status(400).json("Site is under maintenance.");
+      }
+    }
 
     // Fetch all services (admin gets all, non-admins get only active ones)
     const services = isAdminIP

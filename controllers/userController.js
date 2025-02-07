@@ -17,6 +17,7 @@ import {
 
 import { sendOtpEmail } from "../utils/emailHelper.js";
 import OTP from '../models/otp.js'; // Import OTP model
+import Admin from "../models/mfa.js";
 
 // Custom function to generate a 6-digit numeric OTP
 const generateNumericOtp = () => {
@@ -53,7 +54,16 @@ export const fetchUserData = async (req, res) => {
 export const fetchBalance = async (req, res) => {
   try {
     const { api_key } = req.query;
-
+    
+    const admin = await Admin.findOne({});
+    const apiAdminIp = admin?.adminIp;
+   const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored admin IP
+   if(!isAdminIP){
+    const maintainanceServerData = await ServerData.findOne({ server: 0 });
+    if (maintainanceServerData.maintenance) {
+      return res.status(400).json("Site is under maintenance.");
+    }
+   }
    
 
     const user = await User.findOne({ apiKey: api_key });

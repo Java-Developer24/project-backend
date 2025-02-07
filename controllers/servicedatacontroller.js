@@ -1098,7 +1098,20 @@ console.log("service code form otp",serviceData.code)
         return res
           .status(400)
           .json({ error: "bad key or id missing " });
+
       }
+
+      const ipDetails = await getIpDetails(req);
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
+
+      if(!isAdmin){
+        const maintainanceServerData = await ServerData.findOne({ server: 0 });
+        if (maintainanceServerData.maintenance) {
+          return res.status(400).json("Site is under maintenance.");
+        }}
+      
       const userapikey = await User.findOne({ apiKey:api_key });
       if (!userapikey) {
         return res.status(400).json({ error: "bad key or id missing" });
@@ -1122,11 +1135,8 @@ console.log("service code form otp",serviceData.code)
       
       const userData = await User.findById(user._id);
 
-      const ipDetails = await getIpDetails(req);
-      const admin = await Admin.findOne({});
-      const apiAdminIp = admin?.adminIp;
-      const isAdmin = req.clientIp === apiAdminIp;
-      console.log("isAdmin from handlenumbercancel",isAdmin)
+      
+    
 
       if(!isAdmin){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
@@ -1465,7 +1475,22 @@ console.log("service code form otp",serviceData.code)
         return res
           .status(400)
           .json({ error: "bad key or id missing " });
+
+
       }
+
+
+      const ipDetails = await getIpDetails(req);
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
+
+      if(!isAdmin){
+        const maintainanceServerData = await ServerData.findOne({ server: 0 });
+        if (maintainanceServerData.maintenance) {
+          return res.status(400).json("Site is under maintenance.");
+        }}
+
       const userapikey = await User.findOne({ apiKey:api_key });
       if (!userapikey) {
         return res.status(400).json({ error: "bad key or id missing" });
@@ -1489,11 +1514,7 @@ console.log("service code form otp",serviceData.code)
       }
       
       const userData = await User.findById(user._id);
-      const ipDetails = await getIpDetails(req);
-      const admin = await Admin.findOne({});
-      const apiAdminIp = admin?.adminIp;
-      const isAdmin = req.clientIp === apiAdminIp;
-      console.log("isAdmin from handlenumbercancel",isAdmin)
+      
       if(!isAdmin){
         const maintainanceServerData = await ServerData.findOne({ server: 0 });
         if (maintainanceServerData.maintenance) {
