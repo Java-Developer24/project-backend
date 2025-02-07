@@ -119,7 +119,7 @@ const fetchAndStoreServicesCore = async () => {
     const servicesData = response;
 
     if (!Array.isArray(servicesData)) {
-      console.error("Fetched data is not an array");
+     
       return { success: false, message: "Invalid data format" };
     }
 
@@ -128,7 +128,7 @@ const fetchAndStoreServicesCore = async () => {
       const { name, servers } = serviceData;
 
       if (!name || !servers) {
-        console.error(`Missing name or servers for service: ${JSON.stringify(serviceData)}`);
+       
         continue;
       }
 
@@ -141,7 +141,7 @@ const fetchAndStoreServicesCore = async () => {
         const price = parseFloat(priceValue);
 
         if (isNaN(price)) {
-          console.error(`Invalid price value for server: ${serverValue}`);
+          
           return null;
         }
 
@@ -165,11 +165,11 @@ const fetchAndStoreServicesCore = async () => {
       );
     }
 
-    console.log('Services fetched and stored successfully');
+    
     return { success: true, message: "Services fetched and stored successfully" };
     
   } catch (error) {
-    console.error("Error fetching and storing services:", error);
+   
     return { success: false, message: "Error fetching services" };
   }
 
@@ -284,12 +284,12 @@ const updateServiceCodes = async () => {
 };
 
   export const getServiceData = async (req, res) => {
-    console.time("fetchAndSendServices");
+   
   
     try {
-      console.time("axios.get");
+      
       const response = await axios.get('https://phpfiles.paidsms.org/p/final.php', { timeout: 10000 });
-      console.timeEnd("axios.get");
+     
   
       const servicesData = response.data;
   
@@ -298,7 +298,7 @@ const updateServiceCodes = async () => {
         return res.status(400).json({ message: "Invalid service data format." });
       }
   
-      console.time("Service Processing");
+      
   
       // Process the data
       const processedServices = await Promise.all(
@@ -339,7 +339,7 @@ const updateServiceCodes = async () => {
                   price: roundedPrice,
                 };
               } catch (error) {
-                console.error(`Error updating price for server ${serverNumber}:`, error);
+                
                 return null;
               }
             })
@@ -359,14 +359,12 @@ const updateServiceCodes = async () => {
   
       const validServices = processedServices.filter(Boolean); // Remove invalid service entries
   
-      console.timeEnd("Service Processing");
-      console.timeEnd("fetchAndSendServices");
+     
   
       // Send the processed services as a response
       res.status(200).json({ services: validServices });
     } catch (error) {
-      console.timeEnd("fetchAndSendServices");
-      console.error("Error fetching and processing services:", error);
+     
       res.status(500).json({ message: "Failed to fetch and process services.", error: error.message });
     }
   };
@@ -376,7 +374,7 @@ const updateServiceCodes = async () => {
 //APi page of  user get services data  end point
 const getUserServicesData = async (req, res) => {
   try {
-    console.time("getServices");
+    
 
     const { userId, api_key } = req.query;
 
@@ -393,13 +391,13 @@ const getUserServicesData = async (req, res) => {
 
    // Fetch all services that are not under maintenance
    const services = await Service.find({ maintenance: false }).lean();
-   console.timeEnd("Service.find");
+  
 
    if (!services || services.length === 0) {
      return res.status(404).json({ message: 'No services found' });
    }
 
-   console.time("mapping and sorting service");
+   
 
    // Fetch the user-specific discount data
    const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
@@ -455,14 +453,10 @@ const getUserServicesData = async (req, res) => {
      };
    });
 
-   console.timeEnd("mapping and sorting service");
-
-   console.time("sortServicesByName");
+  
    // Sort services by name
    const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
-   console.timeEnd("sortServicesByName");
-
-   console.timeEnd("getServices");
+   
    res.status(200).json(sortedServices);
   } catch (error) {
     console.timeEnd("getServices");
@@ -474,18 +468,18 @@ const getUserServicesData = async (req, res) => {
 
 const getUserServicesDatas = async (req, res) => {
   try {
-    console.time("getServices");
+    
     const { userId } = req.query;
 
     // Fetch all services that are not under maintenance
     const services = await Service.find({ maintenance: false }).lean();
-    console.timeEnd("Service.find");
+   
 
     if (!services || services.length === 0) {
       return res.status(404).json({ message: 'No services found' });
     }
 
-    console.time("mapping and sorting service");
+  
 
     // Fetch the user-specific discount data
     const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
@@ -542,38 +536,37 @@ const getUserServicesDatas = async (req, res) => {
       };
     });
 
-    console.timeEnd("mapping and sorting service");
+    
 
-    console.time("sortServicesByName");
+  
     // Sort services by name
     const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
-    console.timeEnd("sortServicesByName");
+   
 
-    console.timeEnd("getServices");
+    
     res.status(200).json(sortedServices);
   } catch (error) {
-    console.timeEnd("getServices");
-    console.error("Error getting services:", error);
+    
     res.status(500).json({ message: 'Error getting services', error: error.message });
   }
 };
 
 const getUserServicesDataAdmin = async (req, res) => {
   try {
-    console.time("getServices");
+    
     const { userId } = req.query;
     
 
     // Fetch all services that are not under maintenance
     const services = await Service.find({ maintenance: false }).lean();
-    console.timeEnd("Service.find");
+    
 
     if (!services || services.length === 0) {
      
       return res.status(404).json({ message: 'No services found' });
     }
 
-    console.time("mapping and sorting service");
+   
 
     // Fetch the user-specific discount data
     const userDiscountData = userId ? await userDiscountModel.find({ userId }) : [];
@@ -628,18 +621,13 @@ const getUserServicesDataAdmin = async (req, res) => {
       };
     });
 
-    console.timeEnd("mapping and sorting service");
-
-    console.time("sortServicesByName");
+   
     // Sort services by name
     const sortedServices = servicesWithUpdatedPrice.sort((a, b) => a.name.localeCompare(b.name));
-    console.timeEnd("sortServicesByName");
-
-    console.timeEnd("getServices");
+   
     res.status(200).json(sortedServices);
   } catch (error) {
-    console.timeEnd("getServices");
-    console.error("Error getting services:", error);
+  
     res.status(500).json({ message: 'Error getting services', error: error.message });
   }
 };
@@ -722,7 +710,7 @@ export const updateServerMaintenance = async (req, res) => {
             
         });
     } catch (error) {
-        console.error("Error updating server maintenance:", error);
+        
         res.status(500).json({ message: 'Error updating server maintenance', error: error.message });
     }
 };

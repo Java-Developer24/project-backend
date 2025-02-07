@@ -75,18 +75,18 @@ const processUser = async (user,ipDetails) => {
       await freshUser.save();
       console.log(`[ProcessUser] User ${user._id} has been blocked.`);
 
-      // Cancel active orders for the blocked user
-      const activeOrders = await Order.find({ userId: user._id });
-      console.log(`[ProcessUser] Found ${activeOrders.length} active orders for user ${user._id}.`);
+      // // Cancel active orders for the blocked user
+      // const activeOrders = await Order.find({ userId: user._id });
+      // console.log(`[ProcessUser] Found ${activeOrders.length} active orders for user ${user._id}.`);
 
-      for (const order of activeOrders) {
-        try {
-          await cancelOrder(order);
-          console.log(`[ProcessUser] Order ${order._id} canceled for user ${user._id}.`);
-        } catch (error) {
-          console.error(`[ProcessUser] Failed to cancel order ${order._id} for user ${user._id}: ${error.message}`);
-        }
-      }
+      // for (const order of activeOrders) {
+      //   try {
+      //     await cancelOrder(order);
+      //     console.log(`[ProcessUser] Order ${order._id} canceled for user ${user._id}.`);
+      //   } catch (error) {
+      //     console.error(`[ProcessUser] Failed to cancel order ${order._id} for user ${user._id}: ${error.message}`);
+      //   }
+      // }
       
       // Send block details to Telegram
       await userBlockDetails({
