@@ -1112,6 +1112,11 @@ console.log("service code form otp",serviceData.code)
       }
       
       const userData = await User.findById(user._id);
+
+      const ipDetails = await getIpDetails(req);
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
       if(!isAdmin){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
       if (maintainanceServerData.maintenance) {
@@ -1352,7 +1357,7 @@ console.log("service code form otp",serviceData.code)
       }
   
       // Fetch IP details using the getIpDetails function
-      const ipDetails = await getIpDetails(req);
+      
       const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
   
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
@@ -1473,7 +1478,10 @@ console.log("service code form otp",serviceData.code)
       }
       
       const userData = await User.findById(user._id);
-  
+      const ipDetails = await getIpDetails(req);
+      const admin = await Admin.findOne({});
+      const apiAdminIp = admin?.adminIp;
+      const isAdmin = req.clientIp === apiAdminIp;
       if(!isAdmin){
         const maintainanceServerData = await ServerData.findOne({ server: 0 });
         if (maintainanceServerData.maintenance) {
@@ -1700,7 +1708,7 @@ console.log("service code form otp",serviceData.code)
       }
   
       // Fetch IP details using the getIpDetails function
-      const ipDetails = await getIpDetails(req);
+      
       const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
   
       const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
