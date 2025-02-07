@@ -539,41 +539,46 @@ const getNumber = (req, res) => {
   
   export const cancelOrder = async (order) => {
     try {
-      
+      console.log("Cancelling Order ID:", order._id);
   
       const user = await User.findOne({ _id: order.userId });
-      
+      console.log("User Found for Order:", user ? user._id : "No user found");
   
       if (user && user.apiKey) {
-        
+        console.log("User's API Key:", user.apiKey);
+        console.log("Order Number ID:", order.Id);
+        console.log("Order Server:", order.server);
   
         await callNumberCancelAPI(user.apiKey, order.Id);
       } else {
-       
+        console.error(`No API key found for user ${order.userId}`);
       }
     } catch (error) {
-     
+      console.error(`Error cancelling order ${order._id}:`, error.message);
     }
   };
   
   const callNumberCancelAPI = async (apiKey, Id) => {
     try {
+      console.log("Calling Cancel API...");
+      console.log("API Key:", apiKey);
+      console.log("Number ID:", Id);
       
   
       const response = await fetch(
-        `${process.env.BACKEND_URL}/api/service/number-cancel?api_key=${apiKey}&Id=${Id}`
+        `${process.env.BACKEND_URL}/api/service/cancel-number?api_key=${apiKey}&Id=${Id}`
       );
   
-     
+      console.log("API Response Status:", response.status);
   
       if (!response.ok) {
         const errorResponse = await response.json();
-       
+        console.error(`API call failed:`, errorResponse);
       } else {
         console.log("API call successful");
       }
     } catch (error) {
-      
+      console.error("Error in callNumberCancelAPI:", error.message);
     }
   };
   
