@@ -357,12 +357,12 @@ const getNumber = (req, res) => {
           .status(400)
           .json({ error: "Your account is blocked, contact the Admin." });
       }
-      
-
+     
+      let serverDatas = await ServerData.findOne({ server });
       if (!isAdmin) {
-        serverDatas = await getServerMaintenanceData(server);
+         serverDatas = await getServerMaintenanceData(server);
     }
-     let serverDatas = await ServerData.findOne({ server });
+    
       
       const api_key_server = serverDatas.api_key;
       if(!isAdmin){
