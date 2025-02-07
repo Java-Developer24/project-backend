@@ -43,10 +43,10 @@ const processUser = async (user,ipDetails) => {
     console.log(`[ProcessUser] Filtered transactions to ${Object.keys(uniqueTransactions).length} unique transactions for user ${user._id}.`);
 
     // Calculate the total price from the filtered transactions
-    const totalTransaction = Math.round(Object.values(uniqueTransactions).reduce(
+    const totalTransaction = Object.values(uniqueTransactions).reduce(
       (total, transaction) => total + parseFloat(transaction.price),
       0
-    ) ) 
+    ) 
     console.log(`[ProcessUser] Total transaction price for user ${user._id}: ${totalTransaction}`);
 
     // Calculate expected balance
