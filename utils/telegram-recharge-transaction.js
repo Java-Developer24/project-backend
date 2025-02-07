@@ -111,7 +111,7 @@ const getServerBalance = async (server, apiKey) => {
       return { balance: `${balance}${currency}`, currency };
     }
   } catch (error) {
-    console.error(`Error fetching balance for server ${server}:`, error);
+    
     return null;
   }
 };
@@ -328,6 +328,6 @@ const runJob = async () => {
     const result = await getServerDetails();
     
   } catch (error) {
-    console.error("Error running scheduled job:", error);
+    
   }
 };

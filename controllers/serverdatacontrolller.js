@@ -30,7 +30,7 @@ export const serverData = async (req, res) => {
       // Respond with success message and inserted data
       res.status(201).json({ message: "Servers added successfully", data: insertedServers });
     } catch (err) {
-      console.error("Error inserting servers:", err);
+      
       res.status(500).json({ message: "Error inserting servers", error: err.message });
     }
   };
@@ -57,7 +57,7 @@ export const getServerData=async (req, res) => {
         // Send the formatted data as a response
         res.status(200).json(formattedServers);
     } catch (error) {
-        console.error("Error fetching servers:", error);
+        
         res.status(500).json({ message: "Failed to fetch servers" });
     }
 };
@@ -136,7 +136,7 @@ export const addSeverDiscount = async (req, res) => {
       );
 
       if (updateResult.matchedCount === 0) {
-          console.warn(`No services found containing server number ${serverNum}.`);
+         
       }
 
       // Response format
@@ -150,7 +150,7 @@ export const addSeverDiscount = async (req, res) => {
 
       return res.status(200).json([response]);
   } catch (error) {
-      console.error("Error updating server discount:", error);
+      
       return res.status(500).json({ message: "Internal server error.", error: error.message });
   }
 };
@@ -184,7 +184,7 @@ if (validDiscounts.length === 0) {
 
         return res.status(200).json(formattedDiscounts);
     } catch (error) {
-        console.error(error);
+        
         return res.status(500).json({ message: 'Internal server error.', error: error.message });
     }
 };
@@ -226,14 +226,14 @@ export const deleteServerDiscount = async (req, res) => {
         );
 
         if (updateResult.matchedCount === 0) {
-            console.warn(`No services found containing server number ${serverNumber}.`);
+          
         }
 
         // Step 3: Return an empty array as the response
         return res.status(200).json([]);
 
     } catch (error) {
-        console.error("Error deleting server discount:", error);
+       
         return res.status(500).json({ message: 'Internal server error.', error: error.message });
     }
 };
@@ -259,7 +259,7 @@ export const updateAPIKey= async (req, res) => {
   
       res.json({ message: "API key updated successfully" });
     } catch (error) {
-      console.error("Error updating API key:", error);
+      
       res.status(500).json({ message: "Internal server error" });
     }
   };
@@ -284,7 +284,7 @@ export const updateAPIKey= async (req, res) => {
   
       res.json({ message: "Exchange rate updated successfully" });
     } catch (error) {
-      console.error("Error updating exchange rate:", error);
+     
       res.status(500).json({ message: "Internal server error" });
     }
   };
@@ -313,7 +313,7 @@ export const updateAPIKey= async (req, res) => {
   
       res.json({ message: "Margin updated successfully" });
     } catch (error) {
-      console.error("Error updating margin:", error);
+    
       res.status(500).json({ message: "Internal server error" });
     }
   };
@@ -344,7 +344,7 @@ export const addServerDataAdmin=async (req, res) => {
   
       res.json({ message: "Server created successfully", data: serverCreated });
     } catch (error) {
-      console.error("Error creating server:", error);
+     
       res.status(500).json({ message: "Internal server error" });
     }
   };

@@ -37,7 +37,7 @@ export const numberGetDetails = async ({
 
     return result;
   } catch (error) {
-    console.error("Error fetching number get details:", error);
+   
     throw error;
   }
 };
@@ -120,7 +120,7 @@ export const numberCancelDetails = async ({
 
     return result;
   } catch (error) {
-    console.error("Error fetching number cancel details:", error);
+    
     throw error;
   }
 };

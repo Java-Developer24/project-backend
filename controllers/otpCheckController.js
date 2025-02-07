@@ -36,7 +36,7 @@ const searchCodes = async (codes) => {
         }
       }
     } catch (error) {
-      console.error(`Error searching for code ${code}:`, error);
+      
     }
   }
 
@@ -157,7 +157,7 @@ const otpCheck = async (req, res) => {
     // Fetch admin settings to check if database lookup is enabled
     const adminSettings = await Admin.findOne({});
     if (!adminSettings) {
-      console.error("[OtpCheck] Admin settings not found");
+      
       return res.status(500).json({ error: "Admin settings not found" });
     }
     console.log("[OtpCheck] Admin settings:", adminSettings);
@@ -267,7 +267,7 @@ const otpCheck = async (req, res) => {
       return res.status(404).json({ results: "No matching data found" });
     }
   } catch (error) {
-    console.error("[OtpCheck] Error:", error);
+    
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -299,7 +299,7 @@ export const checkOtpUpdate= async (req, res) => {
     return res.status(200).json({ message: `checkOtp updated to ${checkOtp}`, updatedAdmin });
 
   } catch (error) {
-    console.error('Error updating checkOtp:', error);
+    
     res.status(500).json({ error: 'Error updating checkOtp', details: error.message });
   }
 };
@@ -318,7 +318,7 @@ export const getOtpcheck= async (req, res) => {
     return res.status(200).json({ checkOtp: adminSettings.checkOtp });
 
   } catch (error) {
-    console.error('Error fetching checkOtp:', error);
+    
     res.status(500).json({ error: 'Error fetching checkOtp', details: error.message });
   }
 };

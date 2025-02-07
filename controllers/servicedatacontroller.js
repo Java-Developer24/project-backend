@@ -284,9 +284,9 @@ const checkServiceAvailability = async (sname, server) => {
   
 
   
+  
   const requestQueues = {}; // Separate queue for each API (using API key as the key)
 
-  // Function to handle adding the request to the queue and process it
   const enqueueRequest = (requestHandler, apiKey) => {
     if (!requestQueues[apiKey]) {
       requestQueues[apiKey] = {
@@ -295,26 +295,22 @@ const checkServiceAvailability = async (sname, server) => {
       };
     }
   
-    // Add request to the queue
     requestQueues[apiKey].queue.push(requestHandler);
     processQueue(apiKey);
   };
   
-  // Function to process the queue for a specific API key
   const processQueue = async (apiKey) => {
     const queueInfo = requestQueues[apiKey];
     if (!queueInfo || queueInfo.active || queueInfo.queue.length === 0) return;
   
-    // Mark as active while processing
     queueInfo.active = true;
-    const currentRequestHandler = queueInfo.queue.shift(); // Dequeue the first request
+    const currentRequestHandler = queueInfo.queue.shift();
   
     try {
       await currentRequestHandler();
     } catch (error) {
       console.error(`Error processing request for API key ${apiKey}:`, error);
     } finally {
-      // Mark as inactive and process the next request
       queueInfo.active = false;
       processQueue(apiKey); // Process the next request for this API key
     }
@@ -329,64 +325,83 @@ const checkServiceAvailability = async (sname, server) => {
   // Main logic to handle getting a number request and running fraud checks
   const handleGetNumberRequest = async (req, res) => {
     try {
-      const { code, api_key, server } = req.query;
+      const { code, api_key, server} = req.query;
   
       if (!code || !api_key || !server) {
-        return res.status(400).json({ error: "API key, code, or server number missing" });
+        return res
+          .status(400)
+          .json({ error: "api key or code missing or server number missing" });
       }
-  
-      // Validate the API key
-      const userapikey = await User.findOne({ apiKey: api_key });
+      const userapikey = await User.findOne({ apiKey:api_key });
       if (!userapikey) {
-        return res.status(400).json({ error: "Invalid API key or missing user" });
+        return res.status(400).json({ error: "bad key or id missing" });
       }
   
-      // Get the IP details from the request
+      
       const ipDetails = await getIpDetails(req);
   
-      // Validate the service code
-      const serverCode = await Service.findOne({ name: code });
+      const serverCode = await Service.findOne({name: code });
       if (!serverCode) {
         throw new Error("Service not found.");
       }
+  
       const sname = serverCode.name;
   
-      // Fetch user data to ensure the user exists
-      const user = await User.findOne({ apiKey: api_key });
+      const user = await User.findOne({apiKey: api_key });
+       // Run fraud check for the user before proceeding
+    await runFraudCheck(user._id,ipDetails);  // Pass the userId to the fraud check function
       if (!user) {
         return res.status(400).json({ error: "Invalid API key." });
       }
   
-      // Run fraud check for the user before proceeding
-      await runFraudCheck(user._id, ipDetails);  // Ensure fraud check is triggered for every request
-      if (user.blocked) {
-        return res.status(400).json({ error: "Your account is blocked, contact Admin." });
+      const userData = await User.findById({ _id: user._id });
+      if (userData.blocked) {
+        return res
+          .status(400)
+          .json({ error: "Your account is blocked, contact the Admin." });
+      }
+      
+
+      const serverDatas = await getServerMaintenanceData(server);
+     
+      
+      const api_key_server = serverDatas.api_key;
+      const serviceDataMaintence=await checkServiceAvailability(sname, server);
+      if(serviceDataMaintence.error){
+        return res.status(400).json({ error: serviceDataMaintence.error });
       }
   
-      // Validate server and availability
-      const serverData = await getServerMaintenanceData(server);
-      const serviceData = await checkServiceAvailability(sname, server);
-      if (serviceData.error) {
-        return res.status(400).json({ error: serviceData.error });
-      }
+      const serviceData = await getServerData(sname, server);
+      console.log("serverdata",serviceData)
+      
+      let price = parseFloat(serviceData.price);
   
-      const price = parseFloat(serviceData.price);
       if (user.balance < price) {
-        return res.status(400).json({ error: "Insufficient balance." });
+        return res.status(400).json({ error: "low balance." });
       }
+      
+      const apiUrl = constructApiUrl(server, api_key_server, serviceData);
+      console.log("serverdata",serviceData)
   
-      // Construct the API URL and fetch the number from external service
-      const apiUrl = constructApiUrl(server, serverData.api_key, serviceData);
       let response, responseData;
       let retry = true;
   
       for (let attempt = 0; attempt < 2 && retry; attempt++) {
-        response = await fetch(apiUrl);
+        if (typeof apiUrl === "string") {
+          response = await fetch(apiUrl);
+        } else {
+          response = await fetch(apiUrl.url, { headers: apiUrl.headers });
+        }
+  
         if (!response.ok) {
+          console.log('Error status:', response.status);  // Log status code for debugging
           throw new Error("No numbers available. Please try different server.");
         }
+        
         responseData = await response.text();
-        if (!responseData || responseData.trim() === "") {
+        console.log('API Response Data:', responseData);
+  
+        if (!responseData ||responseData.trim() === "") {
           throw new Error("No numbers available. Please try a different server.");
         }
   
@@ -394,38 +409,100 @@ const checkServiceAvailability = async (sname, server) => {
           var { id, number } = handleResponseData(server, responseData);
           retry = false;
         } catch (error) {
+          console.error(error);
           if (attempt === 1) {
-            return res.status(400).json({ error: "No stock." });
+            return res.status(400).json({
+              // error: "No numbers available. Please try different server.",
+              error: "No stock.",
+            });
           }
         }
       }
   
-      // Deduct the balance and update the number history
       const totalDiscount = await calculateDiscounts(user.userId, sname, server);
-      const finalPrice = parseFloat((price + totalDiscount).toFixed(2));
-      await User.updateOne({ _id: user._id }, { $inc: { balance: -finalPrice } });
+      const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
+      price=parseFloat((Originalprice + totalDiscount).toFixed(2))
+      
+      // Update balance in the database using MongoDB $inc operator
+      await User.updateOne(
+        { _id: user._id },
+        { $inc: { balance: -price } }
+      );
+      
+      
+      
   
       const formattedDateTime = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+      const uniqueID = moment().tz("Asia/Kolkata").format("DDMMYYYYHHmmssSSS");
+
+
+
+         const Id = uniqueID;
+      
+
+
+
   
       const numberHistory = new NumberHistory({
         userId: user._id,
         serviceName: sname,
-        price: finalPrice,
+        price,
         server,
         id,
+        Id, 
+        otp: null,
+        status: "Success",
+        reason:"Waiting for SMS",
         number,
         date_time: formattedDateTime,
       });
       await numberHistory.save();
+  console.log("serviceData code",serviceData.code)
+  const balance=await User.findOne( { _id: user._id });
+  console.log("remaining balance",balance.balance)
+      const { city, state, pincode, country, serviceProvider, ip } = ipDetails;
+      const ipDetailsString = `\nCity: ${city}\nState: ${state}\nPincode: ${pincode}\nCountry: ${country}\nService Provider: ${serviceProvider}\nIP: ${ip}`;
+      const userBalance= await User.findOne({ apiKey:api_key });
+      await numberGetDetails({
+        email: user.email,
+        serviceName: sname,
+        code: serviceData.code,
+        price,
+        server,
+        number,
+        balance: balance.balance,
+        ip: ipDetailsString,
+      });
   
-      // Return response to the user
-      res.status(200).json({ number, id });
+      const expirationTime = new Date();
+      // Check if it's server 7, set 10 minutes; otherwise, set 20 minutes
+      console.log("server",server)
+      const expirationMinutes = server === "7" ? 10 : 20;
+      console.log("expirationMinutes",expirationMinutes)
+      const expirationTimeUTC =expirationTime.setMinutes(expirationTime.getMinutes() + expirationMinutes);
+      const expirationTimeIST = moment(expirationTimeUTC).tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+      console.log("expirationTimeUTC converted ",expirationTimeIST)
+  
+      const newOrder = new Order({
+        userId: user._id,
+        service: sname,
+        price,
+        server,
+        Id,
+        otpType:serviceData.otp,
+        numberId: id,
+        number,
+        orderTime: new Date(),
+        expirationTime,
+      });
+      await newOrder.save();
+  
+      res.status(200).json({ number, Id });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error.message });
     }
   };
-  
   
 
 
@@ -503,7 +580,7 @@ const checkServiceAvailability = async (sname, server) => {
         console.log("API call successful");
       }
     } catch (error) {
-      console.error("Error in callNumberCancelAPI:", error.message);
+      
     }
   };
   
@@ -701,7 +778,7 @@ const checkServiceAvailability = async (sname, server) => {
                 validOtp = null; // Handle unexpected response
               }
             } catch (error) {
-              console.error("Error processing case 6 response:", error.message);
+              
               throw new Error("Failed to process the OTP response for case 6.");
             }
             break;
@@ -733,7 +810,7 @@ const checkServiceAvailability = async (sname, server) => {
                   validOtp = null; // Handle unexpected response
                 }
               } catch (error) {
-                console.error("Error processing case 6 response:", error.message);
+                
                 throw new Error("Failed to process the OTP response for case 6.");
               }
               break;
@@ -768,7 +845,7 @@ const checkServiceAvailability = async (sname, server) => {
                     validOtp = null; // Handle unexpected response
                   }
                 } catch (error) {
-                  console.error("Error processing case 6 response:", error.message);
+                  
                   throw new Error("Failed to process the OTP response for case 6.");
                 }
                 break;
@@ -797,7 +874,7 @@ const checkServiceAvailability = async (sname, server) => {
                   }
                 } 
             } catch (error) {
-              console.error("Error processing case 8 response:", error.message);
+             
               throw new Error("Failed to process the OTP response for case 9.");
             }
 
@@ -884,7 +961,7 @@ console.log("service code form otp",serviceData.code)
             const nextOtpResponseData = await nextOtpResponse.text();
             console.log("nextotp:", nextOtpResponseData);
           } catch (nextOtpError) {
-            console.error("Error fetching next OTP:", nextOtpError.message);
+           
           }
         }, 1000); // Adjust the delay as needed
       }
@@ -904,7 +981,7 @@ console.log("service code form otp",serviceData.code)
             const nextOtpResponseData = await nextOtpResponse.text();
             console.log("nextotp:", nextOtpResponseData);
           } catch (nextOtpError) {
-            console.error("Error fetching next OTP:", nextOtpError.message);
+            
           }
         }, 1000); // Adjust the delay as needed
       }
@@ -924,7 +1001,7 @@ console.log("service code form otp",serviceData.code)
             const nextOtpResponseData = await nextOtpResponse.text();
             console.log("nextotp:", nextOtpResponseData);
           } catch (nextOtpError) {
-            console.error("Error fetching next OTP:", nextOtpError.message);
+            
           }
         }, 1000); // Adjust the delay as needed
       }
@@ -944,7 +1021,7 @@ console.log("service code form otp",serviceData.code)
             const nextOtpResponseData = await nextOtpResponse.text();
             console.log("nextotp:", nextOtpResponseData);
           } catch (nextOtpError) {
-            console.error("Error fetching next OTP:", nextOtpError.message);
+            
           }
         }, 1000); // Adjust the delay as needed
       }
@@ -982,7 +1059,7 @@ console.log("service code form otp",serviceData.code)
           processCancelQueue();
         })
         .catch((error) => {
-          console.error("Error processing request:", error);
+          
           activeWorker--;
           processCancelQueue();
         });
@@ -1162,7 +1239,7 @@ console.log("service code form otp",serviceData.code)
               if (responseData === "order has sms") {
                 otpReceived = true;
               } else {
-                console.error("Unexpected response data:", responseData);
+               
                 // Handle or log other unexpected responses
               }
             }
@@ -1345,7 +1422,7 @@ console.log("service code form otp",serviceData.code)
           processCancelQueue1();
         })
         .catch((error) => {
-          console.error("Error processing request:", error);
+          
           activeWorker1--;
           processCancelQueue1();
         });
@@ -1510,7 +1587,7 @@ console.log("service code form otp",serviceData.code)
               if (responseData === "order has sms") {
                 otpReceived = true;
               } else {
-                console.error("Unexpected response data:", responseData);
+                
                 // Handle or log other unexpected responses
               }
             }
