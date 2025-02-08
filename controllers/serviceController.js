@@ -1164,43 +1164,43 @@ const updateServerData = async (server, maintenance) => {
 };
 
 
-export const updateServiceDiscount = async (req, res) => {
-  try {
-      const { service, server, discount,  } = req.body;  // Extract service name, server number, discount, and service-level discount from payload
+// export const updateServiceDiscount = async (req, res) => {
+//   try {
+//       const { service, server, discount,  } = req.body;  // Extract service name, server number, discount, and service-level discount from payload
 
-      // Validate the input
-      if (!service || !server || discount === undefined ) {
-          return res.status(400).json({ message: 'Service name, server number, discount, and service-level discount are required' });
-      }
+//       // Validate the input
+//       if (!service || !server || discount === undefined ) {
+//           return res.status(400).json({ message: 'Service name, server number, discount, and service-level discount are required' });
+//       }
 
-      // Perform the update operation to set the discount for the specific server in the service
-      const result = await Service.updateOne(
-          { name: service, "servers.serverNumber": server }, // Filter by service name and server number
-          {
-              $set: {
-                  "servers.$[elem].discount": discount,  // Set discount for the specific server
-                  discount: discount // Set service-level discount
-              }
-          },
-          {
-              arrayFilters: [{ "elem.serverNumber": server }], // Target the specific server in the servers array
-              new: true
-          }
-      );
+//       // Perform the update operation to set the discount for the specific server in the service
+//       const result = await Service.updateOne(
+//           { name: service, "servers.serverNumber": server }, // Filter by service name and server number
+//           {
+//               $set: {
+//                   "servers.$[elem].discount": discount,  // Set discount for the specific server
+//                   discount: discount // Set service-level discount
+//               }
+//           },
+//           {
+//               arrayFilters: [{ "elem.serverNumber": server }], // Target the specific server in the servers array
+//               new: true
+//           }
+//       );
 
-      // Check if the update operation was successful
-      if (result.modifiedCount === 0) {
-          return res.status(404).json({ message: 'Service or server not found or no discount updated' });
-      }
+//       // Check if the update operation was successful
+//       if (result.modifiedCount === 0) {
+//           return res.status(404).json({ message: 'Service or server not found or no discount updated' });
+//       }
 
-      res.status(200).json({
-          message: `Discount of ${discount} applied to server ${server} in the service ${service}. Service-level discount of ${discount} also applied.`
-      });
-  } catch (error) {
-      console.error('Error updating service server discount:', error);
-      res.status(500).json({ message: 'Error updating service server discount', error: error.message });
-  }
-};
+//       res.status(200).json({
+//           message: `Discount of ${discount} applied to server ${server} in the service ${service}. Service-level discount of ${discount} also applied.`
+//       });
+//   } catch (error) {
+//       console.error('Error updating service server discount:', error);
+//       res.status(500).json({ message: 'Error updating service server discount', error: error.message });
+//   }
+// };
 
 
 // export const getAllServiceDiscounts = async (req, res) => {
@@ -1248,6 +1248,72 @@ export const updateServiceDiscount = async (req, res) => {
 //       return res.status(500).json({ message: 'Internal server error.', error: error.message });
 //   }
 // };
+
+export const updateServiceDiscount = async (req, res) => {
+  try {
+    const { service, server, discount } = req.body;
+
+    // Validate the input
+    if (!service || !server || discount === undefined) {
+      return res.status(400).json({
+        message: "Service name, server number, and discount are required",
+      });
+    }
+
+    // Find the service document
+    const serviceData = await Service.findOne({ name: service });
+
+    if (!serviceData) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    // Find the specific server in the servers array
+    const serverData = serviceData.servers.find(
+      (s) => s.serverNumber === parseInt(server)
+    );
+
+    if (!serverData) {
+      return res.status(404).json({ message: "Server not found in service" });
+    }
+
+    let updatedDiscount;
+    if (serverData.discount === null) {
+      updatedDiscount = discount; // Replace if null
+    } else {
+      updatedDiscount = serverData.discount + discount; // Increment if already exists
+    }
+
+    // Update the specific server's discount
+    const result = await Service.updateOne(
+      { name: service, "servers.serverNumber": parseInt(server) },
+      {
+        $set: {
+          "servers.$.discount": updatedDiscount, // Update discount for this server
+          discount: updatedDiscount, // Also update service-level discount
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({
+        message: "No discount updated, possibly already at the target value",
+      });
+    }
+
+    res.status(200).json({
+      message: `Discount updated for server ${server} in service ${service}. New discount: ${updatedDiscount}`,
+    });
+  } catch (error) {
+    console.error("Error updating service server discount:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating service server discount", error: error.message });
+  }
+};
+
+
+
+
 
 export const getAllServiceDiscounts = async (req, res) => {
   try {
