@@ -560,42 +560,54 @@ const handleUpiRequest = async (req, res) => {
 //     res.status(500).json({ error: "Internal server error. Please try again later." });
 //   }
 // };
+const userQueues = new Map(); // Map to store per-user queues
 
-const WORKER_COUNT = 10000; // Number of concurrent workers
-const trxRequestQueue = [];
-let activeWorkers = 0;
+// Enqueue TRX request for a specific user
+const enqueueTrxRequest = (userId, requestHandler) => {
+  if (!userQueues.has(userId)) {
+    userQueues.set(userId, []);
+  }
 
-// Enqueue a TRX request
-const enqueueTrxRequest = (requestHandler) => {
-  trxRequestQueue.push(requestHandler);
-  processTrxQueue();
+  const userQueue = userQueues.get(userId);
+  userQueue.push(requestHandler);
+
+  // Start processing if this is the only request in the queue
+  if (userQueue.length === 1) {
+    processUserQueue(userId);
+  }
 };
 
-// Process TRX queue with a worker pool
-const processTrxQueue = async () => {
-  if (activeWorkers >= WORKER_COUNT || trxRequestQueue.length === 0) return;
+// Process requests for a specific user sequentially
+const processUserQueue = async (userId) => {
+  const userQueue = userQueues.get(userId);
+  if (!userQueue || userQueue.length === 0) {
+    userQueues.delete(userId); // Cleanup if queue is empty
+    return;
+  }
 
-  activeWorkers++;
-  const currentRequestHandler = trxRequestQueue.shift();
+  const currentRequestHandler = userQueue[0]; // Always process first request
 
   try {
-    await currentRequestHandler();
+    await currentRequestHandler(); // Process the request
   } catch (error) {
     console.error("Error processing TRX request:", error.message);
   } finally {
-    activeWorkers--;
+    userQueue.shift(); // Remove processed request
 
-    // Process the next task in the queue
-    if (trxRequestQueue.length > 0) {
-      processTrxQueue();
+    if (userQueue.length > 0) {
+      processUserQueue(userId); // Process next request for the user
+    } else {
+      userQueues.delete(userId); // Cleanup if queue is empty
     }
   }
 };
 
 // TRX API handler
 export const rechargeTrxApi = (req, res) => {
-  enqueueTrxRequest(() => handleTrxRequest(req, res));
+  const { userId } = req.query;
+  enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
 };
+
 
 
 export const handleTrxRequest = async (req, res) => {
@@ -633,7 +645,7 @@ export const handleTrxRequest = async (req, res) => {
 
     // Step 1: Verify the Transaction
     const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
-    console.log("Verifying transaction with URL:", verifyTransactionUrl);
+    
     const transactionResponse = await axios.get(verifyTransactionUrl);
     console.log("Transaction verification response:", transactionResponse.data);
 
