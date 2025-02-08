@@ -296,37 +296,29 @@ export const getServerDetails = async () => {
   }
 };
 
+const runJob = async () => {
+  try {
+    console.log("Job running at:", moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A"));
+    await getServerDetails(); // Send notification
+  } catch (error) {
+    console.error("Error in job:", error);
+  }
+};
+
+// Schedule job execution
 export const scheduleJob = () => {
   console.log("Scheduling job...");
 
-  
+  const now = moment().tz("Asia/Kolkata");
+  const nextHalfHour = now.clone().startOf("hour").add(now.minute() < 30 ? 30 : 60, "minutes");
 
-  const now = new Date();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const milliseconds = now.getMilliseconds();
+  const timeToNextRun = nextHalfHour.diff(now); // Calculate milliseconds until next hh:00 or hh:30
 
-  // Calculate the time until the next 30-minute interval
-  const timeToNextInterval =
-    (30 - (minutes % 30)) * 60 * 1000 - seconds * 1000 - milliseconds;
+  console.log(`Next job scheduled at: ${nextHalfHour.format("DD/MM/YYYY HH:mm:ss A")}`);
 
   setTimeout(() => {
-    console.log("Starting scheduled job...");
-    setInterval(runJob, 30 * 60 * 1000); // Run every 3 minutes
-  }, timeToNextInterval);
-
-
-};
-
-
-
-
-const runJob = async () => {
-  try {
-    console.log("job running")
-    const result = await getServerDetails();
-    
-  } catch (error) {
-    
-  }
+    console.log("Starting strict schedule...");
+    runJob(); // Run immediately at the correct time
+    setInterval(runJob, 30 * 60 * 1000); // Repeat every 30 minutes
+  }, timeToNextRun);
 };
