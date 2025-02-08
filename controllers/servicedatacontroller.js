@@ -269,10 +269,10 @@ const checkServiceAvailability = async (sname, server) => {
   
     // Service discount (retrieve the service with its servers and find the specific server's discount)
     const serviceDiscount = await Service.findOne({
-      name: sname,
-      "servers.serverNumber": parseInt(server), // Convert to number if needed
+      service: sname,
+      
     });
-    console.log("serviceDiscount",serviceDiscount);
+    
     if (serviceDiscount) {
       // Find the exact server inside the servers array
       const serverData = serviceDiscount.servers.find(
