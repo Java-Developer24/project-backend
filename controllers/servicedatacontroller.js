@@ -253,32 +253,43 @@ const checkServiceAvailability = async (sname, server) => {
   // Helper function to calculate discounts
   const calculateDiscounts = async (userId, sname, server) => {
     let totalDiscount = 0;
-  
+  console.log("userId",userId)
+  console.log("sname",sname)
+  console.log("server",server)
     // User-specific discount
     const userDiscount = await userDiscountModel.findOne({
       userId,
       service: sname,
       server,
     });
+    console.log("userDiscount",userDiscount);
     if (userDiscount) {
       totalDiscount += parseFloat(userDiscount.discount.toFixed(2));
     }
   
     // Service discount (retrieve the service with its servers and find the specific server's discount)
     const serviceDiscount = await Service.findOne({
-      service: sname,
-      server,
+      name: sname,
+      "servers.serverNumber": parseInt(server), // Convert to number if needed
     });
+    console.log("serviceDiscount",serviceDiscount);
     if (serviceDiscount) {
-      totalDiscount += parseFloat(serviceDiscount.discount.toFixed(2));
+      // Find the exact server inside the servers array
+      const serverData = serviceDiscount.servers.find(
+        (s) => s.serverNumber === parseInt(server)
+      );
+    console.log("serverDatadiscount",serverData)
+      if (serverData?.discount !== null) {
+        totalDiscount += parseFloat(serverData.discount.toFixed(2));
+      }
     }
-  
     // Server discount
     const serverDiscount = await Service.findOne({ server });
+    console.log("serverDiscount", serverDiscount);
     if (serverDiscount) {
       totalDiscount += parseFloat(serverDiscount.discount.toFixed(2));
     }
-  
+  console.log("totalDiscount",totalDiscount);
     // Ensure the final totalDiscount is also in the correct format
     return parseFloat(totalDiscount.toFixed(2));
   };
@@ -421,10 +432,14 @@ const getNumber = (req, res) => {
           }
         }
       }
-  
-      const totalDiscount = await calculateDiscounts(user.userId, sname, server);
-      const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
-      price=parseFloat((Originalprice + totalDiscount).toFixed(2))
+      console.log("user.userId",user._id)
+      console.log("number",number)
+      const totalDiscount = await calculateDiscounts(user._id, sname, server);
+      console.log("totalDiscount from handle get number request ",totalDiscount);
+      console.log("actual price",price)
+      // const Originalprice = parseFloat((price + totalDiscount).toFixed(2));
+      price=parseFloat((price + totalDiscount).toFixed(2))
+      console.log("price after discount", price)
       
       // Update balance in the database using MongoDB $inc operator
       await User.updateOne(
