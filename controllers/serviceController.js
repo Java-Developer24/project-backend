@@ -428,7 +428,7 @@ const isAdminIP =req.clientIp === apiAdminIp; // Compare request IP with stored 
 if(!isAdminIP){
  const maintainanceServerData = await ServerData.findOne({ server: 0 });
  if (maintainanceServerData.maintenance) {
-   return res.status(400).json("Site is under maintenance.");
+   return res.status(400).json({error:"Site is under maintenance."});
  }
 }
 
@@ -696,7 +696,7 @@ const getUserServicesDatas = async (req, res) => {
     if(!isAdminIP){
       const maintainanceServerData = await ServerData.findOne({ server: 0 });
       if (maintainanceServerData.maintenance) {
-        return res.status(400).json("Site is under maintenance.");
+        return res.status(400).json({error:"Site is under maintenance."});
       }
     }
 

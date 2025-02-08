@@ -614,7 +614,7 @@ const getNumber = (req, res) => {
       if(!isAdmin){
     const maintainanceServerData = await ServerData.findOne({ server: 0 });
     if (maintainanceServerData.maintenance) {
-      return res.status(400).json("Site is under maintenance.");
+      return res.status(400).json({error:"Site is under maintenance."});
     }}
   
       const userapikey = await User.findOne({ apiKey:api_key });
@@ -1109,7 +1109,7 @@ console.log("service code form otp",serviceData.code)
       if(!isAdmin){
         const maintainanceServerData = await ServerData.findOne({ server: 0 });
         if (maintainanceServerData.maintenance) {
-          return res.status(400).json("Site is under maintenance.");
+          return res.status(400).json({error:"Site is under maintenance."});
         }}
       
       const userapikey = await User.findOne({ apiKey:api_key });
@@ -1488,7 +1488,7 @@ console.log("service code form otp",serviceData.code)
       if(!isAdmin){
         const maintainanceServerData = await ServerData.findOne({ server: 0 });
         if (maintainanceServerData.maintenance) {
-          return res.status(400).json("Site is under maintenance.");
+          return res.status(400).json({error:"Site is under maintenance."});
         }}
 
       const userapikey = await User.findOne({ apiKey:api_key });
