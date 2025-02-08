@@ -264,54 +264,55 @@ const handleUpiRequest = async (req, res) => {
 
 
 
-// const MAX_WORKERS = 100; // Adjust based on server capacity
-// let activeWorkerCount = 0; // Track total active workers
-// const trxRequestQueue = new Map(); // Queue per user
-// const activeUsers = new Set(); // Track active users
+const MAX_WORKERS = 100; // Adjust based on server capacity
+let activeWorkerCount = 0; // Track total active workers
+const trxRequestQueue = new Map(); // Queue per user
+const activeUsers = new Set(); // Track active users
 
-// // Enqueue a TRX request for a user
-// const enqueueTrxRequest = (userId, requestHandler) => {
-//   if (!trxRequestQueue.has(userId)) {
-//     trxRequestQueue.set(userId, []); // Initialize queue for the user if it doesn't exist
-//   }
-//   trxRequestQueue.get(userId).push(requestHandler); // Add request to the user's queue
-//   processTrxQueue(userId); // Start processing the queue if not already
-// };
+// Enqueue a TRX request for a user
+const enqueueTrxRequest = (userId, requestHandler) => {
+  if (!trxRequestQueue.has(userId)) {
+    trxRequestQueue.set(userId, []); // Initialize queue for the user if it doesn't exist
+  }
+  trxRequestQueue.get(userId).push(requestHandler); // Add request to the user's queue
+  processTrxQueue(userId); // Start processing the queue if not already
+};
 
-// // Process TRX queue for a specific user
-// const processTrxQueue = async (userId) => {
-//   if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; // Prevent processing if user is already active or worker limit is reached
+// Process TRX queue for a specific user
+const processTrxQueue = async (userId) => {
+  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; // Prevent processing if user is already active or worker limit is reached
 
-//   activeUsers.add(userId); // Mark user as active
-//   activeWorkerCount++; // Increment active worker count
+  activeUsers.add(userId); // Mark user as active
+  activeWorkerCount++; // Increment active worker count
 
-//   // Process the user's request queue
-//   while (trxRequestQueue.get(userId)?.length > 0) {
-//     const currentRequestHandler = trxRequestQueue.get(userId).shift(); // Get the next request from the queue
+  // Process the user's request queue
+  while (trxRequestQueue.get(userId)?.length > 0) {
+    const currentRequestHandler = trxRequestQueue.get(userId).shift(); // Get the next request from the queue
 
-//     try {
-//       await currentRequestHandler(); // Process the request
-//     } catch (error) {
-//       console.error(`Error processing TRX request for user ${userId}:`, error.message);
-//     }
-//   }
+    try {
+      await currentRequestHandler(); // Process the request
+    } catch (error) {
+      console.error(`Error processing TRX request for user ${userId}:`, error.message);
+    }
+  }
 
-//   activeUsers.delete(userId); // Mark user as inactive
-//   activeWorkerCount--; // Decrement active worker count
+  activeUsers.delete(userId); // Mark user as inactive
+  activeWorkerCount--; // Decrement active worker count
 
-//   // Clean up the queue if it's empty
-//   if (trxRequestQueue.get(userId)?.length === 0) {
-//     trxRequestQueue.delete(userId);
-//   }
-// };
+  // Clean up the queue if it's empty
+  if (trxRequestQueue.get(userId)?.length === 0) {
+    trxRequestQueue.delete(userId);
+  }
+};
 
-// // TRX API handler
-// export const rechargeTrxApi = (req, res) => {
-//   const { userId } = req.body;
+// TRX API handler
+export const rechargeTrxApi = (req, res) => {
+  const { userId } = req.body;
 
-//   // Enqueue the TRX request and process it
-//   enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
-// };
+  // Enqueue the TRX request and process it
+  enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
+};
+
 
 // Handle individual TRX requests
 // export const handleTrxRequest = async (req, res) => {
@@ -431,183 +432,6 @@ const handleUpiRequest = async (req, res) => {
 //   }
 // };
 // Handle individual TRX requests
-// export const handleTrxRequest = async (req, res) => {
-//   try {
-//     const { userId, transactionHash, email } = req.query;
-//     console.log("Received request with userId:", userId, "transactionHash:", transactionHash, "email:", email);
-
-//     const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
-//     const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
-//     console.log("Maintenance status:", isMaintenance);
-
-//     if (isMaintenance) {
-//       console.log("TRX recharge is currently unavailable.");
-//       return res.status(403).json({ error: "TRX recharge is currently unavailable." });
-//     }
-
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       console.log("User not found for userId:", userId);
-//       return res.status(404).json({ message: "User not found." });
-//     }
-
-//     // Step 1: Verify the Transaction
-//     const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
-//     console.log("Verifying transaction with URL:", verifyTransactionUrl);
-//     const transactionResponse = await axios.get(verifyTransactionUrl);
-//     console.log("Transaction verification response:", transactionResponse.data);
-
-//     if (transactionResponse.data.trx > 0) {
-//       const trxAmount = parseFloat(transactionResponse.data.trx);
-//       if (isNaN(trxAmount) || trxAmount <= 0) {
-//         console.log("Invalid transaction amount:", trxAmount);
-//         return res.status(400).json({ message: "Invalid transaction amount." });
-//       }
-
-//       // Step 2: Fetch TRX to INR Exchange Rate
-//       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
-//       console.log("Fetching TRX to INR exchange rate from:", exchangeRateUrl);
-//       const rateResponse = await axios.get(exchangeRateUrl);
-//       console.log("TRX to INR exchange rate:", rateResponse.data);
-
-//       const trxToInr = parseFloat(rateResponse.data.INR);
-
-//       if (isNaN(trxToInr) || trxToInr <= 0) {
-//         console.log("Invalid exchange rate:", trxToInr);
-//         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
-//       }
-
-//       const amountInInr = trxAmount * trxToInr;
-//       const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
-
-//       // **Step 3: Add Balance Immediately**
-//       console.log("Adding balance for userId:", userId, "Amount in INR:", amountInInr);
-//       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
-
-//       // Step 4: Store Recharge History
-//       const rechargeHistoryResponse = await fetch(
-//         "https://api.paidsms.org/api/history/saveRechargeHistory",
-//         {
-//           method: "POST",
-//           headers: { "Content-Type": "application/json", Accept: "application/json" },
-//           body: JSON.stringify({
-//             userId,
-//             method: "trx",
-//             amount: amountInInr,
-//             exchangeRate: trxToInr,
-//             transactionId: transactionHash,
-//             status: "completed",
-//             date_time: formattedDate,
-//           }),
-//           credentials: "include",
-//         }
-//       );
-
-//       if (!rechargeHistoryResponse.ok) {
-//         const error = await rechargeHistoryResponse.json();
-//         console.log("Failed to store recharge history:", error);
-//         return res
-//           .status(rechargeHistoryResponse.status)
-//           .json({ error: error.error });
-//       }
-
-//       // Step 5: **Send TRX in the Background**
-//       console.log("Initiating TRX transfer in the background.");
-//       (async () => {
-//         const transferTrxUrl = `https://phpfiles.paidsms.org/p/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
-//         const transferResponse = await axios.get(transferTrxUrl);
-//         console.log("TRX transfer response:", transferResponse.data);
-
-//         if (!transferResponse.data || transferResponse.data.status == "Fail") {
-//           // If transaction fails, store in UnsendTrx collection
-//           console.log("TRX transfer failed. Storing unsent transaction.");
-//           const newEntry = new UnsendTrx({
-//             email,
-//             trxAddress: user.trxWalletAddress,
-//             trxPrivateKey: user.trxPrivateKey,
-//           });
-//           await newEntry.save();
-//         }
-
-//         // Notify via Telegram Bot
-//         const balance = await User.findById({ _id: userId });
-//         const ipDetails = await getIpDetails(req);
-//         const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
-//         console.log("Sending notification via Telegram bot...");
-//         await trxRechargeTeleBot({
-//           email,
-//           userId,
-//           trx: trxAmount,
-//           exchangeRate: trxToInr,
-//           amount: amountInInr,
-//           balance: balance.balance,
-//           address: user.trxWalletAddress,
-//           sendTo: process.env.OWNER_WALLET_ADDRESS,
-//           Status: transferResponse.data?.status || "Pending",
-//           transactionHash,
-//           ip: ipDetailsString,
-//         });
-//       })();
-
-//       console.log("Transaction successfully processed. User balance updated.");
-//       return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
-//     } else {
-//       console.log("Transaction not found. Hash:", transactionHash);
-//       res.status(400).json({ error: "Transaction Not Found. Please try again." });
-//     }
-//   } catch (err) {
-//     console.error("Error during TRX recharge:", err.message);
-//     res.status(500).json({ error: "Internal server error. Please try again later." });
-//   }
-// };
-const userQueues = new Map(); // Map to store per-user queues
-
-// Enqueue TRX request for a specific user
-const enqueueTrxRequest = (userId, requestHandler) => {
-  if (!userQueues.has(userId)) {
-    userQueues.set(userId, []);
-  }
-
-  const userQueue = userQueues.get(userId);
-  userQueue.push(requestHandler);
-
-  // Start processing if this is the only request in the queue
-  if (userQueue.length === 1) {
-    processUserQueue(userId);
-  }
-};
-
-// Process requests for a specific user sequentially
-const processUserQueue = async (userId) => {
-  const userQueue = userQueues.get(userId);
-  if (!userQueue || userQueue.length === 0) {
-    userQueues.delete(userId); // Cleanup if queue is empty
-    return;
-  }
-
-  const currentRequestHandler = userQueue[0]; // Always process first request
-
-  try {
-    await currentRequestHandler(); // Process the request
-  } catch (error) {
-    console.error("Error processing TRX request:", error.message);
-  } finally {
-    userQueue.shift(); // Remove processed request
-
-    if (userQueue.length > 0) {
-      processUserQueue(userId); // Process next request for the user
-    } else {
-      userQueues.delete(userId); // Cleanup if queue is empty
-    }
-  }
-};
-
-// TRX API handler
-export const rechargeTrxApi = (req, res) => {
-  const { userId } = req.query;
-  enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
-};
-
 
 
 export const handleTrxRequest = async (req, res) => {
@@ -636,16 +460,20 @@ export const handleTrxRequest = async (req, res) => {
         return res.status(403).json({ error: "TRX recharge is currently unavailable." });
       }
     }
-
     const user = await User.findById(userId);
     if (!user) {
       console.log("User not found for userId:", userId);
       return res.status(404).json({ message: "User not found." });
     }
-
+    const transactionId=transactionHash
+    const existingTransaction = await RechargeHistory.findOne({ transactionId });
+  
+    if (existingTransaction) {
+      return res.status(400).json({ message: 'ID already used.' });
+    }
     // Step 1: Verify the Transaction
     const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
-    
+    console.log("Verifying transaction with URL:", verifyTransactionUrl);
     const transactionResponse = await axios.get(verifyTransactionUrl);
     console.log("Transaction verification response:", transactionResponse.data);
 
@@ -663,6 +491,7 @@ export const handleTrxRequest = async (req, res) => {
       console.log("TRX to INR exchange rate:", rateResponse.data);
 
       const trxToInr = parseFloat(rateResponse.data.INR);
+
       if (isNaN(trxToInr) || trxToInr <= 0) {
         console.log("Invalid exchange rate:", trxToInr);
         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
@@ -744,13 +573,207 @@ export const handleTrxRequest = async (req, res) => {
       return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
     } else {
       console.log("Transaction not found. Hash:", transactionHash);
-      res.status(400).json({ error: "ID Not Found." });
+      res.status(400).json({ error: "Transaction Not Found. Please try again." });
     }
   } catch (err) {
     console.error("Error during TRX recharge:", err.message);
     res.status(500).json({ error: "Internal server error. Please try again later." });
   }
 };
+
+
+
+// const userQueues = new Map(); // Map to store per-user queues
+
+// // Enqueue TRX request for a specific user
+// const enqueueTrxRequest = (userId, requestHandler) => {
+//   if (!userQueues.has(userId)) {
+//     userQueues.set(userId, []);
+//   }
+
+//   const userQueue = userQueues.get(userId);
+//   userQueue.push(requestHandler);
+
+//   // Start processing if this is the only request in the queue
+//   if (userQueue.length === 1) {
+//     processUserQueue(userId);
+//   }
+// };
+
+// // Process requests for a specific user sequentially
+// const processUserQueue = async (userId) => {
+//   const userQueue = userQueues.get(userId);
+//   if (!userQueue || userQueue.length === 0) {
+//     userQueues.delete(userId); // Cleanup if queue is empty
+//     return;
+//   }
+
+//   const currentRequestHandler = userQueue[0]; // Always process first request
+
+//   try {
+//     await currentRequestHandler(); // Process the request
+//   } catch (error) {
+//     console.error("Error processing TRX request:", error.message);
+//   } finally {
+//     userQueue.shift(); // Remove processed request
+
+//     if (userQueue.length > 0) {
+//       processUserQueue(userId); // Process next request for the user
+//     } else {
+//       userQueues.delete(userId); // Cleanup if queue is empty
+//     }
+//   }
+// };
+
+// // TRX API handler
+// export const rechargeTrxApi = (req, res) => {
+//   const { userId } = req.query;
+//   enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
+// };
+
+
+
+// export const handleTrxRequest = async (req, res) => {
+//   try {
+//     const { userId, transactionHash, email } = req.query;
+//     console.log("Received request with userId:", userId, "transactionHash:", transactionHash, "email:", email);
+
+//     // Fetch the admin IP from the database
+//     const admin = await Admin.findOne({});
+//     const apiAdminIp = admin?.adminIp; // Admin IP from the database
+
+//     console.log("Admin IP:", apiAdminIp);
+//     console.log("Client IP:", req.clientIp);
+
+//     // Check if the request comes from the admin IP
+//     const isAdmin = req.clientIp === apiAdminIp;
+
+//     // If NOT from the admin, check TRX maintenance
+//     if (!isAdmin) {
+//       const rechargeMaintenance = await Recharge.findOne({ maintenanceStatusTrx: true });
+//       const isMaintenance = rechargeMaintenance ? rechargeMaintenance.maintenanceStatusTrx : false;
+//       console.log("Maintenance status:", isMaintenance);
+
+//       if (isMaintenance) {
+//         console.log("TRX recharge is currently unavailable.");
+//         return res.status(403).json({ error: "TRX recharge is currently unavailable." });
+//       }
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       console.log("User not found for userId:", userId);
+//       return res.status(404).json({ message: "User not found." });
+//     }
+
+//     // Step 1: Verify the Transaction
+//     const verifyTransactionUrl = `https://phpfiles.paidsms.org/p/tron/?type=txnid&address=${user.trxWalletAddress}&hash=${transactionHash}`;
+    
+//     const transactionResponse = await axios.get(verifyTransactionUrl);
+//     console.log("Transaction verification response:", transactionResponse.data);
+
+//     if (transactionResponse.data.trx > 0) {
+//       const trxAmount = parseFloat(transactionResponse.data.trx);
+//       if (isNaN(trxAmount) || trxAmount <= 0) {
+//         console.log("Invalid transaction amount:", trxAmount);
+//         return res.status(400).json({ message: "Invalid transaction amount." });
+//       }
+
+//       // Step 2: Fetch TRX to INR Exchange Rate
+//       const exchangeRateUrl = "https://min-api.cryptocompare.com/data/price?fsym=TRX&tsyms=INR";
+//       console.log("Fetching TRX to INR exchange rate from:", exchangeRateUrl);
+//       const rateResponse = await axios.get(exchangeRateUrl);
+//       console.log("TRX to INR exchange rate:", rateResponse.data);
+
+//       const trxToInr = parseFloat(rateResponse.data.INR);
+//       if (isNaN(trxToInr) || trxToInr <= 0) {
+//         console.log("Invalid exchange rate:", trxToInr);
+//         return res.status(500).json({ message: "Failed to fetch TRX to INR exchange rate." });
+//       }
+
+//       const amountInInr = trxAmount * trxToInr;
+//       const formattedDate = moment().tz("Asia/Kolkata").format("DD/MM/YYYY HH:mm:ss A");
+
+//       // **Step 3: Add Balance Immediately**
+//       console.log("Adding balance for userId:", userId, "Amount in INR:", amountInInr);
+//       await User.updateOne({ _id: userId }, { $inc: { balance: amountInInr } });
+
+//       // Step 4: Store Recharge History
+//       const rechargeHistoryResponse = await fetch(
+//         "https://api.paidsms.org/api/history/saveRechargeHistory",
+//         {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json", Accept: "application/json" },
+//           body: JSON.stringify({
+//             userId,
+//             method: "trx",
+//             amount: amountInInr,
+//             exchangeRate: trxToInr,
+//             transactionId: transactionHash,
+//             status: "completed",
+//             date_time: formattedDate,
+//           }),
+//           credentials: "include",
+//         }
+//       );
+
+//       if (!rechargeHistoryResponse.ok) {
+//         const error = await rechargeHistoryResponse.json();
+//         console.log("Failed to store recharge history:", error);
+//         return res
+//           .status(rechargeHistoryResponse.status)
+//           .json({ error: error.error });
+//       }
+
+//       // Step 5: **Send TRX in the Background**
+//       console.log("Initiating TRX transfer in the background.");
+//       (async () => {
+//         const transferTrxUrl = `https://phpfiles.paidsms.org/p/tron/?type=send&from=${user.trxWalletAddress}&key=${user.trxPrivateKey}&to=${process.env.OWNER_WALLET_ADDRESS}`;
+//         const transferResponse = await axios.get(transferTrxUrl);
+//         console.log("TRX transfer response:", transferResponse.data);
+
+//         if (!transferResponse.data || transferResponse.data.status == "Fail") {
+//           // If transaction fails, store in UnsendTrx collection
+//           console.log("TRX transfer failed. Storing unsent transaction.");
+//           const newEntry = new UnsendTrx({
+//             email,
+//             trxAddress: user.trxWalletAddress,
+//             trxPrivateKey: user.trxPrivateKey,
+//           });
+//           await newEntry.save();
+//         }
+
+//         // Notify via Telegram Bot
+//         const balance = await User.findById({ _id: userId });
+//         const ipDetails = await getIpDetails(req);
+//         const ipDetailsString = `\nCity: ${ipDetails.city}\nState: ${ipDetails.state}\nPincode: ${ipDetails.pincode}\nCountry: ${ipDetails.country}\nService Provider: ${ipDetails.serviceProvider}\nIP: ${ipDetails.ip}`;
+//         console.log("Sending notification via Telegram bot...");
+//         await trxRechargeTeleBot({
+//           email,
+//           userId,
+//           trx: trxAmount,
+//           exchangeRate: trxToInr,
+//           amount: amountInInr,
+//           balance: balance.balance,
+//           address: user.trxWalletAddress,
+//           sendTo: process.env.OWNER_WALLET_ADDRESS,
+//           Status: transferResponse.data?.status || "Pending",
+//           transactionHash,
+//           ip: ipDetailsString,
+//         });
+//       })();
+
+//       console.log("Transaction successfully processed. User balance updated.");
+//       return res.status(200).json({ message: `${amountInInr}\u20B9 Added Successfully!`, balance: user.balance });
+//     } else {
+//       console.log("Transaction not found. Hash:", transactionHash);
+//       res.status(400).json({ error: "ID Not Found." });
+//     }
+//   } catch (err) {
+//     console.error("Error during TRX recharge:", err.message);
+//     res.status(500).json({ error: "Internal server error. Please try again later." });
+//   }
+// };
 
 
 
