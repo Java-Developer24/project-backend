@@ -264,54 +264,54 @@ const handleUpiRequest = async (req, res) => {
 
 
 
-const MAX_WORKERS = 100; // Adjust based on server capacity
-let activeWorkerCount = 0; // Track total active workers
-const trxRequestQueue = new Map(); // Queue per user
-const activeUsers = new Set(); // Track active users
+// const MAX_WORKERS = 100; // Adjust based on server capacity
+// let activeWorkerCount = 0; // Track total active workers
+// const trxRequestQueue = new Map(); // Queue per user
+// const activeUsers = new Set(); // Track active users
 
-// Enqueue a TRX request for a user
-const enqueueTrxRequest = (userId, requestHandler) => {
-  if (!trxRequestQueue.has(userId)) {
-    trxRequestQueue.set(userId, []); // Initialize queue for the user if it doesn't exist
-  }
-  trxRequestQueue.get(userId).push(requestHandler); // Add request to the user's queue
-  processTrxQueue(userId); // Start processing the queue if not already
-};
+// // Enqueue a TRX request for a user
+// const enqueueTrxRequest = (userId, requestHandler) => {
+//   if (!trxRequestQueue.has(userId)) {
+//     trxRequestQueue.set(userId, []); // Initialize queue for the user if it doesn't exist
+//   }
+//   trxRequestQueue.get(userId).push(requestHandler); // Add request to the user's queue
+//   processTrxQueue(userId); // Start processing the queue if not already
+// };
 
-// Process TRX queue for a specific user
-const processTrxQueue = async (userId) => {
-  if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; // Prevent processing if user is already active or worker limit is reached
+// // Process TRX queue for a specific user
+// const processTrxQueue = async (userId) => {
+//   if (activeUsers.has(userId) || activeWorkerCount >= MAX_WORKERS) return; // Prevent processing if user is already active or worker limit is reached
 
-  activeUsers.add(userId); // Mark user as active
-  activeWorkerCount++; // Increment active worker count
+//   activeUsers.add(userId); // Mark user as active
+//   activeWorkerCount++; // Increment active worker count
 
-  // Process the user's request queue
-  while (trxRequestQueue.get(userId)?.length > 0) {
-    const currentRequestHandler = trxRequestQueue.get(userId).shift(); // Get the next request from the queue
+//   // Process the user's request queue
+//   while (trxRequestQueue.get(userId)?.length > 0) {
+//     const currentRequestHandler = trxRequestQueue.get(userId).shift(); // Get the next request from the queue
 
-    try {
-      await currentRequestHandler(); // Process the request
-    } catch (error) {
-      console.error(`Error processing TRX request for user ${userId}:`, error.message);
-    }
-  }
+//     try {
+//       await currentRequestHandler(); // Process the request
+//     } catch (error) {
+//       console.error(`Error processing TRX request for user ${userId}:`, error.message);
+//     }
+//   }
 
-  activeUsers.delete(userId); // Mark user as inactive
-  activeWorkerCount--; // Decrement active worker count
+//   activeUsers.delete(userId); // Mark user as inactive
+//   activeWorkerCount--; // Decrement active worker count
 
-  // Clean up the queue if it's empty
-  if (trxRequestQueue.get(userId)?.length === 0) {
-    trxRequestQueue.delete(userId);
-  }
-};
+//   // Clean up the queue if it's empty
+//   if (trxRequestQueue.get(userId)?.length === 0) {
+//     trxRequestQueue.delete(userId);
+//   }
+// };
 
-// TRX API handler
-export const rechargeTrxApi = (req, res) => {
-  const { userId } = req.body;
+// // TRX API handler
+// export const rechargeTrxApi = (req, res) => {
+//   const { userId } = req.body;
 
-  // Enqueue the TRX request and process it
-  enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
-};
+//   // Enqueue the TRX request and process it
+//   enqueueTrxRequest(userId, () => handleTrxRequest(req, res));
+// };
 
 // Handle individual TRX requests
 // export const handleTrxRequest = async (req, res) => {
@@ -560,6 +560,43 @@ export const rechargeTrxApi = (req, res) => {
 //     res.status(500).json({ error: "Internal server error. Please try again later." });
 //   }
 // };
+
+const WORKER_COUNT = 10000; // Number of concurrent workers
+const trxRequestQueue = [];
+let activeWorkers = 0;
+
+// Enqueue a TRX request
+const enqueueTrxRequest = (requestHandler) => {
+  trxRequestQueue.push(requestHandler);
+  processTrxQueue();
+};
+
+// Process TRX queue with a worker pool
+const processTrxQueue = async () => {
+  if (activeWorkers >= WORKER_COUNT || trxRequestQueue.length === 0) return;
+
+  activeWorkers++;
+  const currentRequestHandler = trxRequestQueue.shift();
+
+  try {
+    await currentRequestHandler();
+  } catch (error) {
+    console.error("Error processing TRX request:", error.message);
+  } finally {
+    activeWorkers--;
+
+    // Process the next task in the queue
+    if (trxRequestQueue.length > 0) {
+      processTrxQueue();
+    }
+  }
+};
+
+// TRX API handler
+export const rechargeTrxApi = (req, res) => {
+  enqueueTrxRequest(() => handleTrxRequest(req, res));
+};
+
 
 export const handleTrxRequest = async (req, res) => {
   try {
